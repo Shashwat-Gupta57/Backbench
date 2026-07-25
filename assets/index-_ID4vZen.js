@@ -439,7 +439,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
       </div>
     </header>
     ${pg(2)}
-  `,e.PROFILE);let n=window.location.hash,r=null;n.includes(`?u=`)&&(r=n.split(`?u=`)[1]);let i=null;try{if(r){let e=await U(Cu(V(q,Y.USERS),bu(`username`),Su(r)));if(e.exists()){let t=e.val();i=Object.values(t)[0]}}else i=await Vh(J.currentUser.uid)}catch(e){console.error(`Error loading profile:`,e)}if(!i&&!r&&(i=await Vh(J.currentUser.uid)),!i){t.innerHTML=Z(`
+  `,e.PROFILE);let n=window.location.hash,r=null;if(n.includes(`?u=`)){let e=n.split(`?u=`)[1];e&&(r=decodeURIComponent(e).trim().replace(/^@+/,``))}let i=null;try{if(r){let e=V(q,Y.USERS),t=await U(Cu(e,bu(`username`),Su(r)));if(t.exists()){let e=t.val();i=Object.values(e)[0]}else{let t=await U(e);t.exists()&&t.forEach(e=>{let t=e.val();t&&t.username&&t.username.toLowerCase()===r.toLowerCase()&&(i=t)})}}else i=await Vh(J.currentUser.uid)}catch(e){console.error(`Error loading profile:`,e)}if(!i&&!r&&(i=await Vh(J.currentUser.uid)),!i){t.innerHTML=Z(`
       <header class="sticky-header">
         <div style="display: flex; align-items: center; gap: 16px;">
           <button class="btn-ghost" onclick="window.history.back()">
@@ -451,7 +451,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
       <div style="padding: 60px 20px; text-align: center;" class="fade-in">
         <span class="material-symbols-outlined" style="font-size: 48px; color: var(--error-color); margin-bottom: 12px;">person_off</span>
         <h2 style="font-size: 20px; font-weight: 800;">User not found</h2>
-        <p style="color: var(--text-secondary); margin-top: 4px;">The student profile you are looking for does not exist on Backbench.</p>
+        <p style="color: var(--text-secondary); margin-top: 4px;">The student profile "@${X(r||``)}" does not exist on Backbench.</p>
       </div>
     `,e.PROFILE),Q();return}let a=i.uid===J.currentUser.uid,o=i.verifiedStudent||i.role===`staff`||i.role===`admin`,s=i.bannerStyle||Dg[0].gradient,c=Og.find(e=>e.id===i.quoteThemeId)||Og[0],l=vg(i),u=i.fontThemeId||`default`,d=!a&&await sg(i.uid),f=await ug(i.uid),p=gg(i,100,`border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${a?`pointer`:`default`};`),m=Dg.map(e=>{let t=e.gradient===s;return`
       <div 
