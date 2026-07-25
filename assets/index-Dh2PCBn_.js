@@ -360,7 +360,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         </div>
       </div>
     </div>
-  `;let r=document.getElementById(`auth-form`),i=document.getElementById(`auth-error`),a=document.getElementById(`google-btn`),o=document.getElementById(`password`),s=document.getElementById(`toggle-password-btn`);s.addEventListener(`click`,()=>{let e=o.type===`password`;o.type=e?`text`:`password`;let t=s.querySelector(`.material-symbols-outlined`);t.textContent=e?`visibility_off`:`visibility`,s.title=e?`Hide Password`:`Show Password`}),a.addEventListener(`click`,async()=>{a.disabled=!0,a.textContent=`Connecting...`;let e=await zh();e.success?window.location.hash=`#/`:(i.textContent=e.error,i.style.display=`block`,a.disabled=!1,a.innerHTML=`<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 18px; height: 18px;" alt="Google" /> Continue with Google`)}),r.addEventListener(`submit`,async e=>{e.preventDefault(),i.style.display=`none`;let t=document.getElementById(`email`).value,a=document.getElementById(`password`).value,o=r.querySelector(`button[type="submit"]`);if(o.disabled=!0,o.textContent=`Authenticating...`,n){let e=await Ih(t,a);e.success?window.location.hash=`#/`:(i.textContent=e.error,i.style.display=`block`,o.disabled=!1,o.textContent=`Log In`)}else{let e=document.getElementById(`name`).value,n=document.getElementById(`username`).value,r=document.getElementById(`admissionNumber`).value,s=document.getElementById(`class`).value,c=document.getElementById(`mobile`).value;if(!sg(n)){i.textContent=`Username must be 3-20 characters long (letters, numbers, and underscores only).`,i.style.display=`block`,o.disabled=!1,o.textContent=`Create Account`;return}let l=await Fh({email:t,password:a,name:e,username:n,admissionNumber:r,userClass:s,mobile:c});l.success?window.location.hash=`#/`:(i.textContent=l.error,i.style.display=`block`,o.disabled=!1,o.textContent=`Create Account`)}})}function lg(e){return new Promise((t,n)=>{if(!e||!e.type.startsWith(`image/`))return n(Error(`Please select a valid image file.`));if(e.size>5*1024*1024)return n(Error(`Original image must be under 5MB before downscaling.`));let r=new FileReader;r.onload=e=>{let r=new Image;r.onload=()=>{let e=document.createElement(`canvas`),n=r.width,i=r.height;n>i?n>480&&(i=Math.round(i*480/n),n=480):i>480&&(n=Math.round(n*480/i),i=480),e.width=n,e.height=i;let a=e.getContext(`2d`);a.imageSmoothingEnabled=!0,a.imageSmoothingQuality=`high`,a.drawImage(r,0,0,n,i),t(e.toDataURL(`image/jpeg`,.85))},r.onerror=()=>n(Error(`Failed to load image for processing.`)),r.src=e.target.result},r.onerror=()=>n(Error(`Failed to read file.`)),r.readAsDataURL(e)})}async function ug(e){if(!q.currentUser){window.location.hash=`#/login`;return}e.innerHTML=X(`
+  `;let r=document.getElementById(`auth-form`),i=document.getElementById(`auth-error`),a=document.getElementById(`google-btn`),o=document.getElementById(`password`),s=document.getElementById(`toggle-password-btn`);s.addEventListener(`click`,()=>{let e=o.type===`password`;o.type=e?`text`:`password`;let t=s.querySelector(`.material-symbols-outlined`);t.textContent=e?`visibility_off`:`visibility`,s.title=e?`Hide Password`:`Show Password`}),a.addEventListener(`click`,async()=>{a.disabled=!0,a.textContent=`Connecting...`;let e=await zh();e.success?window.location.hash=`#/`:(i.textContent=e.error,i.style.display=`block`,a.disabled=!1,a.innerHTML=`<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 18px; height: 18px;" alt="Google" /> Continue with Google`)}),r.addEventListener(`submit`,async e=>{e.preventDefault(),i.style.display=`none`;let t=document.getElementById(`email`).value,a=document.getElementById(`password`).value,o=r.querySelector(`button[type="submit"]`);if(o.disabled=!0,o.textContent=`Authenticating...`,n){let e=await Ih(t,a);e.success?window.location.hash=`#/`:(i.textContent=e.error,i.style.display=`block`,o.disabled=!1,o.textContent=`Log In`)}else{let e=document.getElementById(`name`).value,n=document.getElementById(`username`).value,r=document.getElementById(`admissionNumber`).value,s=document.getElementById(`class`).value,c=document.getElementById(`mobile`).value;if(!sg(n)){i.textContent=`Username must be 3-20 characters long (letters, numbers, and underscores only).`,i.style.display=`block`,o.disabled=!1,o.textContent=`Create Account`;return}let l=await Fh({email:t,password:a,name:e,username:n,admissionNumber:r,userClass:s,mobile:c});l.success?window.location.hash=`#/`:(i.textContent=l.error,i.style.display=`block`,o.disabled=!1,o.textContent=`Create Account`)}})}function lg(e){return new Promise((t,n)=>{if(!e||!e.type.startsWith(`image/`))return n(Error(`Please select a valid image file.`));if(e.size>5*1024*1024)return n(Error(`Original image must be under 5MB before downscaling.`));let r=new FileReader;r.onload=e=>{let r=new Image;r.onload=()=>{let e=document.createElement(`canvas`),n=r.width,i=r.height;n>i?n>480&&(i=Math.round(i*480/n),n=480):i>480&&(n=Math.round(n*480/i),i=480),e.width=n,e.height=i;let a=e.getContext(`2d`);a.imageSmoothingEnabled=!0,a.imageSmoothingQuality=`high`,a.drawImage(r,0,0,n,i),t(e.toDataURL(`image/jpeg`,.85))},r.onerror=()=>n(Error(`Failed to load image for processing.`)),r.src=e.target.result},r.onerror=()=>n(Error(`Failed to read file.`)),r.readAsDataURL(e)})}async function ug(t){if(!q.currentUser){window.location.hash=`#/login`;return}t.innerHTML=X(`
     <header class="sticky-header">
       <div style="display: flex; align-items: center; gap: 16px;">
         <button class="btn-ghost" onclick="window.history.back()" title="Back">
@@ -370,7 +370,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
       </div>
     </header>
     ${ng(2)}
-  `);let t=window.location.hash,n=null;t.includes(`?u=`)&&(n=t.split(`?u=`)[1]);let r=null;try{if(n){let e=await B(Eu(z(K,J.USERS),Cu(`username`),Tu(n)));if(e.exists()){let t=e.val();r=Object.values(t)[0]}}else r=await qh(q.currentUser.uid)}catch(e){console.error(`Error loading profile:`,e)}if(!r&&!n&&(r=await qh(q.currentUser.uid)),!r){e.innerHTML=X(`
+  `,e.PROFILE);let n=window.location.hash,r=null;n.includes(`?u=`)&&(r=n.split(`?u=`)[1]);let i=null;try{if(r){let e=await B(Eu(z(K,J.USERS),Cu(`username`),Tu(r)));if(e.exists()){let t=e.val();i=Object.values(t)[0]}}else i=await qh(q.currentUser.uid)}catch(e){console.error(`Error loading profile:`,e)}if(!i&&!r&&(i=await qh(q.currentUser.uid)),!i){t.innerHTML=X(`
       <header class="sticky-header">
         <div style="display: flex; align-items: center; gap: 16px;">
           <button class="btn-ghost" onclick="window.history.back()">
@@ -384,7 +384,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         <h2 style="font-size: 20px; font-weight: 800;">User not found</h2>
         <p style="color: var(--text-secondary); margin-top: 4px;">The student profile you are looking for does not exist on Backbench.</p>
       </div>
-    `),Z();return}let i=r.name?r.name.charAt(0).toUpperCase():`?`,a=r.uid===q.currentUser.uid,o=r.verifiedStudent||r.role===`staff`||r.role===`admin`,s=r.profilePicture,c=s?`<img src="${s}" id="profile-avatar-img" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${a?`pointer`:`default`};" alt="${Y(r.name)}" title="${a?`Click to change profile picture`:``}" />`:`<div class="avatar" id="profile-avatar-img" style="width: 100px; height: 100px; font-size: 42px; border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${a?`pointer`:`default`};" title="${a?`Click to change profile picture`:``}">${i}</div>`;if(e.innerHTML=X(`
+    `,e.PROFILE),Z();return}let a=i.name?i.name.charAt(0).toUpperCase():`?`,o=i.uid===q.currentUser.uid,s=i.verifiedStudent||i.role===`staff`||i.role===`admin`,c=i.profilePicture,l=c?`<img src="${c}" id="profile-avatar-img" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${o?`pointer`:`default`};" alt="${Y(i.name)}" title="${o?`Click to change profile picture`:``}" />`:`<div class="avatar" id="profile-avatar-img" style="width: 100px; height: 100px; font-size: 42px; border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${o?`pointer`:`default`};" title="${o?`Click to change profile picture`:``}">${a}</div>`;if(t.innerHTML=X(`
     <!-- Hidden File Input for 480p PFP Upload -->
     <input type="file" id="pfp-upload-input" accept="image/*" style="display: none;" />
 
@@ -396,10 +396,10 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         </button>
         <div>
           <h1 class="header-title" style="display: flex; align-items: center; gap: 4px;">
-            ${Y(r.name)}
-            ${o?`<span class="material-symbols-outlined verified-icon">verified</span>`:``}
+            ${Y(i.name)}
+            ${s?`<span class="material-symbols-outlined verified-icon">verified</span>`:``}
           </h1>
-          <span style="color: var(--text-secondary); font-size: 13px;">${r.postCount||0} posts</span>
+          <span style="color: var(--text-secondary); font-size: 13px;">${i.postCount||0} posts</span>
         </div>
       </div>
     </header>
@@ -411,45 +411,45 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
     <div style="padding: 0 16px 16px 16px; border-bottom: 1px solid var(--border-color);" class="fade-in">
       <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: -50px; margin-bottom: 16px;">
         <div style="position: relative;" id="avatar-wrapper">
-          ${c}
-          ${a?`
+          ${l}
+          ${o?`
             <div style="position: absolute; bottom: 4px; right: 4px; background: var(--accent-primary); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #fff; border: 2px solid var(--bg-primary); pointer-events: none;">
               <span class="material-symbols-outlined" style="font-size: 16px;">photo_camera</span>
             </div>
           `:``}
         </div>
 
-        ${a?`<button class="btn btn-outline" id="edit-profile-btn" style="border-radius: 9999px; font-weight: 700;">Edit Profile Photo</button>`:`<button class="btn" style="border-radius: 9999px;">Follow</button>`}
+        ${o?`<button class="btn btn-outline" id="edit-profile-btn" style="border-radius: 9999px; font-weight: 700;">Edit Profile Photo</button>`:`<button class="btn" style="border-radius: 9999px;">Follow</button>`}
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 4px;">
         <h2 style="font-size: 22px; font-weight: 800; display: flex; align-items: center; gap: 6px;">
-          ${Y(r.name)}
-          ${o?`<span class="material-symbols-outlined verified-icon">verified</span>`:``}
+          ${Y(i.name)}
+          ${s?`<span class="material-symbols-outlined verified-icon">verified</span>`:``}
         </h2>
-        <span style="color: var(--text-secondary); font-size: 15px;">@${Y(r.username)}</span>
+        <span style="color: var(--text-secondary); font-size: 15px;">@${Y(i.username)}</span>
       </div>
 
       <p style="margin-top: 12px; font-size: 15px; line-height: 1.5; color: var(--text-primary);">
-        ${Y(r.bio||`St. Joseph's College Student`)}
+        ${Y(i.bio||`St. Joseph's College Student`)}
       </p>
 
       <div style="display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; color: var(--text-secondary); font-size: 14px;">
         <div style="display: flex; align-items: center; gap: 6px;">
           <span class="material-symbols-outlined" style="font-size: 18px;">school</span>
-          <span>Class ${Y(r.class||`N/A`)}</span>
+          <span>Class ${Y(i.class||`N/A`)}</span>
         </div>
 
         <div style="display: flex; align-items: center; gap: 6px;">
           <span class="material-symbols-outlined" style="font-size: 18px;">calendar_today</span>
-          <span>Joined ${new Date(r.joinedDate||Date.now()).toLocaleDateString(`en-US`,{month:`short`,year:`numeric`})}</span>
+          <span>Joined ${new Date(i.joinedDate||Date.now()).toLocaleDateString(`en-US`,{month:`short`,year:`numeric`})}</span>
         </div>
       </div>
 
       <div style="display: flex; gap: 24px; margin-top: 16px; font-size: 14px;">
-        <div><strong style="color: var(--text-primary);">${r.likesReceived||0}</strong> <span style="color: var(--text-secondary);">Likes</span></div>
-        <div><strong style="color: var(--text-primary);">${r.replyCount||0}</strong> <span style="color: var(--text-secondary);">Replies</span></div>
-        <div><strong style="color: var(--text-primary);">${r.postCount||0}</strong> <span style="color: var(--text-secondary);">Posts</span></div>
+        <div><strong style="color: var(--text-primary);">${i.likesReceived||0}</strong> <span style="color: var(--text-secondary);">Likes</span></div>
+        <div><strong style="color: var(--text-primary);">${i.replyCount||0}</strong> <span style="color: var(--text-secondary);">Replies</span></div>
+        <div><strong style="color: var(--text-primary);">${i.postCount||0}</strong> <span style="color: var(--text-secondary);">Posts</span></div>
       </div>
     </div>
 
@@ -462,9 +462,9 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
 
     <!-- User Feed Placeholder -->
     <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">
-      <p style="font-size: 14px;">Posts by @${Y(r.username)} will appear here.</p>
+      <p style="font-size: 14px;">Posts by @${Y(i.username)} will appear here.</p>
     </div>
-  `,ROUTES.PROFILE),Z(),a){let t=document.getElementById(`pfp-upload-input`),n=document.getElementById(`edit-profile-btn`),i=document.getElementById(`avatar-wrapper`),a=()=>t.click();n&&n.addEventListener(`click`,a),i&&i.addEventListener(`click`,a),t.addEventListener(`change`,async t=>{let i=t.target.files[0];if(i)try{n&&(n.disabled=!0,n.textContent=`Processing PFP...`);let t=await lg(i);await Jh(r.uid,{profilePicture:t}),ug(e)}catch(e){console.error(e),alert(e.message||`Failed to update profile picture.`)}finally{n&&(n.disabled=!1,n.textContent=`Edit Profile Photo`)}})}}async function dg(e){if(!e)return null;let t=await B(z(K,`${J.POSTS}/${e}`));return t.exists()?t.val():null}async function fg(e,t){let n=q.currentUser;if(!n)throw Error(`Not authenticated`);let r=t?t.trim():``;if(!r)throw Error(`Reply cannot be empty`);if(r.length>Q.REPLY_MAX_LENGTH)throw Error(`Reply cannot exceed ${Q.REPLY_MAX_LENGTH} characters`);let i=cu(z(K,`${J.REPLIES}/${e}`)),a={replyId:i.key,parentPost:e,parentReply:null,authorId:n.uid,content:r,timestamp:new Date().toISOString(),likes:0};return await uu(i,a),await zu(z(K,`${J.POSTS}/${e}`),e=>(e&&(e.replyCount=(e.replyCount||0)+1),e)),a}function pg(e,t){let n=Eu(z(K,`${J.REPLIES}/${e}`),Cu(`timestamp`)),r=hu(n,e=>{let n=[];e.forEach(e=>{n.push(e.val())}),t(n)});return()=>gu(n,`value`,r)}var mg=null;async function hg(t){if(!q.currentUser){window.location.hash=`#/login`;return}t.innerHTML=X(`
+  `,e.PROFILE),Z(),o){let e=document.getElementById(`pfp-upload-input`),n=document.getElementById(`edit-profile-btn`),r=document.getElementById(`avatar-wrapper`),a=()=>e.click();n&&n.addEventListener(`click`,a),r&&r.addEventListener(`click`,a),e.addEventListener(`change`,async e=>{let r=e.target.files[0];if(r)try{n&&(n.disabled=!0,n.textContent=`Processing PFP...`);let e=await lg(r);await Jh(i.uid,{profilePicture:e}),ug(t)}catch(e){console.error(e),alert(e.message||`Failed to update profile picture.`)}finally{n&&(n.disabled=!1,n.textContent=`Edit Profile Photo`)}})}}async function dg(e){if(!e)return null;let t=await B(z(K,`${J.POSTS}/${e}`));return t.exists()?t.val():null}async function fg(e,t){let n=q.currentUser;if(!n)throw Error(`Not authenticated`);let r=t?t.trim():``;if(!r)throw Error(`Reply cannot be empty`);if(r.length>Q.REPLY_MAX_LENGTH)throw Error(`Reply cannot exceed ${Q.REPLY_MAX_LENGTH} characters`);let i=cu(z(K,`${J.REPLIES}/${e}`)),a={replyId:i.key,parentPost:e,parentReply:null,authorId:n.uid,content:r,timestamp:new Date().toISOString(),likes:0};return await uu(i,a),await zu(z(K,`${J.POSTS}/${e}`),e=>(e&&(e.replyCount=(e.replyCount||0)+1),e)),a}function pg(e,t){let n=Eu(z(K,`${J.REPLIES}/${e}`),Cu(`timestamp`)),r=hu(n,e=>{let n=[];e.forEach(e=>{n.push(e.val())}),t(n)});return()=>gu(n,`value`,r)}var mg=null;async function hg(t){if(!q.currentUser){window.location.hash=`#/login`;return}t.innerHTML=X(`
     <header class="sticky-header">
       <div style="display: flex; align-items: center; gap: 16px;">
         <button class="btn-ghost" onclick="window.history.back()" title="Back">
