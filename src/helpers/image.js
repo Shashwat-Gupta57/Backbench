@@ -4,9 +4,9 @@ export function processProfilePicture(file) {
       return reject(new Error('Please select a valid image file.'));
     }
 
-    // Enforce 5MB max raw upload size before processing
-    if (file.size > 5 * 1024 * 1024) {
-      return reject(new Error('Original image must be under 5MB before downscaling.'));
+    // Allow up to 25MB raw mobile camera uploads before downscaling
+    if (file.size > 25 * 1024 * 1024) {
+      return reject(new Error('Selected image file is too large (max 25MB).'));
     }
 
     const reader = new FileReader();
@@ -14,7 +14,7 @@ export function processProfilePicture(file) {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_DIMENSION = 480; // Downscale to 480p max dimension
+        const MAX_DIMENSION = 320; // 320px resolution is perfect for profile avatars (~20-40KB)
 
         let width = img.width;
         let height = img.height;
@@ -35,19 +35,18 @@ export function processProfilePicture(file) {
         canvas.height = height;
 
         const ctx = canvas.getContext('2d');
-        // High quality smoothing
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Compress to JPEG at 0.85 quality (results in ~30-60KB file, well under 1MB)
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        // Compress to JPEG at 0.80 quality
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.80);
         resolve(dataUrl);
       };
-      img.onerror = () => reject(new Error('Failed to load image for processing.'));
+      img.onerror = () => reject(new Error('Failed to process mobile image. Please try a different photo.'));
       img.src = e.target.result;
     };
-    reader.onerror = () => reject(new Error('Failed to read file.'));
+    reader.onerror = () => reject(new Error('Failed to read file from phone gallery.'));
     reader.readAsDataURL(file);
   });
 }

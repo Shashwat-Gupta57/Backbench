@@ -166,9 +166,19 @@ export function invalidateUserCache(uid) {
 }
 
 export async function updateUserProfile(uid, data) {
-  const userRef = ref(db, `${PATHS.USERS}/${uid}`);
-  await update(userRef, data);
-  userCache.delete(uid);
+  const currentUid = auth.currentUser?.uid || uid;
+  if (!currentUid) throw new Error('Not authenticated');
+
+  const cleanData = {};
+  Object.keys(data).forEach(key => {
+    if (data[key] !== undefined) {
+      cleanData[key] = data[key];
+    }
+  });
+
+  const userRef = ref(db, `${PATHS.USERS}/${currentUid}`);
+  await update(userRef, cleanData);
+  userCache.delete(currentUid);
 }
 
 export async function toggleLikePost(postId) {
