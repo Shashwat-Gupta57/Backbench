@@ -1,6 +1,6 @@
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { auth, db } from '../firebase/firebase.js';
-import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
+import { ref, get } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { ROUTES } from '../constants/routes.js';
 import { PRESET_BANNERS } from '../constants/banners.js';
@@ -49,40 +49,33 @@ export async function renderProfile(container) {
 
   try {
     if (targetUsername) {
+      const cleanTarget = targetUsername.toLowerCase().replace(/^[@\-\s]+/, '');
       const usersRef = ref(db, PATHS.USERS);
-      // Attempt 1: Exact lookup by cleaned username
-      const q = query(usersRef, orderByChild('username'), equalTo(targetUsername));
-      const snap = await get(q);
+      const allSnap = await get(usersRef);
 
-      if (snap.exists()) {
-        const data = snap.val();
-        userProfile = Object.values(data)[0];
-      } else {
-        // Attempt 2: Comprehensive fallback scan across users node
-        const allSnap = await get(usersRef);
-        if (allSnap.exists()) {
-          const cleanTarget = targetUsername.toLowerCase().replace(/^[@\-\s]+/, '');
-          allSnap.forEach((childSnap) => {
-            const u = childSnap.val();
-            if (!u) return;
+      if (allSnap.exists()) {
+        allSnap.forEach((childSnap) => {
+          if (userProfile) return; // Found match
+          const u = childSnap.val();
+          if (!u) return;
 
-            const uName = (u.username || '').toLowerCase().replace(/^[@\-\s]+/, '');
-            const uUid = (u.uid || '');
-            const uEmail = (u.email || '').toLowerCase();
-            const uFullName = (u.name || '').toLowerCase();
+          const uName = (u.username || '').toLowerCase().replace(/^[@\-\s]+/, '');
+          const uUid = (u.uid || '');
+          const uEmail = (u.email || '').toLowerCase();
+          const uFullName = (u.name || '').toLowerCase();
 
-            if (
-              uName === cleanTarget ||
-              uUid === targetUsername ||
-              uUid === rawTargetParam ||
-              uEmail === cleanTarget ||
-              (uName && cleanTarget && (uName.includes(cleanTarget) || cleanTarget.includes(uName))) ||
-              (uFullName && cleanTarget && uFullName.includes(cleanTarget))
-            ) {
-              userProfile = u;
-            }
-          });
-        }
+          // Resilient matching across username, uid, email, display name
+          if (
+            uName === cleanTarget ||
+            uUid === targetUsername ||
+            uUid === rawTargetParam ||
+            uEmail === cleanTarget ||
+            (uName && cleanTarget && (uName.includes(cleanTarget) || cleanTarget.includes(uName))) ||
+            (uFullName && cleanTarget && uFullName.includes(cleanTarget))
+          ) {
+            userProfile = u;
+          }
+        });
       }
     } else {
       userProfile = await getUserProfile(auth.currentUser.uid);
@@ -189,7 +182,7 @@ export async function renderProfile(container) {
             <span class="brand-badge" style="font-size: 11px; background: rgba(0, 186, 124, 0.2); color: #00BA7C; border-color: #00BA7C; display: inline-flex; align-items: center; gap: 2px;">
               <span class="material-symbols-outlined" style="font-size: 13px;">school</span> Faculty
             </span>
-          ` : (userProfile.verifiedStudent || userProfile.role === 'staff' || userRole === 'admin') ? `
+          ` : (userProfile.verifiedStudent || userProfile.role === 'staff' || userProfile.role === 'admin') ? `
             <span class="material-symbols-outlined verified-icon" style="font-size: 20px;">verified</span>
           ` : ''}
         </h2>
