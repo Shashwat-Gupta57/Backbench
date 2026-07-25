@@ -3,6 +3,7 @@ import { auth, db } from '../firebase/firebase.js';
 import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { ROUTES } from '../constants/routes.js';
+import { PRESET_BANNERS } from '../constants/banners.js';
 import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost } from '../services/postService.js';
 import { processProfilePicture } from '../helpers/image.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
@@ -82,12 +83,25 @@ export async function renderProfile(container) {
 
   const isSelf = userProfile.uid === auth.currentUser.uid;
   const verified = userProfile.verifiedStudent || userProfile.role === 'staff' || userProfile.role === 'admin';
+  const currentBannerGradient = userProfile.bannerStyle || PRESET_BANNERS[0].gradient;
 
   const avatarDisplayHTML = renderUserAvatar(
     userProfile, 
     100, 
     `border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${isSelf ? 'pointer' : 'default'};`
   );
+
+  const bannerSwatchesHTML = PRESET_BANNERS.map(b => {
+    const isSelected = b.gradient === currentBannerGradient;
+    return `
+      <div 
+        class="banner-swatch ${isSelected ? 'selected' : ''}" 
+        data-gradient="${escapeHTML(b.gradient)}"
+        title="${b.name}"
+        style="height: 40px; border-radius: 10px; background: ${b.gradient}; cursor: pointer; border: ${isSelected ? '3px solid #fff' : '1px solid rgba(255,255,255,0.2)'}; box-shadow: ${isSelected ? '0 0 12px var(--accent-primary)' : 'none'}; transition: all 0.2s ease;"
+      ></div>
+    `;
+  }).join('');
 
   const content = `
     <!-- Hidden File Input for 480p PFP Upload -->
@@ -110,7 +124,7 @@ export async function renderProfile(container) {
     </header>
 
     <!-- Hero Cover Banner -->
-    <div style="height: 140px; background: linear-gradient(135deg, #1D9BF0 0%, #004477 100%); position: relative;"></div>
+    <div id="profile-cover-banner" style="height: 140px; background: ${currentBannerGradient}; position: relative; transition: background 0.3s ease;"></div>
 
     <!-- Profile Info Box -->
     <div style="padding: 0 16px 16px 16px; border-bottom: 1px solid var(--border-color);" class="fade-in">
@@ -192,7 +206,7 @@ export async function renderProfile(container) {
 
     <!-- Edit Profile Modal Overlay -->
     <div id="edit-profile-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; padding: 20px;">
-      <div class="card fade-in" style="width: 100%; max-width: 480px; padding: 24px; border-radius: 20px; position: relative;">
+      <div class="card fade-in" style="width: 100%; max-width: 500px; padding: 24px; border-radius: 20px; position: relative; max-height: 90vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h3 style="font-size: 19px; font-weight: 800;">Edit Profile</h3>
           <button id="close-modal-btn" class="btn-ghost" style="padding: 4px;">
@@ -201,6 +215,11 @@ export async function renderProfile(container) {
         </div>
 
         <form id="edit-profile-form">
+          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Choose Cover Banner Theme</label>
+          <div id="banner-swatches-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px;">
+            ${bannerSwatchesHTML}
+          </div>
+
           <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: block;">Full Name</label>
           <input type="text" id="edit-name" class="input-field" value="${escapeHTML(userProfile.name)}" required />
 
@@ -312,6 +331,28 @@ export async function renderProfile(container) {
     const editForm = document.getElementById('edit-profile-form');
     const taglineInput = document.getElementById('edit-tagline');
     const taglineCounter = document.getElementById('tagline-counter');
+    const coverBanner = document.getElementById('profile-cover-banner');
+
+    let selectedBannerGradient = currentBannerGradient;
+
+    // Swatches click selection
+    const swatches = document.querySelectorAll('.banner-swatch');
+    swatches.forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        selectedBannerGradient = swatch.dataset.gradient;
+        swatches.forEach(s => {
+          s.style.border = '1px solid rgba(255,255,255,0.2)';
+          s.style.boxShadow = 'none';
+        });
+        swatch.style.border = '3px solid #fff';
+        swatch.style.boxShadow = '0 0 12px var(--accent-primary)';
+
+        // Live preview cover banner
+        if (coverBanner) {
+          coverBanner.style.background = selectedBannerGradient;
+        }
+      });
+    });
 
     const openModal = () => { modal.style.display = 'flex'; };
     const closeModal = () => { modal.style.display = 'none'; };
@@ -352,7 +393,8 @@ export async function renderProfile(container) {
           await updateUserProfile(userProfile.uid, {
             name,
             tagline,
-            bio
+            bio,
+            bannerStyle: selectedBannerGradient
           });
           closeModal();
           renderProfile(container);
