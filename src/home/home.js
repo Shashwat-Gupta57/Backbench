@@ -14,17 +14,13 @@ import { auth } from '../firebase/firebase.js';
 let feedUnsubscribe = null;
 let pollsUnsubscribe = null;
 
-export async function renderHome(container) {
+export function renderHome(container) {
   if (!auth.currentUser) {
     window.location.hash = '#/login';
     return;
   }
 
   const currentUser = auth.currentUser;
-  const userProfile = await getUserProfile(currentUser.uid);
-  const userRole = userProfile?.role || 'student';
-  const isStaffOrAdmin = userRole === 'staff' || userRole === 'admin';
-
   const avatarHTML = renderUserAvatar(currentUser.photoURL || '', 40);
 
   const content = `
@@ -94,8 +90,35 @@ export async function renderHome(container) {
     </div>
   `;
 
-  container.innerHTML = createLayout(content, ROUTES.HOME, userRole);
+  // Render Immediately Synchronously
+  container.innerHTML = createLayout(content, ROUTES.HOME);
   attachLayoutListeners();
+
+  // Async User Profile & Role check for sidebar & staff moderation powers
+  let userRole = 'student';
+  let isStaffOrAdmin = false;
+
+  getUserProfile(currentUser.uid).then(profile => {
+    if (profile) {
+      userRole = profile.role || 'student';
+      isStaffOrAdmin = userRole === 'staff' || userRole === 'admin';
+      
+      // Update sidebar nav if admin or staff
+      if (userRole === 'admin' || userRole === 'staff') {
+        const nav = document.querySelector('.sidebar-nav');
+        if (nav && !nav.querySelector('a[href="#/admin"]')) {
+          const adminLink = document.createElement('a');
+          adminLink.href = ROUTES.ADMIN;
+          adminLink.className = 'nav-item';
+          adminLink.innerHTML = `
+            <span class="material-symbols-outlined">${userRole === 'admin' ? 'admin_panel_settings' : 'shield_person'}</span>
+            <span class="sidebar-label">${userRole === 'admin' ? 'Admin' : 'Staff'}</span>
+          `;
+          nav.appendChild(adminLink);
+        }
+      }
+    }
+  }).catch(err => console.error(err));
 
   const postInput = document.getElementById('post-input');
   const charCounter = document.getElementById('char-counter');
