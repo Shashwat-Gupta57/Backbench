@@ -1,12 +1,14 @@
 import { formatTimeAgo } from '../helpers/time.js';
 import { escapeHTML } from '../helpers/formatters.js';
+import { renderUserAvatar } from '../helpers/avatar.js';
 
 export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
-  const avatarInitial = author?.name ? author.name.charAt(0).toUpperCase() : '?';
   const name = author?.name ? escapeHTML(author.name) : 'Anonymous Student';
   const username = author?.username ? escapeHTML(author.username) : 'student';
   const totalVotes = poll.totalVotes || 0;
   const hasVoted = userVotedOptionIndex !== null;
+
+  const avatarHTML = renderUserAvatar(author, 44, 'border: 1px solid var(--border-color);');
 
   let optionsHTML = '';
 
@@ -22,7 +24,7 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
       </div>
     `;
   } else {
-    // Voted State: Twitter Percentage Bars
+    // Voted State: Twitter Percentage Bars with Vote Counts
     optionsHTML = `
       <div class="poll-results-container" style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
         ${poll.options.map((opt, idx) => {
@@ -38,7 +40,9 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
                   ${escapeHTML(opt.text)}
                   ${isUserChoice ? `<span class="material-symbols-outlined" style="font-size: 16px; color: var(--accent-primary);">check_circle</span>` : ''}
                 </span>
-                <span style="font-weight: 700; color: ${isUserChoice ? 'var(--text-primary)' : 'var(--text-secondary)'};">${percentage}%</span>
+                <span style="font-weight: 700; color: ${isUserChoice ? 'var(--text-primary)' : 'var(--text-secondary)'}; flex-shrink: 0;">
+                  ${percentage}% <span style="font-size: 12px; font-weight: 500; opacity: 0.85;">(${votes} vote${votes === 1 ? '' : 's'})</span>
+                </span>
               </div>
             </div>
           `;
@@ -48,9 +52,9 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
   }
 
   return `
-    <article class="card fade-in" style="margin-bottom: 16px; border-radius: var(--border-radius);">
+    <article class="card fade-in poll-card" data-poll-id="${poll.pollId}" style="margin-bottom: 16px; border-radius: var(--border-radius);">
       <div style="display: flex; gap: 12px; align-items: flex-start;">
-        <div class="avatar">${avatarInitial}</div>
+        ${avatarHTML}
         <div style="flex: 1; min-width: 0;">
           <div class="post-header">
             <div class="author-meta">
@@ -62,16 +66,16 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
             <span class="brand-badge" style="font-size: 11px;">CAMPUS POLL</span>
           </div>
 
-          <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-top: 6px;">
+          <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-top: 6px; line-height: 1.4;">
             ${escapeHTML(poll.question)}
           </div>
 
           ${optionsHTML}
 
           <div style="margin-top: 12px; font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 12px;">
-            <span>${totalVotes} vote${totalVotes === 1 ? '' : 's'}</span>
+            <span>${totalVotes} total vote${totalVotes === 1 ? '' : 's'}</span>
             <span>·</span>
-            <span>${hasVoted ? 'Vote recorded' : 'Active poll'}</span>
+            <span>${hasVoted ? 'Final results' : 'Active poll'}</span>
           </div>
         </div>
       </div>

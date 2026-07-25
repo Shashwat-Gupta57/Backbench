@@ -25,7 +25,7 @@ export function renderPolls(container) {
       <div class="card" style="padding: 20px;">
         <h3 style="font-size: 17px; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
           <span class="material-symbols-outlined" style="color: var(--accent-primary);">poll</span>
-          Create a Campus Poll
+          Create a Campus Poll (Up to 13 options)
         </h3>
 
         <input type="text" id="poll-question" class="input-field" placeholder="Ask a question (e.g. Which canteen dish is best?)" style="margin-bottom: 12px;" />
@@ -37,7 +37,7 @@ export function renderPolls(container) {
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
           <button type="button" id="add-option-btn" class="btn btn-outline" style="font-size: 13px; padding: 6px 14px;">
-            + Add Option (Max 4)
+            + Add Option (Max 13)
           </button>
 
           <button type="button" id="submit-poll-btn" class="btn">
@@ -65,10 +65,10 @@ export function renderPolls(container) {
   const pollError = document.getElementById('poll-error');
   const pollsFeedContainer = document.getElementById('polls-feed-container');
 
-  // Dynamic 3rd & 4th Option fields
+  // Dynamic 3rd through 13th Option fields
   addOptionBtn.addEventListener('click', () => {
     const currentInputs = optionsContainer.querySelectorAll('.poll-opt-input');
-    if (currentInputs.length < 4) {
+    if (currentInputs.length < 13) {
       const nextIdx = currentInputs.length + 1;
       const newInput = document.createElement('input');
       newInput.type = 'text';
@@ -77,7 +77,7 @@ export function renderPolls(container) {
       newInput.style.marginBottom = '0';
       optionsContainer.appendChild(newInput);
 
-      if (currentInputs.length + 1 === 4) {
+      if (currentInputs.length + 1 === 13) {
         addOptionBtn.style.display = 'none';
       }
     }
@@ -96,7 +96,12 @@ export function renderPolls(container) {
     try {
       await createPoll(question, optionTexts);
       questionInput.value = '';
-      optionInputs.forEach(inp => inp.value = '');
+      // Reset back to 2 default inputs
+      optionsContainer.innerHTML = `
+        <input type="text" class="input-field poll-opt-input" placeholder="Option 1" style="margin-bottom: 0;" />
+        <input type="text" class="input-field poll-opt-input" placeholder="Option 2" style="margin-bottom: 0;" />
+      `;
+      addOptionBtn.style.display = 'inline-block';
     } catch (err) {
       pollError.textContent = err.message;
       pollError.style.display = 'block';

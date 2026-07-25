@@ -11,8 +11,8 @@ export async function createPoll(question, optionTexts) {
   }
 
   const validOptions = optionTexts.filter(opt => opt && opt.trim().length > 0);
-  if (validOptions.length < 2 || validOptions.length > 4) {
-    throw new Error('Polls must have between 2 and 4 options');
+  if (validOptions.length < 2 || validOptions.length > 13) {
+    throw new Error('Polls must have between 2 and 13 options');
   }
 
   const pollRef = push(ref(db, PATHS.POLLS));

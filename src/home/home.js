@@ -1,13 +1,16 @@
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser } from '../services/postService.js';
-import { createPoll } from '../services/pollService.js';
+import { createPoll, subscribeToPolls, getUserVote, voteInPoll } from '../services/pollService.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 import { createPostCardHTML } from '../components/PostCard.js';
+import { createPollCardHTML } from '../components/PollCard.js';
+import { renderUserAvatar } from '../helpers/avatar.js';
 import { LIMITS } from '../constants/limits.js';
 import { ROUTES } from '../constants/routes.js';
 import { auth } from '../firebase/firebase.js';
 
 let feedUnsubscribe = null;
+let pollsUnsubscribe = null;
 
 export function renderHome(container) {
   if (!auth.currentUser) {
@@ -16,7 +19,7 @@ export function renderHome(container) {
   }
 
   const currentUser = auth.currentUser;
-  const avatarInitial = currentUser.email ? currentUser.email.charAt(0).toUpperCase() : 'S';
+  const avatarHTML = renderUserAvatar(currentUser.photoURL || '', 40);
 
   const content = `
     <!-- Sticky Blur Header -->
@@ -35,27 +38,32 @@ export function renderHome(container) {
 
     <!-- Expanding Composer -->
     <div class="composer">
-      <div class="avatar">${avatarInitial}</div>
+      ${avatarHTML}
       <div class="composer-main">
         <textarea id="post-input" placeholder="What's happening at SJC?" rows="2"></textarea>
 
-        <!-- Inline Poll Builder (Hidden by default) -->
-        <div id="inline-poll-builder" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-secondary); border-radius: var(--border-radius-sm); border: 1px solid var(--border-color);" class="fade-in">
+        <!-- Inline Dynamic Poll Builder (Up to 13 Options) -->
+        <div id="inline-poll-builder" style="display: none; margin-top: 12px; padding: 14px; background: var(--bg-secondary); border-radius: var(--border-radius-sm); border: 1px solid var(--border-color);" class="fade-in">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <span style="font-size: 13px; font-weight: 700; color: var(--accent-primary);">Attach Campus Poll</span>
+            <span style="font-size: 13px; font-weight: 700; color: var(--accent-primary);">Attach Campus Poll (Up to 13 options)</span>
             <button type="button" id="close-poll-btn" class="btn-ghost" style="padding: 2px;" title="Remove Poll">
               <span class="material-symbols-outlined" style="font-size: 18px;">close</span>
             </button>
           </div>
-          <input type="text" id="inline-opt-1" class="input-field" placeholder="Option 1" style="margin-bottom: 6px; padding: 8px 12px; font-size: 14px;" />
-          <input type="text" id="inline-opt-2" class="input-field" placeholder="Option 2" style="margin-bottom: 6px; padding: 8px 12px; font-size: 14px;" />
-          <input type="text" id="inline-opt-3" class="input-field" placeholder="Option 3 (Optional)" style="margin-bottom: 6px; padding: 8px 12px; font-size: 14px;" />
-          <input type="text" id="inline-opt-4" class="input-field" placeholder="Option 4 (Optional)" style="margin-bottom: 0; padding: 8px 12px; font-size: 14px;" />
+          
+          <div id="inline-poll-options-container" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
+            <input type="text" class="input-field inline-opt-input" placeholder="Option 1" style="margin-bottom: 0; padding: 8px 12px; font-size: 14px;" />
+            <input type="text" class="input-field inline-opt-input" placeholder="Option 2" style="margin-bottom: 0; padding: 8px 12px; font-size: 14px;" />
+          </div>
+
+          <button type="button" id="inline-add-opt-btn" class="btn btn-outline" style="font-size: 12px; padding: 4px 10px; margin-top: 4px;">
+            + Add Option (Max 13)
+          </button>
         </div>
 
         <div class="composer-toolbar">
           <div class="composer-icons">
-            <button class="composer-icon-btn" title="Add Image (Text-only campus rules)">
+            <button class="composer-icon-btn" title="Add Image">
               <span class="material-symbols-outlined" style="font-size: 20px;">image</span>
             </button>
             <button class="composer-icon-btn" id="toggle-poll-btn" title="Create Poll">
@@ -74,7 +82,7 @@ export function renderHome(container) {
       </div>
     </div>
 
-    <!-- Feed Container -->
+    <!-- Combined Home Feed Container (Posts + Polls) -->
     <div id="feed-container">
       ${renderFeedSkeletons(4)}
     </div>
@@ -90,6 +98,8 @@ export function renderHome(container) {
   const togglePollBtn = document.getElementById('toggle-poll-btn');
   const closePollBtn = document.getElementById('close-poll-btn');
   const inlinePollBuilder = document.getElementById('inline-poll-builder');
+  const inlinePollOptsContainer = document.getElementById('inline-poll-options-container');
+  const inlineAddOptBtn = document.getElementById('inline-add-opt-btn');
 
   let isPollActive = false;
 
@@ -105,6 +115,26 @@ export function renderHome(container) {
     checkCanPost();
   });
 
+  inlineAddOptBtn.addEventListener('click', () => {
+    const currentInputs = inlinePollOptsContainer.querySelectorAll('.inline-opt-input');
+    if (currentInputs.length < 13) {
+      const nextIdx = currentInputs.length + 1;
+      const newInput = document.createElement('input');
+      newInput.type = 'text';
+      newInput.className = 'input-field inline-opt-input fade-in';
+      newInput.placeholder = `Option ${nextIdx}`;
+      newInput.style.marginBottom = '0';
+      newInput.style.padding = '8px 12px';
+      newInput.style.fontSize = '14px';
+      newInput.addEventListener('input', checkCanPost);
+      inlinePollOptsContainer.appendChild(newInput);
+
+      if (currentInputs.length + 1 === 13) {
+        inlineAddOptBtn.style.display = 'none';
+      }
+    }
+  });
+
   function checkCanPost() {
     const len = postInput.value.length;
     charCounter.textContent = `${len} / ${LIMITS.POST_MAX_LENGTH}`;
@@ -113,9 +143,9 @@ export function renderHome(container) {
       charCounter.style.color = 'var(--error-color)';
       postBtn.disabled = true;
     } else if (isPollActive) {
-      const opt1 = document.getElementById('inline-opt-1').value.trim();
-      const opt2 = document.getElementById('inline-opt-2').value.trim();
-      postBtn.disabled = !(len > 0 && opt1.length > 0 && opt2.length > 0);
+      const optInputs = inlinePollOptsContainer.querySelectorAll('.inline-opt-input');
+      const validOpts = Array.from(optInputs).filter(i => i.value.trim().length > 0);
+      postBtn.disabled = !(len > 0 && validOpts.length >= 2);
       charCounter.style.color = 'var(--accent-primary)';
     } else if (len === 0 || postInput.value.trim() === '') {
       charCounter.style.color = 'var(--text-secondary)';
@@ -132,12 +162,11 @@ export function renderHome(container) {
     checkCanPost();
   });
 
-  ['inline-opt-1', 'inline-opt-2', 'inline-opt-3', 'inline-opt-4'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', checkCanPost);
+  inlinePollOptsContainer.querySelectorAll('.inline-opt-input').forEach(inp => {
+    inp.addEventListener('input', checkCanPost);
   });
 
-  // Post Submission
+  // Submission Handler
   postBtn.addEventListener('click', async () => {
     const text = postInput.value.trim();
     if (text.length > 0 && text.length <= LIMITS.POST_MAX_LENGTH) {
@@ -146,13 +175,16 @@ export function renderHome(container) {
 
       try {
         if (isPollActive) {
-          const opt1 = document.getElementById('inline-opt-1').value.trim();
-          const opt2 = document.getElementById('inline-opt-2').value.trim();
-          const opt3 = document.getElementById('inline-opt-3').value.trim();
-          const opt4 = document.getElementById('inline-opt-4').value.trim();
-          await createPoll(text, [opt1, opt2, opt3, opt4].filter(Boolean));
+          const optInputs = inlinePollOptsContainer.querySelectorAll('.inline-opt-input');
+          const optionTexts = Array.from(optInputs).map(i => i.value.trim()).filter(Boolean);
+          await createPoll(text, optionTexts);
           isPollActive = false;
           inlinePollBuilder.style.display = 'none';
+          inlinePollOptsContainer.innerHTML = `
+            <input type="text" class="input-field inline-opt-input" placeholder="Option 1" style="margin-bottom: 0; padding: 8px 12px; font-size: 14px;" />
+            <input type="text" class="input-field inline-opt-input" placeholder="Option 2" style="margin-bottom: 0; padding: 8px 12px; font-size: 14px;" />
+          `;
+          inlineAddOptBtn.style.display = 'inline-block';
         } else {
           await createPost(text);
         }
@@ -169,33 +201,51 @@ export function renderHome(container) {
     }
   });
 
-  // Subscribe to Realtime Feed
-  if (feedUnsubscribe) feedUnsubscribe();
+  // Realtime Combined Timeline Feed (Posts + Polls)
+  let latestPosts = [];
+  let latestPolls = [];
 
-  const currentUid = auth.currentUser.uid;
+  const updateCombinedFeed = async () => {
+    if (!feedContainer) return;
 
-  feedUnsubscribe = subscribeToFeed(LIMITS.FEED_PAGINATION_INITIAL, async (posts) => {
-    if (posts.length === 0) {
+    // Combine & tag items
+    const combined = [
+      ...latestPosts.map(p => ({ ...p, _type: 'post' })),
+      ...latestPolls.map(p => ({ ...p, _type: 'poll' }))
+    ];
+
+    // Sort descending by timestamp
+    combined.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    if (combined.length === 0) {
       feedContainer.innerHTML = `
         <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
           <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">forum</span>
-          <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">No posts yet</h3>
-          <p style="font-size: 14px;">Be the first student to start the conversation on Backbench!</p>
+          <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">No campus activity yet</h3>
+          <p style="font-size: 14px;">Be the first student to post or create a poll on Backbench!</p>
         </div>
       `;
       return;
     }
 
+    const currentUid = auth.currentUser.uid;
     let html = '';
-    for (const post of posts) {
-      const author = await getUserProfile(post.authorId);
-      const isLiked = await isPostLikedByUser(post.postId, currentUid);
-      html += createPostCardHTML(post, author, isLiked);
+
+    for (const item of combined) {
+      if (item._type === 'post') {
+        const author = await getUserProfile(item.authorId);
+        const isLiked = await isPostLikedByUser(item.postId, currentUid);
+        html += createPostCardHTML(item, author, isLiked);
+      } else if (item._type === 'poll') {
+        const author = await getUserProfile(item.creatorId);
+        const userVote = await getUserVote(item.pollId, currentUid);
+        html += createPollCardHTML(item, author, userVote);
+      }
     }
 
     feedContainer.innerHTML = html;
 
-    // Attach click events for Likes with Atomic Transaction updates
+    // Attach Likes for Posts
     feedContainer.querySelectorAll('.like-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -219,6 +269,24 @@ export function renderHome(container) {
       });
     });
 
+    // Attach Poll Voting for Polls on Home Feed
+    feedContainer.querySelectorAll('.poll-option-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const pollId = btn.dataset.pollId;
+        const optionIndex = parseInt(btn.dataset.optionIndex);
+
+        btn.disabled = true;
+        btn.textContent = 'Recording vote...';
+
+        try {
+          await voteInPoll(pollId, optionIndex);
+        } catch (err) {
+          alert(err.message || 'Failed to record vote');
+        }
+      });
+    });
+
     // Clicking post card opens Full Post Detail Page
     feedContainer.querySelectorAll('.post-card').forEach(card => {
       card.addEventListener('click', (e) => {
@@ -231,7 +299,7 @@ export function renderHome(container) {
       });
     });
 
-    // Clicking reply icon button opens Full Post Detail Page
+    // Reply button opens Post Detail
     feedContainer.querySelectorAll('.reply-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -242,5 +310,18 @@ export function renderHome(container) {
         }
       });
     });
+  };
+
+  if (feedUnsubscribe) feedUnsubscribe();
+  if (pollsUnsubscribe) pollsUnsubscribe();
+
+  feedUnsubscribe = subscribeToFeed(LIMITS.FEED_PAGINATION_INITIAL, (posts) => {
+    latestPosts = posts;
+    updateCombinedFeed();
+  });
+
+  pollsUnsubscribe = subscribeToPolls(20, (polls) => {
+    latestPolls = polls;
+    updateCombinedFeed();
   });
 }
