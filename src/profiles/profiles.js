@@ -5,6 +5,7 @@ import { PATHS } from '../constants/firebasePaths.js';
 import { ROUTES } from '../constants/routes.js';
 import { getUserProfile, updateUserProfile } from '../services/postService.js';
 import { processProfilePicture } from '../helpers/image.js';
+import { renderUserAvatar } from '../helpers/avatar.js';
 import { escapeHTML } from '../helpers/formatters.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 
@@ -78,14 +79,14 @@ export async function renderProfile(container) {
     return;
   }
 
-  const avatarInitial = userProfile.name ? userProfile.name.charAt(0).toUpperCase() : '?';
   const isSelf = userProfile.uid === auth.currentUser.uid;
   const verified = userProfile.verifiedStudent || userProfile.role === 'staff' || userProfile.role === 'admin';
-  const pfp = userProfile.profilePicture;
 
-  const avatarDisplayHTML = pfp
-    ? `<img src="${pfp}" id="profile-avatar-img" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${isSelf ? 'pointer' : 'default'};" alt="${escapeHTML(userProfile.name)}" title="${isSelf ? 'Click to change profile picture' : ''}" />`
-    : `<div class="avatar" id="profile-avatar-img" style="width: 100px; height: 100px; font-size: 42px; border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${isSelf ? 'pointer' : 'default'};" title="${isSelf ? 'Click to change profile picture' : ''}">${avatarInitial}</div>`;
+  const avatarDisplayHTML = renderUserAvatar(
+    userProfile, 
+    100, 
+    `border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${isSelf ? 'pointer' : 'default'};`
+  );
 
   const content = `
     <!-- Hidden File Input for 480p PFP Upload -->
