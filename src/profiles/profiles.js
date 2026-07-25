@@ -3,11 +3,12 @@ import { auth, db } from '../firebase/firebase.js';
 import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { ROUTES } from '../constants/routes.js';
-import { getUserProfile, updateUserProfile } from '../services/postService.js';
+import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost } from '../services/postService.js';
 import { processProfilePicture } from '../helpers/image.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { escapeHTML } from '../helpers/formatters.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
+import { createPostCardHTML } from '../components/PostCard.js';
 
 export async function renderProfile(container) {
   if (!auth.currentUser) {
@@ -103,7 +104,7 @@ export async function renderProfile(container) {
             ${escapeHTML(userProfile.name)}
             ${verified ? `<span class="material-symbols-outlined verified-icon">verified</span>` : ''}
           </h1>
-          <span style="color: var(--text-secondary); font-size: 13px;">${userProfile.postCount || 0} posts</span>
+          <span id="profile-header-post-count" style="color: var(--text-secondary); font-size: 13px;">${userProfile.postCount || 0} posts</span>
         </div>
       </div>
     </header>
@@ -137,13 +138,19 @@ export async function renderProfile(container) {
         <span style="color: var(--text-secondary); font-size: 15px;">@${escapeHTML(userProfile.username)}</span>
       </div>
 
-      <!-- Framed Tagline Quote (Max 45 chars) -->
+      <!-- Modern 2026 Glassmorphic Personal Tagline Quote Card -->
       ${userProfile.tagline ? `
-        <div style="margin-top: 12px; padding: 10px 14px; background: rgba(29, 155, 240, 0.08); border-left: 3.5px solid var(--accent-primary); border-radius: 0 10px 10px 0; display: flex; align-items: center; gap: 10px;">
-          <span class="material-symbols-outlined" style="font-size: 20px; color: var(--accent-primary); flex-shrink: 0;">format_quote</span>
-          <span style="font-size: 14px; font-style: italic; font-weight: 600; color: var(--text-primary); letter-spacing: -0.2px;">
-            “${escapeHTML(userProfile.tagline)}”
-          </span>
+        <div class="tagline-quote-card" style="margin-top: 14px; padding: 14px 18px; background: linear-gradient(135deg, rgba(29, 155, 240, 0.12) 0%, rgba(22, 24, 28, 0.85) 100%); border: 1px solid rgba(29, 155, 240, 0.25); border-radius: 16px; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(29, 155, 240, 0.08);">
+          <div style="position: absolute; right: -8px; bottom: -24px; font-size: 96px; color: rgba(29, 155, 240, 0.06); font-family: Georgia, serif; font-weight: 800; pointer-events: none; user-select: none; line-height: 1;">”</div>
+          <div style="display: flex; align-items: flex-start; gap: 10px; position: relative; z-index: 1;">
+            <span class="material-symbols-outlined" style="font-size: 22px; color: var(--accent-primary); flex-shrink: 0; margin-top: 1px;">format_quote</span>
+            <div style="display: flex; flex-direction: column;">
+              <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; color: var(--accent-primary); text-transform: uppercase; margin-bottom: 2px;">Campus Motto</span>
+              <span style="font-size: 15px; font-style: italic; font-weight: 600; color: var(--text-primary); line-height: 1.4; letter-spacing: -0.2px;">
+                “${escapeHTML(userProfile.tagline)}”
+              </span>
+            </div>
+          </div>
         </div>
       ` : ''}
 
@@ -167,7 +174,7 @@ export async function renderProfile(container) {
       <div style="display: flex; gap: 24px; margin-top: 16px; font-size: 14px;">
         <div><strong style="color: var(--text-primary);">${userProfile.likesReceived || 0}</strong> <span style="color: var(--text-secondary);">Likes</span></div>
         <div><strong style="color: var(--text-primary);">${userProfile.replyCount || 0}</strong> <span style="color: var(--text-secondary);">Replies</span></div>
-        <div><strong style="color: var(--text-primary);">${userProfile.postCount || 0}</strong> <span style="color: var(--text-secondary);">Posts</span></div>
+        <div><strong id="profile-stats-post-count" style="color: var(--text-primary);">${userProfile.postCount || 0}</strong> <span style="color: var(--text-secondary);">Posts</span></div>
       </div>
     </div>
 
@@ -178,9 +185,9 @@ export async function renderProfile(container) {
       <button class="tab-button">Likes</button>
     </div>
 
-    <!-- User Feed Placeholder -->
-    <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">
-      <p style="font-size: 14px;">Posts by @${escapeHTML(userProfile.username)} will appear here.</p>
+    <!-- Live User Posts Feed Container -->
+    <div id="user-posts-feed" class="feed-container">
+      ${renderFeedSkeletons(2)}
     </div>
 
     <!-- Edit Profile Modal Overlay -->
@@ -198,7 +205,7 @@ export async function renderProfile(container) {
           <input type="text" id="edit-name" class="input-field" value="${escapeHTML(userProfile.name)}" required />
 
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Personal Quote / Tagline (Framed)</label>
+            <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Campus Motto / Personal Quote</label>
             <span id="tagline-counter" style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">0 / 45</span>
           </div>
           <input type="text" id="edit-tagline" class="input-field" maxlength="45" value="${escapeHTML(userProfile.tagline || '')}" placeholder="e.g. I follow the path of peace" />
@@ -224,6 +231,74 @@ export async function renderProfile(container) {
 
   container.innerHTML = createLayout(content, ROUTES.PROFILE);
   attachLayoutListeners();
+
+  // Subscribe & render user's posts
+  const postsFeed = document.getElementById('user-posts-feed');
+  const headerCount = document.getElementById('profile-header-post-count');
+  const statsCount = document.getElementById('profile-stats-post-count');
+
+  subscribeToUserPosts(userProfile.uid, async (posts) => {
+    if (!postsFeed) return;
+
+    if (headerCount) headerCount.textContent = `${posts.length} posts`;
+    if (statsCount) statsCount.textContent = posts.length;
+
+    if (posts.length === 0) {
+      postsFeed.innerHTML = `
+        <div style="padding: 60px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
+          <span class="material-symbols-outlined" style="font-size: 44px; color: var(--border-color); margin-bottom: 8px;">post_add</span>
+          <p style="font-size: 15px; font-weight: 600; color: var(--text-primary);">No posts yet</p>
+          <p style="font-size: 13px; margin-top: 4px;">When @${escapeHTML(userProfile.username)} posts on Backbench, they will appear here.</p>
+        </div>
+      `;
+      return;
+    }
+
+    let postsHTML = '';
+    for (const post of posts) {
+      const isLiked = await isPostLikedByUser(post.postId, auth.currentUser?.uid);
+      postsHTML += createPostCardHTML(post, userProfile, isLiked);
+    }
+
+    postsFeed.innerHTML = postsHTML;
+
+    // Attach post card click handlers (navigate to post detail page)
+    postsFeed.querySelectorAll('.post-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (!e.target.closest('.action-btn')) {
+          const postId = card.dataset.postId;
+          window.location.hash = `#/post?id=${postId}`;
+        }
+      });
+    });
+
+    // Attach like button handlers
+    postsFeed.querySelectorAll('.like-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = btn.dataset.postId;
+        btn.disabled = true;
+
+        try {
+          const res = await toggleLikePost(postId);
+          const icon = btn.querySelector('.material-symbols-outlined');
+          const countSpan = btn.querySelector('.like-count');
+
+          if (res.liked) {
+            btn.classList.add('liked', 'heart-pop');
+          } else {
+            btn.classList.remove('liked', 'heart-pop');
+          }
+
+          if (countSpan) countSpan.textContent = res.likes;
+        } catch (err) {
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  });
 
   // Attach Edit Profile Modal & Photo upload listeners if viewing self
   if (isSelf) {
@@ -265,7 +340,7 @@ export async function renderProfile(container) {
         const bio = document.getElementById('edit-bio').value.trim();
 
         if (tagline.length > 45) {
-          alert('Tagline quote cannot exceed 45 characters.');
+          alert('Campus motto quote cannot exceed 45 characters.');
           return;
         }
 

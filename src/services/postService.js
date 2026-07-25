@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, update, query, orderByChild, limitToLast, onValue, off, remove, runTransaction } from 'firebase/database';
+import { ref, push, set, get, update, query, orderByChild, equalTo, limitToLast, onValue, off, remove, runTransaction } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 
 export async function createPost(content) {
@@ -34,6 +34,33 @@ export function subscribeToFeed(limit, callback) {
       posts.push(childSnap.val());
     });
     callback(posts.reverse());
+  });
+
+  return () => off(postsQuery, 'value', listener);
+}
+
+export function subscribeToUserPosts(uid, callback) {
+  if (!uid) {
+    callback([]);
+    return () => {};
+  }
+
+  const postsQuery = query(
+    ref(db, PATHS.POSTS),
+    orderByChild('authorId'),
+    equalTo(uid)
+  );
+
+  const listener = onValue(postsQuery, (snapshot) => {
+    const posts = [];
+    snapshot.forEach((childSnap) => {
+      posts.push(childSnap.val());
+    });
+    posts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    callback(posts);
+  }, (err) => {
+    console.error('Error fetching user posts:', err);
+    callback([]);
   });
 
   return () => off(postsQuery, 'value', listener);
