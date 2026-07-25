@@ -2,7 +2,8 @@ import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { auth, db } from '../firebase/firebase.js';
 import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
-import { getUserProfile } from '../services/postService.js';
+import { getUserProfile, updateUserProfile } from '../services/postService.js';
+import { processProfilePicture } from '../helpers/image.js';
 import { escapeHTML } from '../helpers/formatters.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 
@@ -34,16 +35,25 @@ export async function renderProfile(container) {
 
   let userProfile = null;
 
-  if (targetUsername) {
-    const usersRef = ref(db, PATHS.USERS);
-    const q = query(usersRef, orderByChild('username'), equalTo(targetUsername));
-    const snap = await get(q);
+  try {
+    if (targetUsername) {
+      const usersRef = ref(db, PATHS.USERS);
+      const q = query(usersRef, orderByChild('username'), equalTo(targetUsername));
+      const snap = await get(q);
 
-    if (snap.exists()) {
-      const data = snap.val();
-      userProfile = Object.values(data)[0];
+      if (snap.exists()) {
+        const data = snap.val();
+        userProfile = Object.values(data)[0];
+      }
+    } else {
+      userProfile = await getUserProfile(auth.currentUser.uid);
     }
-  } else {
+  } catch (err) {
+    console.error('Error loading profile:', err);
+  }
+
+  // Fallback to current user if lookup failed
+  if (!userProfile && !targetUsername) {
     userProfile = await getUserProfile(auth.currentUser.uid);
   }
 
@@ -70,8 +80,16 @@ export async function renderProfile(container) {
   const avatarInitial = userProfile.name ? userProfile.name.charAt(0).toUpperCase() : '?';
   const isSelf = userProfile.uid === auth.currentUser.uid;
   const verified = userProfile.verifiedStudent || userProfile.role === 'staff' || userProfile.role === 'admin';
+  const pfp = userProfile.profilePicture;
+
+  const avatarDisplayHTML = pfp
+    ? `<img src="${pfp}" id="profile-avatar-img" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${isSelf ? 'pointer' : 'default'};" alt="${escapeHTML(userProfile.name)}" title="${isSelf ? 'Click to change profile picture' : ''}" />`
+    : `<div class="avatar" id="profile-avatar-img" style="width: 100px; height: 100px; font-size: 42px; border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${isSelf ? 'pointer' : 'default'};" title="${isSelf ? 'Click to change profile picture' : ''}">${avatarInitial}</div>`;
 
   const content = `
+    <!-- Hidden File Input for 480p PFP Upload -->
+    <input type="file" id="pfp-upload-input" accept="image/*" style="display: none;" />
+
     <!-- Header -->
     <header class="sticky-header">
       <div style="display: flex; align-items: center; gap: 16px;">
@@ -94,12 +112,17 @@ export async function renderProfile(container) {
     <!-- Profile Info Box -->
     <div style="padding: 0 16px 16px 16px; border-bottom: 1px solid var(--border-color);" class="fade-in">
       <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: -50px; margin-bottom: 16px;">
-        <div class="avatar" style="width: 100px; height: 100px; font-size: 42px; border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5);">
-          ${avatarInitial}
+        <div style="position: relative;" id="avatar-wrapper">
+          ${avatarDisplayHTML}
+          ${isSelf ? `
+            <div style="position: absolute; bottom: 4px; right: 4px; background: var(--accent-primary); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #fff; border: 2px solid var(--bg-primary); pointer-events: none;">
+              <span class="material-symbols-outlined" style="font-size: 16px;">photo_camera</span>
+            </div>
+          ` : ''}
         </div>
 
         ${isSelf ? 
-          '<button class="btn btn-outline" style="border-radius: 9999px; font-weight: 700;">Edit Profile</button>' : 
+          '<button class="btn btn-outline" id="edit-profile-btn" style="border-radius: 9999px; font-weight: 700;">Edit Profile Photo</button>' : 
           '<button class="btn" style="border-radius: 9999px;">Follow</button>'
         }
       </div>
@@ -142,7 +165,7 @@ export async function renderProfile(container) {
       <button class="tab-button">Likes</button>
     </div>
 
-    <!-- Feed Placeholder -->
+    <!-- User Feed Placeholder -->
     <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">
       <p style="font-size: 14px;">Posts by @${escapeHTML(userProfile.username)} will appear here.</p>
     </div>
@@ -150,4 +173,45 @@ export async function renderProfile(container) {
 
   container.innerHTML = createLayout(content, ROUTES.PROFILE);
   attachLayoutListeners();
+
+  // Attach PFP Upload listeners if viewing self
+  if (isSelf) {
+    const fileInput = document.getElementById('pfp-upload-input');
+    const editBtn = document.getElementById('edit-profile-btn');
+    const avatarWrapper = document.getElementById('avatar-wrapper');
+
+    const triggerUpload = () => fileInput.click();
+
+    if (editBtn) editBtn.addEventListener('click', triggerUpload);
+    if (avatarWrapper) avatarWrapper.addEventListener('click', triggerUpload);
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      try {
+        if (editBtn) {
+          editBtn.disabled = true;
+          editBtn.textContent = 'Processing PFP...';
+        }
+
+        // Process image: Downscale to 480p JPEG <100KB
+        const dataUrl = await processProfilePicture(file);
+
+        // Update in Realtime Database & clear cache
+        await updateUserProfile(userProfile.uid, { profilePicture: dataUrl });
+
+        // Refresh view immediately
+        renderProfile(container);
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Failed to update profile picture.');
+      } finally {
+        if (editBtn) {
+          editBtn.disabled = false;
+          editBtn.textContent = 'Edit Profile Photo';
+        }
+      }
+    });
+  }
 }

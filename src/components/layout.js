@@ -72,8 +72,8 @@ export function createLayout(contentHTML, currentRoute = ROUTES.HOME) {
         </button>
       </div>
 
-      <!-- User Mini Profile -->
-      <div class="sidebar-user-profile" id="user-menu-btn" title="Account settings">
+      <!-- Bottom Left User Profile Pill (Twitter Style) -->
+      <div class="sidebar-user-profile" id="user-menu-btn" title="View Profile">
         <div class="user-mini-info">
           <div class="avatar" style="width: 38px; height: 38px; font-size: 15px;">${avatarInitial}</div>
           <div style="display: flex; flex-direction: column;">
@@ -166,6 +166,15 @@ export function createLayout(contentHTML, currentRoute = ROUTES.HOME) {
 }
 
 export function attachLayoutListeners() {
+  const userMenuBtn = document.getElementById('user-menu-btn');
+  if (userMenuBtn) {
+    userMenuBtn.addEventListener('click', (e) => {
+      if (!e.target.closest('#logout-btn')) {
+        window.location.hash = ROUTES.PROFILE;
+      }
+    });
+  }
+
   const logoutBtn = document.getElementById('logout-btn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async (e) => {
@@ -218,11 +227,14 @@ export function attachLayoutListeners() {
         for (const u of matches) {
           const friended = await isFriend(u.uid);
           const initial = u.name ? u.name.charAt(0).toUpperCase() : '?';
+          const pfpHTML = u.profilePicture
+            ? `<img src="${u.profilePicture}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover;" />`
+            : `<div class="avatar" style="width: 36px; height: 36px; font-size: 14px;">${initial}</div>`;
 
           html += `
             <div class="search-result-item" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background 0.15s ease;" data-username="${escapeHTML(u.username)}">
               <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
-                <div class="avatar" style="width: 36px; height: 36px; font-size: 14px;">${initial}</div>
+                ${pfpHTML}
                 <div style="display: flex; flex-direction: column; min-width: 0;">
                   <span style="font-size: 14px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(u.name)}</span>
                   <span style="font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@${escapeHTML(u.username)} · Class ${escapeHTML(u.class || 'N/A')}</span>
@@ -238,7 +250,6 @@ export function attachLayoutListeners() {
 
         dropdown.innerHTML = html;
 
-        // Attach Profile Navigation & Friend Toggle Click Events
         dropdown.querySelectorAll('.search-result-item').forEach(item => {
           item.addEventListener('click', (e) => {
             if (!e.target.closest('.friend-toggle-btn')) {
@@ -272,7 +283,6 @@ export function attachLayoutListeners() {
       }
     });
 
-    // Hide dropdown when clicking outside
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.search-box')) {
         dropdown.style.display = 'none';

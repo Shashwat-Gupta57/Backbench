@@ -3,13 +3,18 @@ import { escapeHTML } from '../helpers/formatters.js';
 
 export function createPostCardHTML(post, author, isLiked = false) {
   const avatarInitial = author?.name ? author.name.charAt(0).toUpperCase() : '?';
+  const pfp = author?.profilePicture;
   const name = author?.name ? escapeHTML(author.name) : 'Anonymous Student';
   const username = author?.username ? escapeHTML(author.username) : 'student';
   const verified = author?.verifiedStudent || author?.role === 'staff' || author?.role === 'admin';
 
+  const avatarHTML = pfp 
+    ? `<img src="${pfp}" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color);" alt="${name}" />`
+    : `<div class="avatar">${avatarInitial}</div>`;
+
   return `
     <article class="post-card fade-in" data-post-id="${post.postId}">
-      <div class="avatar">${avatarInitial}</div>
+      ${avatarHTML}
       <div style="flex: 1; min-width: 0;">
         <div class="post-header">
           <div class="author-meta">

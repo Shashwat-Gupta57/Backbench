@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, query, orderByChild, limitToLast, onValue, off, remove, runTransaction } from 'firebase/database';
+import { ref, push, set, get, update, query, orderByChild, limitToLast, onValue, off, remove, runTransaction } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 
 export async function createPost(content) {
@@ -33,25 +33,61 @@ export function subscribeToFeed(limit, callback) {
     snapshot.forEach((childSnap) => {
       posts.push(childSnap.val());
     });
-    // Reverse because limitToLast gets oldest first among the last N
     callback(posts.reverse());
   });
 
   return () => off(postsQuery, 'value', listener);
 }
 
-// Caching user profiles to avoid refetching
+// Caching user profiles to avoid unnecessary refetches
 const userCache = {};
 
+export function invalidateUserCache(uid) {
+  if (uid) delete userCache[uid];
+}
+
 export async function getUserProfile(uid) {
+  if (!uid) return null;
   if (userCache[uid]) return userCache[uid];
-  
-  const snap = await get(ref(db, `${PATHS.USERS}/${uid}`));
-  if (snap.exists()) {
-    userCache[uid] = snap.val();
-    return userCache[uid];
+
+  try {
+    const snap = await get(ref(db, `${PATHS.USERS}/${uid}`));
+    if (snap.exists()) {
+      userCache[uid] = snap.val();
+      return userCache[uid];
+    }
+  } catch (err) {
+    console.error('Error fetching user profile:', err);
   }
+
+  // Fallback for current logged-in user if DB node hasn't been created yet
+  const currentUser = auth.currentUser;
+  if (currentUser && currentUser.uid === uid) {
+    const fallbackProfile = {
+      uid: currentUser.uid,
+      username: currentUser.email ? currentUser.email.split('@')[0] : 'student',
+      name: currentUser.displayName || 'Student',
+      email: currentUser.email || '',
+      class: 'N/A',
+      admissionNumber: 'N/A',
+      joinedDate: new Date().toISOString(),
+      verifiedStudent: false,
+      role: 'student',
+      postCount: 0,
+      replyCount: 0,
+      likesReceived: 0,
+      profilePicture: currentUser.photoURL || ''
+    };
+    return fallbackProfile;
+  }
+
   return null;
+}
+
+export async function updateUserProfile(uid, updateData) {
+  if (!uid) return;
+  await update(ref(db, `${PATHS.USERS}/${uid}`), updateData);
+  invalidateUserCache(uid);
 }
 
 export async function isPostLikedByUser(postId, uid) {
@@ -71,16 +107,13 @@ export async function toggleLikePost(postId) {
   let nowLiked = false;
 
   if (snap.exists()) {
-    // Already liked -> remove like (Unlike)
     await remove(likeRef);
     nowLiked = false;
   } else {
-    // Not liked -> add like (Single vote per user)
     await set(likeRef, true);
     nowLiked = true;
   }
 
-  // Transaction to update per-post likes count atomically
   let updatedLikes = 0;
   await runTransaction(postRef, (post) => {
     if (post) {
