@@ -2,6 +2,7 @@ import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { auth, db } from '../firebase/firebase.js';
 import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
+import { ROUTES } from '../constants/routes.js';
 import { getUserProfile, updateUserProfile } from '../services/postService.js';
 import { processProfilePicture } from '../helpers/image.js';
 import { escapeHTML } from '../helpers/formatters.js';
@@ -24,7 +25,7 @@ export async function renderProfile(container) {
       </div>
     </header>
     ${renderFeedSkeletons(2)}
-  `);
+  `, ROUTES.PROFILE);
 
   const hash = window.location.hash;
   let targetUsername = null;
@@ -72,7 +73,7 @@ export async function renderProfile(container) {
         <h2 style="font-size: 20px; font-weight: 800;">User not found</h2>
         <p style="color: var(--text-secondary); margin-top: 4px;">The student profile you are looking for does not exist on Backbench.</p>
       </div>
-    `);
+    `, ROUTES.PROFILE);
     attachLayoutListeners();
     return;
   }
