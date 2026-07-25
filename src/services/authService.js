@@ -5,7 +5,8 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
-  fetchSignInMethodsForEmail
+  fetchSignInMethodsForEmail,
+  updatePassword
 } from 'firebase/auth';
 import { ref, set, get, update } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
@@ -76,6 +77,26 @@ export async function initializeMasterAdmin() {
     }
   } catch (err) {
     // Already initialized or caught
+  }
+}
+
+export async function updateUserPassword(newPassword) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+
+  if (!newPassword || newPassword.length < 6) {
+    throw new Error('Password must be at least 6 characters long.');
+  }
+
+  try {
+    await updatePassword(user, newPassword);
+    return true;
+  } catch (err) {
+    console.error('Update password error:', err);
+    if (err.code === 'auth/requires-recent-login') {
+      throw new Error('Security Notice: Changing password requires a recent login session. Please log out and log in again, then update your password.');
+    }
+    throw new Error(err.message || 'Failed to update password.');
   }
 }
 

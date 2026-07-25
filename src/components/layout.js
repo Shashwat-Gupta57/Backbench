@@ -81,6 +81,11 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
               <span class="material-symbols-outlined">event</span>
               <span class="sidebar-label">Events</span>
             </a>
+
+            <a href="${ROUTES.SETTINGS}" class="nav-item ${isRoute(ROUTES.SETTINGS) ? 'active' : ''}">
+              <span class="material-symbols-outlined">settings</span>
+              <span class="sidebar-label">Settings</span>
+            </a>
             
             ${userRole === 'admin' ? `
               <a href="${ROUTES.ADMIN}" class="nav-item ${isRoute(ROUTES.ADMIN) ? 'active' : ''}">
