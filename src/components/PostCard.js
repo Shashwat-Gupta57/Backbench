@@ -3,7 +3,7 @@ import { escapeHTML } from '../helpers/formatters.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { getUserFontFamily } from '../constants/fonts.js';
 
-export function createPostCardHTML(post, author, isLiked = false) {
+export function createPostCardHTML(post, author, isLiked = false, isReshared = false) {
   const name = author?.name ? escapeHTML(author.name) : 'Anonymous Student';
   const username = author?.username ? escapeHTML(author.username) : 'student';
   const verified = author?.verifiedStudent || author?.role === 'staff' || author?.role === 'admin';
@@ -38,14 +38,14 @@ export function createPostCardHTML(post, author, isLiked = false) {
             <span>${post.replyCount || 0}</span>
           </button>
           
+          <button class="action-btn reshare-btn ${isReshared ? 'reshared' : ''}" data-post-id="${post.postId}" style="${isReshared ? 'color: #00BA7C;' : ''}">
+            <span class="material-symbols-outlined">repeat</span>
+            <span class="reshare-count">${post.reshares || 0}</span>
+          </button>
+
           <button class="action-btn like-btn ${isLiked ? 'liked heart-pop' : ''}" data-post-id="${post.postId}">
             <span class="material-symbols-outlined">${isLiked ? 'favorite' : 'favorite'}</span>
             <span class="like-count">${post.likes || 0}</span>
-          </button>
-          
-          <button class="action-btn">
-            <span class="material-symbols-outlined">repeat</span>
-            <span>0</span>
           </button>
 
           <button class="action-btn">

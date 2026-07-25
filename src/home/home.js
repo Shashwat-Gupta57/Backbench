@@ -1,6 +1,7 @@
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
-import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser } from '../services/postService.js';
+import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser, isPostResharedByUser, toggleResharePost } from '../services/postService.js';
 import { createPoll, subscribeToPolls, getUserVote, voteInPoll } from '../services/pollService.js';
+import { getFriendUids } from '../services/friendService.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 import { createPostCardHTML } from '../components/PostCard.js';
 import { createPollCardHTML } from '../components/PollCard.js';
@@ -32,8 +33,8 @@ export function renderHome(container) {
 
     <!-- Top Feed Tabs -->
     <div class="header-tabs">
-      <button class="tab-button active">For You</button>
-      <button class="tab-button">SJC Campus</button>
+      <button class="tab-button active" id="tab-for-you">For You</button>
+      <button class="tab-button" id="tab-friends">SJC Friends</button>
     </div>
 
     <!-- Expanding Composer -->
@@ -100,8 +101,25 @@ export function renderHome(container) {
   const inlinePollBuilder = document.getElementById('inline-poll-builder');
   const inlinePollOptsContainer = document.getElementById('inline-poll-options-container');
   const inlineAddOptBtn = document.getElementById('inline-add-opt-btn');
+  const tabForYou = document.getElementById('tab-for-you');
+  const tabFriends = document.getElementById('tab-friends');
 
   let isPollActive = false;
+  let activeTabMode = 'for-you'; // 'for-you' | 'friends'
+
+  tabForYou.addEventListener('click', () => {
+    activeTabMode = 'for-you';
+    tabForYou.classList.add('active');
+    tabFriends.classList.remove('active');
+    updateCombinedFeed();
+  });
+
+  tabFriends.addEventListener('click', () => {
+    activeTabMode = 'friends';
+    tabFriends.classList.add('active');
+    tabForYou.classList.remove('active');
+    updateCombinedFeed();
+  });
 
   togglePollBtn.addEventListener('click', () => {
     isPollActive = !isPollActive;
@@ -208,34 +226,50 @@ export function renderHome(container) {
   const updateCombinedFeed = async () => {
     if (!feedContainer) return;
 
-    // Combine & tag items
+    const currentUid = auth.currentUser.uid;
+    let friendUids = [];
+
+    if (activeTabMode === 'friends') {
+      friendUids = await getFriendUids(currentUid);
+      // Include current user in friends feed so they see their own posts
+      friendUids.push(currentUid);
+    }
+
+    // Filter items based on active tab
+    const filteredPosts = activeTabMode === 'friends' 
+      ? latestPosts.filter(p => friendUids.includes(p.authorId))
+      : latestPosts;
+
+    const filteredPolls = activeTabMode === 'friends'
+      ? latestPolls.filter(p => friendUids.includes(p.creatorId))
+      : latestPolls;
+
     const combined = [
-      ...latestPosts.map(p => ({ ...p, _type: 'post' })),
-      ...latestPolls.map(p => ({ ...p, _type: 'poll' }))
+      ...filteredPosts.map(p => ({ ...p, _type: 'post' })),
+      ...filteredPolls.map(p => ({ ...p, _type: 'poll' }))
     ];
 
-    // Sort descending by timestamp
     combined.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     if (combined.length === 0) {
       feedContainer.innerHTML = `
         <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
-          <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">forum</span>
-          <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">No campus activity yet</h3>
-          <p style="font-size: 14px;">Be the first student to post or create a poll on Backbench!</p>
+          <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">${activeTabMode === 'friends' ? 'group_off' : 'forum'}</span>
+          <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">${activeTabMode === 'friends' ? 'No activity from friends' : 'No campus activity yet'}</h3>
+          <p style="font-size: 14px;">${activeTabMode === 'friends' ? 'Add more classmates as friends to see their activity here!' : 'Be the first student to post or create a poll on Backbench!'}</p>
         </div>
       `;
       return;
     }
 
-    const currentUid = auth.currentUser.uid;
     let html = '';
 
     for (const item of combined) {
       if (item._type === 'post') {
         const author = await getUserProfile(item.authorId);
         const isLiked = await isPostLikedByUser(item.postId, currentUid);
-        html += createPostCardHTML(item, author, isLiked);
+        const isReshared = await isPostResharedByUser(item.postId, currentUid);
+        html += createPostCardHTML(item, author, isLiked, isReshared);
       } else if (item._type === 'poll') {
         const author = await getUserProfile(item.creatorId);
         const userVote = await getUserVote(item.pollId, currentUid);
@@ -261,6 +295,32 @@ export function renderHome(container) {
           }
           const countSpan = btn.querySelector('.like-count');
           if (countSpan) countSpan.textContent = result.likes;
+        } catch (err) {
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
+    // Attach Reshares for Posts
+    feedContainer.querySelectorAll('.reshare-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = btn.dataset.postId;
+        btn.disabled = true;
+
+        try {
+          const result = await toggleResharePost(postId);
+          if (result.reshared) {
+            btn.classList.add('reshared');
+            btn.style.color = '#00BA7C';
+          } else {
+            btn.classList.remove('reshared');
+            btn.style.color = '';
+          }
+          const countSpan = btn.querySelector('.reshare-count');
+          if (countSpan) countSpan.textContent = result.reshares;
         } catch (err) {
           console.error(err);
         } finally {

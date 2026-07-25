@@ -6,7 +6,8 @@ import { ROUTES } from '../constants/routes.js';
 import { PRESET_BANNERS } from '../constants/banners.js';
 import { PRESET_QUOTE_STYLES } from '../constants/quotes.js';
 import { PRESET_USER_FONTS, getUserFontFamily } from '../constants/fonts.js';
-import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost } from '../services/postService.js';
+import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost, isPostResharedByUser, toggleResharePost } from '../services/postService.js';
+import { isFriend, toggleAddFriend, getFriendsCount, getFriendsProfiles } from '../services/friendService.js';
 import { processProfilePicture } from '../helpers/image.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { escapeHTML } from '../helpers/formatters.js';
@@ -92,6 +93,10 @@ export async function renderProfile(container) {
   const userFontFamily = getUserFontFamily(userProfile);
   const currentFontThemeId = userProfile.fontThemeId || 'default';
 
+  // Check friendship status & friend counts
+  const userIsFriend = !isSelf ? await isFriend(userProfile.uid) : false;
+  const friendsCount = await getFriendsCount(userProfile.uid);
+
   const avatarDisplayHTML = renderUserAvatar(
     userProfile, 
     100, 
@@ -175,7 +180,7 @@ export async function renderProfile(container) {
 
         ${isSelf ? 
           '<button class="btn btn-outline" id="edit-profile-btn" style="border-radius: 9999px; font-weight: 700;">Edit Profile</button>' : 
-          '<button class="btn" style="border-radius: 9999px;">Follow</button>'
+          `<button class="btn ${userIsFriend ? 'btn-outline' : ''}" id="profile-friend-btn" data-uid="${userProfile.uid}" style="border-radius: 9999px; font-weight: 700;">${userIsFriend ? 'Friends' : '+ Add Friend'}</button>`
         }
       </div>
 
@@ -221,6 +226,7 @@ export async function renderProfile(container) {
       </div>
 
       <div style="display: flex; gap: 24px; margin-top: 16px; font-size: 14px;">
+        <div id="open-friends-modal-btn" style="cursor: pointer; transition: opacity 0.2s ease;"><strong style="color: var(--text-primary);">${friendsCount}</strong> <span style="color: var(--text-secondary);">Friends</span></div>
         <div><strong style="color: var(--text-primary);">${userProfile.likesReceived || 0}</strong> <span style="color: var(--text-secondary);">Likes</span></div>
         <div><strong style="color: var(--text-primary);">${userProfile.replyCount || 0}</strong> <span style="color: var(--text-secondary);">Replies</span></div>
         <div><strong id="profile-stats-post-count" style="color: var(--text-primary);">${userProfile.postCount || 0}</strong> <span style="color: var(--text-secondary);">Posts</span></div>
@@ -237,6 +243,21 @@ export async function renderProfile(container) {
     <!-- Live User Posts Feed Container -->
     <div id="user-posts-feed" class="feed-container">
       ${renderFeedSkeletons(2)}
+    </div>
+
+    <!-- Friends List Modal Overlay -->
+    <div id="friends-list-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; padding: 20px;">
+      <div class="card fade-in" style="width: 100%; max-width: 440px; padding: 24px; border-radius: 20px; position: relative; max-height: 80vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="font-size: 19px; font-weight: 800;">Friends (${friendsCount})</h3>
+          <button id="close-friends-modal-btn" class="btn-ghost" style="padding: 4px;">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div id="friends-list-container" style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="padding: 20px; text-align: center; color: var(--text-secondary);">Loading friends...</div>
+        </div>
+      </div>
     </div>
 
     <!-- Edit Profile Modal Overlay -->
@@ -296,6 +317,79 @@ export async function renderProfile(container) {
   container.innerHTML = createLayout(content, ROUTES.PROFILE);
   attachLayoutListeners();
 
+  // Attach Friends List Modal listeners
+  const openFriendsModalBtn = document.getElementById('open-friends-modal-btn');
+  const friendsListModal = document.getElementById('friends-list-modal');
+  const closeFriendsModalBtn = document.getElementById('close-friends-modal-btn');
+  const friendsListContainer = document.getElementById('friends-list-container');
+
+  if (openFriendsModalBtn && friendsListModal) {
+    openFriendsModalBtn.addEventListener('click', async () => {
+      friendsListModal.style.display = 'flex';
+      friendsListContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Loading friends...</div>`;
+
+      try {
+        const friends = await getFriendsProfiles(userProfile.uid);
+        if (friends.length === 0) {
+          friendsListContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No friends added yet.</div>`;
+          return;
+        }
+
+        let fHtml = '';
+        for (const f of friends) {
+          const fAvatar = renderUserAvatar(f, 40);
+          fHtml += `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 10px; background: var(--bg-primary); cursor: pointer;" class="friend-item" data-username="${escapeHTML(f.username)}">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                ${fAvatar}
+                <div style="display: flex; flex-direction: column;">
+                  <span style="font-weight: 700; font-size: 14px;">${escapeHTML(f.name)}</span>
+                  <span style="color: var(--text-secondary); font-size: 12px;">@${escapeHTML(f.username)}</span>
+                </div>
+              </div>
+              <span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-secondary);">chevron_right</span>
+            </div>
+          `;
+        }
+        friendsListContainer.innerHTML = fHtml;
+
+        friendsListContainer.querySelectorAll('.friend-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const u = item.dataset.username;
+            friendsListModal.style.display = 'none';
+            window.location.hash = `#/profile?u=${u}`;
+          });
+        });
+      } catch (err) {
+        console.error(err);
+        friendsListContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--error-color);">Error loading friends.</div>`;
+      }
+    });
+  }
+
+  if (closeFriendsModalBtn && friendsListModal) {
+    closeFriendsModalBtn.addEventListener('click', () => {
+      friendsListModal.style.display = 'none';
+    });
+  }
+
+  // Attach Add Friend button for non-self profiles
+  const profileFriendBtn = document.getElementById('profile-friend-btn');
+  if (profileFriendBtn) {
+    profileFriendBtn.addEventListener('click', async () => {
+      profileFriendBtn.disabled = true;
+      try {
+        const nowFriend = await toggleAddFriend(userProfile.uid);
+        profileFriendBtn.textContent = nowFriend ? 'Friends' : '+ Add Friend';
+        profileFriendBtn.className = `btn ${nowFriend ? 'btn-outline' : ''}`;
+      } catch (err) {
+        console.error(err);
+      } finally {
+        profileFriendBtn.disabled = false;
+      }
+    });
+  }
+
   // Subscribe & render user's posts
   const postsFeed = document.getElementById('user-posts-feed');
   const headerCount = document.getElementById('profile-header-post-count');
@@ -319,9 +413,12 @@ export async function renderProfile(container) {
     }
 
     let postsHTML = '';
+    const currentUid = auth.currentUser.uid;
+
     for (const post of posts) {
-      const isLiked = await isPostLikedByUser(post.postId, auth.currentUser?.uid);
-      postsHTML += createPostCardHTML(post, userProfile, isLiked);
+      const isLiked = await isPostLikedByUser(post.postId, currentUid);
+      const isReshared = await isPostResharedByUser(post.postId, currentUid);
+      postsHTML += createPostCardHTML(post, userProfile, isLiked, isReshared);
     }
 
     postsFeed.innerHTML = postsHTML;
@@ -345,7 +442,6 @@ export async function renderProfile(container) {
 
         try {
           const res = await toggleLikePost(postId);
-          const icon = btn.querySelector('.material-symbols-outlined');
           const countSpan = btn.querySelector('.like-count');
 
           if (res.liked) {
@@ -355,6 +451,34 @@ export async function renderProfile(container) {
           }
 
           if (countSpan) countSpan.textContent = res.likes;
+        } catch (err) {
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
+    // Attach reshare button handlers
+    postsFeed.querySelectorAll('.reshare-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = btn.dataset.postId;
+        btn.disabled = true;
+
+        try {
+          const res = await toggleResharePost(postId);
+          const countSpan = btn.querySelector('.reshare-count');
+
+          if (res.reshared) {
+            btn.classList.add('reshared');
+            btn.style.color = '#00BA7C';
+          } else {
+            btn.classList.remove('reshared');
+            btn.style.color = '';
+          }
+
+          if (countSpan) countSpan.textContent = res.reshares;
         } catch (err) {
           console.error(err);
         } finally {

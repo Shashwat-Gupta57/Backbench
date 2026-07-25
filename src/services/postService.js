@@ -14,6 +14,7 @@ export async function createPost(content) {
     timestamp: new Date().toISOString(),
     edited: false,
     likes: 0,
+    reshares: 0,
     replyCount: 0
   };
 
@@ -155,4 +156,44 @@ export async function toggleLikePost(postId) {
   });
 
   return { liked: nowLiked, likes: updatedLikes };
+}
+
+export async function isPostResharedByUser(postId, uid) {
+  if (!uid || !postId) return false;
+  const snap = await get(ref(db, `${PATHS.POST_RESHARES}/${postId}/${uid}`));
+  return snap.exists();
+}
+
+export async function toggleResharePost(postId) {
+  const user = auth.currentUser;
+  if (!user) return { reshared: false, reshares: 0 };
+
+  const reshareRef = ref(db, `${PATHS.POST_RESHARES}/${postId}/${user.uid}`);
+  const postRef = ref(db, `${PATHS.POSTS}/${postId}`);
+  const snap = await get(reshareRef);
+
+  let nowReshared = false;
+
+  if (snap.exists()) {
+    await remove(reshareRef);
+    nowReshared = false;
+  } else {
+    await set(reshareRef, { timestamp: new Date().toISOString() });
+    nowReshared = true;
+  }
+
+  let updatedReshares = 0;
+  await runTransaction(postRef, (post) => {
+    if (post) {
+      if (nowReshared) {
+        post.reshares = (post.reshares || 0) + 1;
+      } else {
+        post.reshares = Math.max(0, (post.reshares || 0) - 1);
+      }
+      updatedReshares = post.reshares;
+    }
+    return post;
+  });
+
+  return { reshared: nowReshared, reshares: updatedReshares };
 }

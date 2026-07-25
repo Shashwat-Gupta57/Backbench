@@ -3,6 +3,8 @@ export const PATHS = {
   POSTS: 'posts',
   REPLIES: 'replies',
   POST_LIKES: 'postLikes',
+  POST_RESHARES: 'postReshares',
+  FRIENDS: 'friends',
   REPLY_LIKES: 'replyLikes',
   PETITIONS: 'petitions',
   PETITION_VOTES: 'petitionVotes',
