@@ -9,6 +9,13 @@
   position: relative;
 }
 
+.app-layout {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 100vh;
+}
+
 /* Compact Left Sidebar (240px) */
 .sidebar-container {
   width: 240px;
