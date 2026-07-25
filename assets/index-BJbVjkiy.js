@@ -181,11 +181,11 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         </div>
       </div>
     </div>
-  `}function ng(e=4){let t=``;for(let n=0;n<e;n++)t+=tg();return t}function rg(e){if(!e)return``;let t=Math.floor((new Date-new Date(e))/1e3),n=t/31536e3;return n>1?Math.floor(n)+` years ago`:(n=t/2592e3,n>1?Math.floor(n)+` months ago`:(n=t/86400,n>1?Math.floor(n)+` days ago`:(n=t/3600,n>1?Math.floor(n)+` hours ago`:(n=t/60,n>1?Math.floor(n)+` minutes ago`:t<10?`just now`:Math.floor(t)+` seconds ago`))))}var ig=`data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none"><circle cx="64" cy="64" r="64" fill="%23202327"/><path d="M64 28a20 20 0 1 0 0 40 20 20 0 0 0 0-40zM32 100c0-17.673 14.327-32 32-32s32 14.327 32 32v4H32v-4z" fill="%2371767B"/></svg>`;function ag(e,t=44,n=``){let r=null;return typeof e==`string`?r=e:e&&e.profilePicture&&(r=e.profilePicture),`
+  `}function ng(e=4){let t=``;for(let n=0;n<e;n++)t+=tg();return t}function rg(e){if(!e)return``;let t=Math.floor((new Date-new Date(e))/1e3),n=t/31536e3;return n>1?Math.floor(n)+` years ago`:(n=t/2592e3,n>1?Math.floor(n)+` months ago`:(n=t/86400,n>1?Math.floor(n)+` days ago`:(n=t/3600,n>1?Math.floor(n)+` hours ago`:(n=t/60,n>1?Math.floor(n)+` minutes ago`:t<10?`just now`:Math.floor(t)+` seconds ago`))))}var ig=`data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Ccircle cx='64' cy='64' r='64' fill='%23202327'/%3E%3Cpath d='M64 28a20 20 0 1 0 0 40 20 20 0 0 0 0-40zM32 100c0-17.673 14.327-32 32-32s32 14.327 32 32v4H32v-4z' fill='%2371767B'/%3E%3C/svg%3E`;typeof window<`u`&&(window.handleAvatarError=function(e){e&&e.src!==ig&&(e.onerror=null,e.src=ig)});function ag(e,t=44,n=``){let r=null;return typeof e==`string`?r=e:e&&e.profilePicture&&(r=e.profilePicture),`
     <img 
       src="${r||ig}" 
-      onerror="this.onerror=null; this.src='${ig}';" 
-      style="width: ${t}px; height: ${t}px; border-radius: 50% !important; object-fit: cover; aspect-ratio: 1 / 1; flex-shrink: 0; background: var(--bg-tertiary); ${n}" 
+      onerror="window.handleAvatarError(this)" 
+      style="width: ${t}px; height: ${t}px; border-radius: 50% !important; object-fit: cover !important; aspect-ratio: 1 / 1 !important; flex-shrink: 0 !important; background: var(--bg-tertiary); ${n}" 
       alt="User Avatar" 
     />
   `}function og(e,t,n=!1){let r=t?.name?Y(t.name):`Anonymous Student`,i=t?.username?Y(t.username):`student`,a=t?.verifiedStudent||t?.role===`staff`||t?.role===`admin`,o=ag(t,44,`border: 1px solid var(--border-color);`);return`
