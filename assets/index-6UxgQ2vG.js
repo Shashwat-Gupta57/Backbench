@@ -181,15 +181,22 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         </div>
       </div>
     </div>
-  `}function ng(e=4){let t=``;for(let n=0;n<e;n++)t+=tg();return t}function rg(e){if(!e)return``;let t=Math.floor((new Date-new Date(e))/1e3),n=t/31536e3;return n>1?Math.floor(n)+` years ago`:(n=t/2592e3,n>1?Math.floor(n)+` months ago`:(n=t/86400,n>1?Math.floor(n)+` days ago`:(n=t/3600,n>1?Math.floor(n)+` hours ago`:(n=t/60,n>1?Math.floor(n)+` minutes ago`:t<10?`just now`:Math.floor(t)+` seconds ago`))))}function ig(e,t,n=!1){let r=t?.name?t.name.charAt(0).toUpperCase():`?`,i=t?.profilePicture,a=t?.name?Y(t.name):`Anonymous Student`,o=t?.username?Y(t.username):`student`,s=t?.verifiedStudent||t?.role===`staff`||t?.role===`admin`,c=i?`<img src="${i}" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color);" alt="${a}" />`:`<div class="avatar">${r}</div>`;return`
+  `}function ng(e=4){let t=``;for(let n=0;n<e;n++)t+=tg();return t}function rg(e){if(!e)return``;let t=Math.floor((new Date-new Date(e))/1e3),n=t/31536e3;return n>1?Math.floor(n)+` years ago`:(n=t/2592e3,n>1?Math.floor(n)+` months ago`:(n=t/86400,n>1?Math.floor(n)+` days ago`:(n=t/3600,n>1?Math.floor(n)+` hours ago`:(n=t/60,n>1?Math.floor(n)+` minutes ago`:t<10?`just now`:Math.floor(t)+` seconds ago`))))}var ig=`data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none"><circle cx="64" cy="64" r="64" fill="%23202327"/><path d="M64 28a20 20 0 1 0 0 40 20 20 0 0 0 0-40zM32 100c0-17.673 14.327-32 32-32s32 14.327 32 32v4H32v-4z" fill="%2371767B"/></svg>`;function ag(e,t=44,n=``){let r=null;return typeof e==`string`?r=e:e&&e.profilePicture&&(r=e.profilePicture),`
+    <img 
+      src="${r||ig}" 
+      onerror="this.onerror=null; this.src='${ig}';" 
+      style="width: ${t}px; height: ${t}px; border-radius: 50% !important; object-fit: cover; aspect-ratio: 1 / 1; flex-shrink: 0; background: var(--bg-tertiary); ${n}" 
+      alt="User Avatar" 
+    />
+  `}function og(e,t,n=!1){let r=t?.name?Y(t.name):`Anonymous Student`,i=t?.username?Y(t.username):`student`,a=t?.verifiedStudent||t?.role===`staff`||t?.role===`admin`,o=ag(t,44,`border: 1px solid var(--border-color);`);return`
     <article class="post-card fade-in" data-post-id="${e.postId}">
-      ${c}
+      ${o}
       <div style="flex: 1; min-width: 0;">
         <div class="post-header">
           <div class="author-meta">
-            <span class="author-name">${a}</span>
-            ${s?`<span class="material-symbols-outlined verified-icon" title="Verified Member">verified</span>`:``}
-            <span class="author-handle">@${o}</span>
+            <span class="author-name">${r}</span>
+            ${a?`<span class="material-symbols-outlined verified-icon" title="Verified Member">verified</span>`:``}
+            <span class="author-handle">@${i}</span>
             <span class="post-dot">·</span>
             <span class="post-time">${rg(e.timestamp)}</span>
           </div>
@@ -224,7 +231,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         </div>
       </div>
     </article>
-  `}var Q={POST_MAX_LENGTH:100,REPLY_MAX_LENGTH:100,FEED_PAGINATION_INITIAL:20},ag=null;function og(t){if(!q.currentUser){window.location.hash=`#/login`;return}let n=q.currentUser;t.innerHTML=X(`
+  `}var Q={POST_MAX_LENGTH:100,REPLY_MAX_LENGTH:100,FEED_PAGINATION_INITIAL:20},sg=null;function cg(t){if(!q.currentUser){window.location.hash=`#/login`;return}let n=q.currentUser;t.innerHTML=X(`
     <!-- Sticky Blur Header -->
     <header class="sticky-header">
       <h1 class="header-title">Home</h1>
@@ -284,13 +291,13 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
     <div id="feed-container">
       ${ng(4)}
     </div>
-  `,e.HOME),Z();let r=document.getElementById(`post-input`),i=document.getElementById(`char-counter`),a=document.getElementById(`post-btn`),o=document.getElementById(`feed-container`),s=document.getElementById(`toggle-poll-btn`),c=document.getElementById(`close-poll-btn`),l=document.getElementById(`inline-poll-builder`),u=!1;s.addEventListener(`click`,()=>{u=!u,l.style.display=u?`block`:`none`,d()}),c.addEventListener(`click`,()=>{u=!1,l.style.display=`none`,d()});function d(){let e=r.value.length;if(i.textContent=`${e} / ${Q.POST_MAX_LENGTH}`,e>Q.POST_MAX_LENGTH)i.style.color=`var(--error-color)`,a.disabled=!0;else if(u){let t=document.getElementById(`inline-opt-1`).value.trim(),n=document.getElementById(`inline-opt-2`).value.trim();a.disabled=!(e>0&&t.length>0&&n.length>0),i.style.color=`var(--accent-primary)`}else e===0||r.value.trim()===``?(i.style.color=`var(--text-secondary)`,a.disabled=!0):(i.style.color=`var(--accent-primary)`,a.disabled=!1)}r.addEventListener(`input`,()=>{r.style.height=`auto`,r.style.height=Math.max(54,r.scrollHeight)+`px`,d()}),[`inline-opt-1`,`inline-opt-2`,`inline-opt-3`,`inline-opt-4`].forEach(e=>{let t=document.getElementById(e);t&&t.addEventListener(`input`,d)}),a.addEventListener(`click`,async()=>{let e=r.value.trim();if(e.length>0&&e.length<=Q.POST_MAX_LENGTH){a.disabled=!0,a.textContent=`Posting...`;try{u?(await Zh(e,[document.getElementById(`inline-opt-1`).value.trim(),document.getElementById(`inline-opt-2`).value.trim(),document.getElementById(`inline-opt-3`).value.trim(),document.getElementById(`inline-opt-4`).value.trim()].filter(Boolean)),u=!1,l.style.display=`none`):await Uh(e),r.value=``,r.style.height=`54px`,r.dispatchEvent(new Event(`input`))}catch(e){console.error(e),alert(e.message||`Failed to submit post.`)}finally{a.textContent=`Post`}}}),ag&&ag();let f=q.currentUser.uid;ag=Wh(Q.FEED_PAGINATION_INITIAL,async t=>{if(t.length===0){o.innerHTML=`
+  `,e.HOME),Z();let r=document.getElementById(`post-input`),i=document.getElementById(`char-counter`),a=document.getElementById(`post-btn`),o=document.getElementById(`feed-container`),s=document.getElementById(`toggle-poll-btn`),c=document.getElementById(`close-poll-btn`),l=document.getElementById(`inline-poll-builder`),u=!1;s.addEventListener(`click`,()=>{u=!u,l.style.display=u?`block`:`none`,d()}),c.addEventListener(`click`,()=>{u=!1,l.style.display=`none`,d()});function d(){let e=r.value.length;if(i.textContent=`${e} / ${Q.POST_MAX_LENGTH}`,e>Q.POST_MAX_LENGTH)i.style.color=`var(--error-color)`,a.disabled=!0;else if(u){let t=document.getElementById(`inline-opt-1`).value.trim(),n=document.getElementById(`inline-opt-2`).value.trim();a.disabled=!(e>0&&t.length>0&&n.length>0),i.style.color=`var(--accent-primary)`}else e===0||r.value.trim()===``?(i.style.color=`var(--text-secondary)`,a.disabled=!0):(i.style.color=`var(--accent-primary)`,a.disabled=!1)}r.addEventListener(`input`,()=>{r.style.height=`auto`,r.style.height=Math.max(54,r.scrollHeight)+`px`,d()}),[`inline-opt-1`,`inline-opt-2`,`inline-opt-3`,`inline-opt-4`].forEach(e=>{let t=document.getElementById(e);t&&t.addEventListener(`input`,d)}),a.addEventListener(`click`,async()=>{let e=r.value.trim();if(e.length>0&&e.length<=Q.POST_MAX_LENGTH){a.disabled=!0,a.textContent=`Posting...`;try{u?(await Zh(e,[document.getElementById(`inline-opt-1`).value.trim(),document.getElementById(`inline-opt-2`).value.trim(),document.getElementById(`inline-opt-3`).value.trim(),document.getElementById(`inline-opt-4`).value.trim()].filter(Boolean)),u=!1,l.style.display=`none`):await Uh(e),r.value=``,r.style.height=`54px`,r.dispatchEvent(new Event(`input`))}catch(e){console.error(e),alert(e.message||`Failed to submit post.`)}finally{a.textContent=`Post`}}}),sg&&sg();let f=q.currentUser.uid;sg=Wh(Q.FEED_PAGINATION_INITIAL,async t=>{if(t.length===0){o.innerHTML=`
         <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
           <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">forum</span>
           <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">No posts yet</h3>
           <p style="font-size: 14px;">Be the first student to start the conversation on Backbench!</p>
         </div>
-      `;return}let n=``;for(let e of t){let t=await qh(e.authorId),r=await Yh(e.postId,f);n+=ig(e,t,r)}o.innerHTML=n,o.querySelectorAll(`.like-btn`).forEach(e=>{e.addEventListener(`click`,async t=>{t.stopPropagation();let n=e.dataset.postId;e.disabled=!0;try{let t=await Xh(n);t.liked?e.classList.add(`liked`,`heart-pop`):e.classList.remove(`liked`,`heart-pop`);let r=e.querySelector(`.like-count`);r&&(r.textContent=t.likes)}catch(e){console.error(e)}finally{e.disabled=!1}})}),o.querySelectorAll(`.post-card`).forEach(t=>{t.addEventListener(`click`,n=>{if(!n.target.closest(`.action-btn`)&&!n.target.closest(`.btn-ghost`)){let n=t.dataset.postId;n&&(window.location.hash=`${e.POST_DETAIL}?id=${n}`)}})}),o.querySelectorAll(`.reply-btn`).forEach(t=>{t.addEventListener(`click`,n=>{n.stopPropagation();let r=t.closest(`.post-card`)?.dataset.postId;r&&(window.location.hash=`${e.POST_DETAIL}?id=${r}`)})})})}function sg(e){return/^[a-zA-Z0-9_]{3,20}$/.test(e)}function cg(e,t){let n=t===`#/login`;e.innerHTML=`
+      `;return}let n=``;for(let e of t){let t=await qh(e.authorId),r=await Yh(e.postId,f);n+=og(e,t,r)}o.innerHTML=n,o.querySelectorAll(`.like-btn`).forEach(e=>{e.addEventListener(`click`,async t=>{t.stopPropagation();let n=e.dataset.postId;e.disabled=!0;try{let t=await Xh(n);t.liked?e.classList.add(`liked`,`heart-pop`):e.classList.remove(`liked`,`heart-pop`);let r=e.querySelector(`.like-count`);r&&(r.textContent=t.likes)}catch(e){console.error(e)}finally{e.disabled=!1}})}),o.querySelectorAll(`.post-card`).forEach(t=>{t.addEventListener(`click`,n=>{if(!n.target.closest(`.action-btn`)&&!n.target.closest(`.btn-ghost`)){let n=t.dataset.postId;n&&(window.location.hash=`${e.POST_DETAIL}?id=${n}`)}})}),o.querySelectorAll(`.reply-btn`).forEach(t=>{t.addEventListener(`click`,n=>{n.stopPropagation();let r=t.closest(`.post-card`)?.dataset.postId;r&&(window.location.hash=`${e.POST_DETAIL}?id=${r}`)})})})}function lg(e){return/^[a-zA-Z0-9_]{3,20}$/.test(e)}function ug(e,t){let n=t===`#/login`;e.innerHTML=`
     <div style="display: flex; justify-content: center; align-items: center; min-height: 100vh; width: 100%; padding: 20px; background: radial-gradient(circle at top center, rgba(29, 155, 240, 0.08) 0%, transparent 60%);">
       <div class="card fade-in" style="width: 100%; max-width: 440px; padding: 32px; border-radius: 24px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px);">
         
@@ -360,7 +367,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         </div>
       </div>
     </div>
-  `;let r=document.getElementById(`auth-form`),i=document.getElementById(`auth-error`),a=document.getElementById(`google-btn`),o=document.getElementById(`password`),s=document.getElementById(`toggle-password-btn`);s.addEventListener(`click`,()=>{let e=o.type===`password`;o.type=e?`text`:`password`;let t=s.querySelector(`.material-symbols-outlined`);t.textContent=e?`visibility_off`:`visibility`,s.title=e?`Hide Password`:`Show Password`}),a.addEventListener(`click`,async()=>{a.disabled=!0,a.textContent=`Connecting...`;let e=await zh();e.success?window.location.hash=`#/`:(i.textContent=e.error,i.style.display=`block`,a.disabled=!1,a.innerHTML=`<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 18px; height: 18px;" alt="Google" /> Continue with Google`)}),r.addEventListener(`submit`,async e=>{e.preventDefault(),i.style.display=`none`;let t=document.getElementById(`email`).value,a=document.getElementById(`password`).value,o=r.querySelector(`button[type="submit"]`);if(o.disabled=!0,o.textContent=`Authenticating...`,n){let e=await Ih(t,a);e.success?window.location.hash=`#/`:(i.textContent=e.error,i.style.display=`block`,o.disabled=!1,o.textContent=`Log In`)}else{let e=document.getElementById(`name`).value,n=document.getElementById(`username`).value,r=document.getElementById(`admissionNumber`).value,s=document.getElementById(`class`).value,c=document.getElementById(`mobile`).value;if(!sg(n)){i.textContent=`Username must be 3-20 characters long (letters, numbers, and underscores only).`,i.style.display=`block`,o.disabled=!1,o.textContent=`Create Account`;return}let l=await Fh({email:t,password:a,name:e,username:n,admissionNumber:r,userClass:s,mobile:c});l.success?window.location.hash=`#/`:(i.textContent=l.error,i.style.display=`block`,o.disabled=!1,o.textContent=`Create Account`)}})}function lg(e){return new Promise((t,n)=>{if(!e||!e.type.startsWith(`image/`))return n(Error(`Please select a valid image file.`));if(e.size>5*1024*1024)return n(Error(`Original image must be under 5MB before downscaling.`));let r=new FileReader;r.onload=e=>{let r=new Image;r.onload=()=>{let e=document.createElement(`canvas`),n=r.width,i=r.height;n>i?n>480&&(i=Math.round(i*480/n),n=480):i>480&&(n=Math.round(n*480/i),i=480),e.width=n,e.height=i;let a=e.getContext(`2d`);a.imageSmoothingEnabled=!0,a.imageSmoothingQuality=`high`,a.drawImage(r,0,0,n,i),t(e.toDataURL(`image/jpeg`,.85))},r.onerror=()=>n(Error(`Failed to load image for processing.`)),r.src=e.target.result},r.onerror=()=>n(Error(`Failed to read file.`)),r.readAsDataURL(e)})}async function ug(t){if(!q.currentUser){window.location.hash=`#/login`;return}t.innerHTML=X(`
+  `;let r=document.getElementById(`auth-form`),i=document.getElementById(`auth-error`),a=document.getElementById(`google-btn`),o=document.getElementById(`password`),s=document.getElementById(`toggle-password-btn`);s.addEventListener(`click`,()=>{let e=o.type===`password`;o.type=e?`text`:`password`;let t=s.querySelector(`.material-symbols-outlined`);t.textContent=e?`visibility_off`:`visibility`,s.title=e?`Hide Password`:`Show Password`}),a.addEventListener(`click`,async()=>{a.disabled=!0,a.textContent=`Connecting...`;let e=await zh();e.success?window.location.hash=`#/`:(i.textContent=e.error,i.style.display=`block`,a.disabled=!1,a.innerHTML=`<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 18px; height: 18px;" alt="Google" /> Continue with Google`)}),r.addEventListener(`submit`,async e=>{e.preventDefault(),i.style.display=`none`;let t=document.getElementById(`email`).value,a=document.getElementById(`password`).value,o=r.querySelector(`button[type="submit"]`);if(o.disabled=!0,o.textContent=`Authenticating...`,n){let e=await Ih(t,a);e.success?window.location.hash=`#/`:(i.textContent=e.error,i.style.display=`block`,o.disabled=!1,o.textContent=`Log In`)}else{let e=document.getElementById(`name`).value,n=document.getElementById(`username`).value,r=document.getElementById(`admissionNumber`).value,s=document.getElementById(`class`).value,c=document.getElementById(`mobile`).value;if(!lg(n)){i.textContent=`Username must be 3-20 characters long (letters, numbers, and underscores only).`,i.style.display=`block`,o.disabled=!1,o.textContent=`Create Account`;return}let l=await Fh({email:t,password:a,name:e,username:n,admissionNumber:r,userClass:s,mobile:c});l.success?window.location.hash=`#/`:(i.textContent=l.error,i.style.display=`block`,o.disabled=!1,o.textContent=`Create Account`)}})}function dg(e){return new Promise((t,n)=>{if(!e||!e.type.startsWith(`image/`))return n(Error(`Please select a valid image file.`));if(e.size>5*1024*1024)return n(Error(`Original image must be under 5MB before downscaling.`));let r=new FileReader;r.onload=e=>{let r=new Image;r.onload=()=>{let e=document.createElement(`canvas`),n=r.width,i=r.height;n>i?n>480&&(i=Math.round(i*480/n),n=480):i>480&&(n=Math.round(n*480/i),i=480),e.width=n,e.height=i;let a=e.getContext(`2d`);a.imageSmoothingEnabled=!0,a.imageSmoothingQuality=`high`,a.drawImage(r,0,0,n,i),t(e.toDataURL(`image/jpeg`,.85))},r.onerror=()=>n(Error(`Failed to load image for processing.`)),r.src=e.target.result},r.onerror=()=>n(Error(`Failed to read file.`)),r.readAsDataURL(e)})}async function fg(t){if(!q.currentUser){window.location.hash=`#/login`;return}t.innerHTML=X(`
     <header class="sticky-header">
       <div style="display: flex; align-items: center; gap: 16px;">
         <button class="btn-ghost" onclick="window.history.back()" title="Back">
@@ -384,7 +391,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         <h2 style="font-size: 20px; font-weight: 800;">User not found</h2>
         <p style="color: var(--text-secondary); margin-top: 4px;">The student profile you are looking for does not exist on Backbench.</p>
       </div>
-    `,e.PROFILE),Z();return}let a=i.name?i.name.charAt(0).toUpperCase():`?`,o=i.uid===q.currentUser.uid,s=i.verifiedStudent||i.role===`staff`||i.role===`admin`,c=i.profilePicture,l=c?`<img src="${c}" id="profile-avatar-img" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${o?`pointer`:`default`};" alt="${Y(i.name)}" title="${o?`Click to change profile picture`:``}" />`:`<div class="avatar" id="profile-avatar-img" style="width: 100px; height: 100px; font-size: 42px; border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${o?`pointer`:`default`};" title="${o?`Click to change profile picture`:``}">${a}</div>`;if(t.innerHTML=X(`
+    `,e.PROFILE),Z();return}let a=i.uid===q.currentUser.uid,o=i.verifiedStudent||i.role===`staff`||i.role===`admin`,s=ag(i,100,`border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${a?`pointer`:`default`};`);if(t.innerHTML=X(`
     <!-- Hidden File Input for 480p PFP Upload -->
     <input type="file" id="pfp-upload-input" accept="image/*" style="display: none;" />
 
@@ -397,7 +404,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         <div>
           <h1 class="header-title" style="display: flex; align-items: center; gap: 4px;">
             ${Y(i.name)}
-            ${s?`<span class="material-symbols-outlined verified-icon">verified</span>`:``}
+            ${o?`<span class="material-symbols-outlined verified-icon">verified</span>`:``}
           </h1>
           <span style="color: var(--text-secondary); font-size: 13px;">${i.postCount||0} posts</span>
         </div>
@@ -411,21 +418,21 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
     <div style="padding: 0 16px 16px 16px; border-bottom: 1px solid var(--border-color);" class="fade-in">
       <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: -50px; margin-bottom: 16px;">
         <div style="position: relative;" id="avatar-wrapper">
-          ${l}
-          ${o?`
+          ${s}
+          ${a?`
             <div style="position: absolute; bottom: 4px; right: 4px; background: var(--accent-primary); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #fff; border: 2px solid var(--bg-primary); pointer-events: none;">
               <span class="material-symbols-outlined" style="font-size: 16px;">photo_camera</span>
             </div>
           `:``}
         </div>
 
-        ${o?`<button class="btn btn-outline" id="edit-profile-btn" style="border-radius: 9999px; font-weight: 700;">Edit Profile Photo</button>`:`<button class="btn" style="border-radius: 9999px;">Follow</button>`}
+        ${a?`<button class="btn btn-outline" id="edit-profile-btn" style="border-radius: 9999px; font-weight: 700;">Edit Profile Photo</button>`:`<button class="btn" style="border-radius: 9999px;">Follow</button>`}
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 4px;">
         <h2 style="font-size: 22px; font-weight: 800; display: flex; align-items: center; gap: 6px;">
           ${Y(i.name)}
-          ${s?`<span class="material-symbols-outlined verified-icon">verified</span>`:``}
+          ${o?`<span class="material-symbols-outlined verified-icon">verified</span>`:``}
         </h2>
         <span style="color: var(--text-secondary); font-size: 15px;">@${Y(i.username)}</span>
       </div>
@@ -464,7 +471,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
     <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">
       <p style="font-size: 14px;">Posts by @${Y(i.username)} will appear here.</p>
     </div>
-  `,e.PROFILE),Z(),o){let e=document.getElementById(`pfp-upload-input`),n=document.getElementById(`edit-profile-btn`),r=document.getElementById(`avatar-wrapper`),a=()=>e.click();n&&n.addEventListener(`click`,a),r&&r.addEventListener(`click`,a),e.addEventListener(`change`,async e=>{let r=e.target.files[0];if(r)try{n&&(n.disabled=!0,n.textContent=`Processing PFP...`);let e=await lg(r);await Jh(i.uid,{profilePicture:e}),ug(t)}catch(e){console.error(e),alert(e.message||`Failed to update profile picture.`)}finally{n&&(n.disabled=!1,n.textContent=`Edit Profile Photo`)}})}}async function dg(e){if(!e)return null;let t=await B(z(K,`${J.POSTS}/${e}`));return t.exists()?t.val():null}async function fg(e,t){let n=q.currentUser;if(!n)throw Error(`Not authenticated`);let r=t?t.trim():``;if(!r)throw Error(`Reply cannot be empty`);if(r.length>Q.REPLY_MAX_LENGTH)throw Error(`Reply cannot exceed ${Q.REPLY_MAX_LENGTH} characters`);let i=cu(z(K,`${J.REPLIES}/${e}`)),a={replyId:i.key,parentPost:e,parentReply:null,authorId:n.uid,content:r,timestamp:new Date().toISOString(),likes:0};return await uu(i,a),await zu(z(K,`${J.POSTS}/${e}`),e=>(e&&(e.replyCount=(e.replyCount||0)+1),e)),a}function pg(e,t){let n=Eu(z(K,`${J.REPLIES}/${e}`),Cu(`timestamp`)),r=hu(n,e=>{let n=[];e.forEach(e=>{n.push(e.val())}),t(n)});return()=>gu(n,`value`,r)}var mg=null;async function hg(t){if(!q.currentUser){window.location.hash=`#/login`;return}t.innerHTML=X(`
+  `,e.PROFILE),Z(),a){let e=document.getElementById(`pfp-upload-input`),n=document.getElementById(`edit-profile-btn`),r=document.getElementById(`avatar-wrapper`),a=()=>e.click();n&&n.addEventListener(`click`,a),r&&r.addEventListener(`click`,a),e.addEventListener(`change`,async e=>{let r=e.target.files[0];if(r)try{n&&(n.disabled=!0,n.textContent=`Processing PFP...`);let e=await dg(r);await Jh(i.uid,{profilePicture:e}),fg(t)}catch(e){console.error(e),alert(e.message||`Failed to update profile picture.`)}finally{n&&(n.disabled=!1,n.textContent=`Edit Profile Photo`)}})}}async function pg(e){if(!e)return null;let t=await B(z(K,`${J.POSTS}/${e}`));return t.exists()?t.val():null}async function mg(e,t){let n=q.currentUser;if(!n)throw Error(`Not authenticated`);let r=t?t.trim():``;if(!r)throw Error(`Reply cannot be empty`);if(r.length>Q.REPLY_MAX_LENGTH)throw Error(`Reply cannot exceed ${Q.REPLY_MAX_LENGTH} characters`);let i=cu(z(K,`${J.REPLIES}/${e}`)),a={replyId:i.key,parentPost:e,parentReply:null,authorId:n.uid,content:r,timestamp:new Date().toISOString(),likes:0};return await uu(i,a),await zu(z(K,`${J.POSTS}/${e}`),e=>(e&&(e.replyCount=(e.replyCount||0)+1),e)),a}function hg(e,t){let n=Eu(z(K,`${J.REPLIES}/${e}`),Cu(`timestamp`)),r=hu(n,e=>{let n=[];e.forEach(e=>{n.push(e.val())}),t(n)});return()=>gu(n,`value`,r)}var gg=null;async function _g(t){if(!q.currentUser){window.location.hash=`#/login`;return}t.innerHTML=X(`
     <header class="sticky-header">
       <div style="display: flex; align-items: center; gap: 16px;">
         <button class="btn-ghost" onclick="window.history.back()" title="Back">
@@ -474,7 +481,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
       </div>
     </header>
     ${ng(2)}
-  `,e.HOME);let n=window.location.hash,r=null;if(n.includes(`?id=`)&&(r=n.split(`?id=`)[1]),!r){gg(t,`No post ID provided.`);return}let i=await dg(r);if(!i){gg(t,`This post has been deleted or does not exist.`);return}let a=await qh(i.authorId),o=q.currentUser,s=o.email?o.email.charAt(0).toUpperCase():`S`,c=a?.name?a.name.charAt(0).toUpperCase():`?`,l=a?.name?Y(a.name):`Anonymous Student`,u=a?.username?Y(a.username):`student`,d=a?.verifiedStudent||a?.role===`staff`||a?.role===`admin`,f=new Date(i.timestamp||Date.now()),ee=f.toLocaleTimeString(`en-US`,{hour:`numeric`,minute:`2-digit`}),te=f.toLocaleDateString(`en-US`,{month:`short`,day:`numeric`,year:`numeric`});t.innerHTML=X(`
+  `,e.HOME);let n=window.location.hash,r=null;if(n.includes(`?id=`)&&(r=n.split(`?id=`)[1]),!r){vg(t,`No post ID provided.`);return}let i=await pg(r);if(!i){vg(t,`This post has been deleted or does not exist.`);return}let a=await qh(i.authorId),o=q.currentUser,s=o.email?o.email.charAt(0).toUpperCase():`S`,c=a?.name?a.name.charAt(0).toUpperCase():`?`,l=a?.name?Y(a.name):`Anonymous Student`,u=a?.username?Y(a.username):`student`,d=a?.verifiedStudent||a?.role===`staff`||a?.role===`admin`,f=new Date(i.timestamp||Date.now()),ee=f.toLocaleTimeString(`en-US`,{hour:`numeric`,minute:`2-digit`}),te=f.toLocaleDateString(`en-US`,{month:`short`,day:`numeric`,year:`numeric`});t.innerHTML=X(`
     <!-- Header -->
     <header class="sticky-header">
       <div style="display: flex; align-items: center; gap: 16px;">
@@ -563,7 +570,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
     <div id="replies-feed-container">
       ${ng(2)}
     </div>
-  `,e.HOME),Z();let p=document.getElementById(`reply-input`),ne=document.getElementById(`reply-char-counter`),m=document.getElementById(`submit-reply-btn`),re=document.getElementById(`focus-reply-btn`),ie=document.getElementById(`replies-feed-container`),ae=document.getElementById(`main-like-btn`),oe=document.getElementById(`main-reply-count`);re&&re.addEventListener(`click`,()=>{p.focus()}),ae&&ae.addEventListener(`click`,async()=>{ae.classList.toggle(`liked`),ae.classList.add(`heart-pop`);try{await Xh(i.postId)}catch(e){console.error(e)}}),p.addEventListener(`input`,()=>{p.style.height=`auto`,p.style.height=Math.max(54,p.scrollHeight)+`px`;let e=p.value.length;ne.textContent=`${e} / ${Q.REPLY_MAX_LENGTH}`,e>Q.REPLY_MAX_LENGTH?(ne.style.color=`var(--error-color)`,m.disabled=!0):e===0||p.value.trim()===``?(ne.style.color=`var(--text-secondary)`,m.disabled=!0):(ne.style.color=`var(--accent-primary)`,m.disabled=!1)}),m.addEventListener(`click`,async()=>{let e=p.value.trim();if(e.length>0&&e.length<=Q.REPLY_MAX_LENGTH){m.disabled=!0,m.textContent=`Replying...`;try{await fg(i.postId,e),p.value=``,p.style.height=`54px`,p.dispatchEvent(new Event(`input`));let t=parseInt(oe.textContent)||0;oe.textContent=t+1}catch(e){console.error(e),alert(e.message||`Failed to submit reply.`)}finally{m.textContent=`Reply`}}}),mg&&mg(),mg=pg(i.postId,async e=>{if(e.length===0){ie.innerHTML=`
+  `,e.HOME),Z();let p=document.getElementById(`reply-input`),ne=document.getElementById(`reply-char-counter`),m=document.getElementById(`submit-reply-btn`),re=document.getElementById(`focus-reply-btn`),ie=document.getElementById(`replies-feed-container`),ae=document.getElementById(`main-like-btn`),oe=document.getElementById(`main-reply-count`);re&&re.addEventListener(`click`,()=>{p.focus()}),ae&&ae.addEventListener(`click`,async()=>{ae.classList.toggle(`liked`),ae.classList.add(`heart-pop`);try{await Xh(i.postId)}catch(e){console.error(e)}}),p.addEventListener(`input`,()=>{p.style.height=`auto`,p.style.height=Math.max(54,p.scrollHeight)+`px`;let e=p.value.length;ne.textContent=`${e} / ${Q.REPLY_MAX_LENGTH}`,e>Q.REPLY_MAX_LENGTH?(ne.style.color=`var(--error-color)`,m.disabled=!0):e===0||p.value.trim()===``?(ne.style.color=`var(--text-secondary)`,m.disabled=!0):(ne.style.color=`var(--accent-primary)`,m.disabled=!1)}),m.addEventListener(`click`,async()=>{let e=p.value.trim();if(e.length>0&&e.length<=Q.REPLY_MAX_LENGTH){m.disabled=!0,m.textContent=`Replying...`;try{await mg(i.postId,e),p.value=``,p.style.height=`54px`,p.dispatchEvent(new Event(`input`));let t=parseInt(oe.textContent)||0;oe.textContent=t+1}catch(e){console.error(e),alert(e.message||`Failed to submit reply.`)}finally{m.textContent=`Reply`}}}),gg&&gg(),gg=hg(i.postId,async e=>{if(e.length===0){ie.innerHTML=`
         <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
           <span class="material-symbols-outlined" style="font-size: 36px; margin-bottom: 8px; color: var(--text-muted);">chat_bubble_outline</span>
           <p style="font-size: 14px;">No replies yet. Be the first to reply to ${l}!</p>
@@ -590,7 +597,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
             </div>
           </div>
         </article>
-      `}ie.innerHTML=t})}function gg(t,n){t.innerHTML=X(`
+      `}ie.innerHTML=t})}function vg(t,n){t.innerHTML=X(`
     <header class="sticky-header">
       <div style="display: flex; align-items: center; gap: 16px;">
         <button class="btn-ghost" onclick="window.history.back()">
@@ -604,7 +611,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
       <h2 style="font-size: 20px; font-weight: 800;">Post Unavailable</h2>
       <p style="color: var(--text-secondary); margin-top: 4px;">${n}</p>
     </div>
-  `,e.HOME),Z()}function _g(e){e.innerHTML=X(`
+  `,e.HOME),Z()}function yg(e){e.innerHTML=X(`
     <!-- Header -->
     <header class="sticky-header">
       <h1 class="header-title">Campus Search & Friends</h1>
@@ -655,7 +662,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
               ${t?`Friends`:`+ Add Friend`}
             </button>
           </div>
-        `}n.innerHTML=i,n.querySelectorAll(`.user-profile-link`).forEach(e=>{e.addEventListener(`click`,()=>{window.location.hash=`#/profile?u=${e.dataset.username}`})}),n.querySelectorAll(`.friend-action-btn`).forEach(e=>{e.addEventListener(`click`,async t=>{t.stopPropagation();let n=e.dataset.uid;e.disabled=!0;try{let t=await Vh(n);e.textContent=t?`Friends`:`+ Add Friend`,e.className=`btn ${t?`btn-outline`:``} friend-action-btn`}catch(e){console.error(e)}finally{e.disabled=!1}})})}catch(e){console.error(e),n.innerHTML=`<div style="padding: 20px; text-align: center; color: var(--error-color);">Failed to search campus.</div>`}})}function vg(e){e.innerHTML=X(`
+        `}n.innerHTML=i,n.querySelectorAll(`.user-profile-link`).forEach(e=>{e.addEventListener(`click`,()=>{window.location.hash=`#/profile?u=${e.dataset.username}`})}),n.querySelectorAll(`.friend-action-btn`).forEach(e=>{e.addEventListener(`click`,async t=>{t.stopPropagation();let n=e.dataset.uid;e.disabled=!0;try{let t=await Vh(n);e.textContent=t?`Friends`:`+ Add Friend`,e.className=`btn ${t?`btn-outline`:``} friend-action-btn`}catch(e){console.error(e)}finally{e.disabled=!1}})})}catch(e){console.error(e),n.innerHTML=`<div style="padding: 20px; text-align: center; color: var(--error-color);">Failed to search campus.</div>`}})}function bg(e){e.innerHTML=X(`
     <div style="padding: var(--spacing-md); border-bottom: 1px solid var(--border-color);">
       <h2 style="font-size: 20px;">Petitions</h2>
     </div>
@@ -664,7 +671,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
       <h3>Student Petitions</h3>
       <p style="margin-top: 8px;">View and support causes that matter to you. Coming soon.</p>
     </div>
-  `),Z()}function yg(e,t,n=null){let r=t?.name?t.name.charAt(0).toUpperCase():`?`,i=t?.name?Y(t.name):`Anonymous Student`,a=t?.username?Y(t.username):`student`,o=e.totalVotes||0,s=n!==null,c=``;return c=s?`
+  `),Z()}function xg(e,t,n=null){let r=t?.name?t.name.charAt(0).toUpperCase():`?`,i=t?.name?Y(t.name):`Anonymous Student`,a=t?.username?Y(t.username):`student`,o=e.totalVotes||0,s=n!==null,c=``;return c=s?`
       <div class="poll-results-container" style="display: flex; flex-direction: column; gap: 10px; margin-top: 12px;">
         ${e.options.map((e,t)=>{let r=e.votes||0,i=o>0?Math.round(r/o*100):0,a=n===t;return`
             <div class="poll-result-bar-wrapper ${a?`user-selected`:``}">
@@ -716,7 +723,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         </div>
       </div>
     </article>
-  `}var bg=null;function xg(t){if(!q.currentUser){window.location.hash=`#/login`;return}t.innerHTML=X(`
+  `}var Sg=null;function Cg(t){if(!q.currentUser){window.location.hash=`#/login`;return}t.innerHTML=X(`
     <!-- Header -->
     <header class="sticky-header">
       <h1 class="header-title">Campus Polls</h1>
@@ -755,13 +762,13 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
     <div id="polls-feed-container" style="padding: 16px;">
       ${ng(3)}
     </div>
-  `,e.POLLS),Z();let n=document.getElementById(`poll-question`),r=document.getElementById(`poll-options-inputs`),i=document.getElementById(`add-option-btn`),a=document.getElementById(`submit-poll-btn`),o=document.getElementById(`poll-error`),s=document.getElementById(`polls-feed-container`);i.addEventListener(`click`,()=>{let e=r.querySelectorAll(`.poll-opt-input`);if(e.length<4){let t=e.length+1,n=document.createElement(`input`);n.type=`text`,n.className=`input-field poll-opt-input fade-in`,n.placeholder=`Option ${t}`,n.style.marginBottom=`0`,r.appendChild(n),e.length+1===4&&(i.style.display=`none`)}}),a.addEventListener(`click`,async()=>{o.style.display=`none`;let e=n.value.trim(),t=r.querySelectorAll(`.poll-opt-input`),i=Array.from(t).map(e=>e.value.trim());a.disabled=!0,a.textContent=`Publishing...`;try{await Zh(e,i),n.value=``,t.forEach(e=>e.value=``)}catch(e){o.textContent=e.message,o.style.display=`block`}finally{a.disabled=!1,a.textContent=`Publish Poll`}}),bg&&bg(),bg=eg(20,async e=>{if(e.length===0){s.innerHTML=`
+  `,e.POLLS),Z();let n=document.getElementById(`poll-question`),r=document.getElementById(`poll-options-inputs`),i=document.getElementById(`add-option-btn`),a=document.getElementById(`submit-poll-btn`),o=document.getElementById(`poll-error`),s=document.getElementById(`polls-feed-container`);i.addEventListener(`click`,()=>{let e=r.querySelectorAll(`.poll-opt-input`);if(e.length<4){let t=e.length+1,n=document.createElement(`input`);n.type=`text`,n.className=`input-field poll-opt-input fade-in`,n.placeholder=`Option ${t}`,n.style.marginBottom=`0`,r.appendChild(n),e.length+1===4&&(i.style.display=`none`)}}),a.addEventListener(`click`,async()=>{o.style.display=`none`;let e=n.value.trim(),t=r.querySelectorAll(`.poll-opt-input`),i=Array.from(t).map(e=>e.value.trim());a.disabled=!0,a.textContent=`Publishing...`;try{await Zh(e,i),n.value=``,t.forEach(e=>e.value=``)}catch(e){o.textContent=e.message,o.style.display=`block`}finally{a.disabled=!1,a.textContent=`Publish Poll`}}),Sg&&Sg(),Sg=eg(20,async e=>{if(e.length===0){s.innerHTML=`
         <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
           <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">poll</span>
           <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">No active polls</h3>
           <p style="font-size: 14px;">Create the first poll above to gather student opinions!</p>
         </div>
-      `;return}let t=``,n=q.currentUser.uid;for(let r of e){let e=await qh(r.creatorId),i=await Qh(r.pollId,n);t+=yg(r,e,i)}s.innerHTML=t,s.querySelectorAll(`.poll-option-btn`).forEach(e=>{e.addEventListener(`click`,async t=>{t.stopPropagation();let n=e.dataset.pollId,r=parseInt(e.dataset.optionIndex);e.disabled=!0,e.textContent=`Recording vote...`;try{await $h(n,r)}catch(e){alert(e.message||`Failed to record vote`)}})})})}function Sg(e){e.innerHTML=X(`
+      `;return}let t=``,n=q.currentUser.uid;for(let r of e){let e=await qh(r.creatorId),i=await Qh(r.pollId,n);t+=xg(r,e,i)}s.innerHTML=t,s.querySelectorAll(`.poll-option-btn`).forEach(e=>{e.addEventListener(`click`,async t=>{t.stopPropagation();let n=e.dataset.pollId,r=parseInt(e.dataset.optionIndex);e.disabled=!0,e.textContent=`Recording vote...`;try{await $h(n,r)}catch(e){alert(e.message||`Failed to record vote`)}})})})}function wg(e){e.innerHTML=X(`
     <div style="padding: var(--spacing-md); border-bottom: 1px solid var(--border-color);">
       <h2 style="font-size: 20px;">Announcements</h2>
     </div>
@@ -770,7 +777,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
       <h3>Official Announcements</h3>
       <p style="margin-top: 8px;">Updates from the staff and admin. Coming soon.</p>
     </div>
-  `),Z()}function Cg(e){e.innerHTML=X(`
+  `),Z()}function Tg(e){e.innerHTML=X(`
     <div style="padding: var(--spacing-md); border-bottom: 1px solid var(--border-color);">
       <h2 style="font-size: 20px;">Events</h2>
     </div>
@@ -779,7 +786,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
       <h3>Campus Events</h3>
       <p style="margin-top: 8px;">Discover upcoming events and meetings. Coming soon.</p>
     </div>
-  `),Z()}async function wg(e){if(!q.currentUser){window.location.hash=`#/login`;return}let t=await B(z(K,`${J.USERS}/${q.currentUser.uid}`));if(!t.exists()||t.val().role===Mh.STUDENT){e.innerHTML=X(`
+  `),Z()}async function Eg(e){if(!q.currentUser){window.location.hash=`#/login`;return}let t=await B(z(K,`${J.USERS}/${q.currentUser.uid}`));if(!t.exists()||t.val().role===Mh.STUDENT){e.innerHTML=X(`
       <div style="padding: var(--spacing-lg); text-align: center; color: var(--error-color);">
         <span class="material-icons" style="font-size: 48px; margin-bottom: 16px;">block</span>
         <h3>Access Denied</h3>
@@ -809,7 +816,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         
       </div>
     </div>
-  `),Z()}function Tg(e){e.innerHTML=X(`
+  `),Z()}function Dg(e){e.innerHTML=X(`
     <div style="padding: var(--spacing-md); border-bottom: 1px solid var(--border-color);">
       <h2 style="font-size: 20px;">Settings</h2>
     </div>
@@ -818,11 +825,11 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
       <h3>Account Settings</h3>
       <p style="margin-top: 8px;">Manage your preferences. Coming soon.</p>
     </div>
-  `),Z()}var $=null;function Eg(t){$=t,window.addEventListener(`hashchange`,Dg),window.location.hash?Dg():window.location.hash=e.HOME}function Dg(){let t=window.location.hash.split(`?`)[0];switch($&&($.innerHTML=``),t){case`#/login`:case`#/signup`:cg($,t);break;case e.HOME:og($);break;case e.PROFILE:ug($);break;case e.POST_DETAIL:hg($);break;case`#/search`:_g($);break;case e.PETITIONS:vg($);break;case e.POLLS:xg($);break;case e.ANNOUNCEMENTS:Sg($);break;case e.EVENTS:Cg($);break;case e.ADMIN:wg($);break;case e.SETTINGS:Tg($);break;default:$.innerHTML=`<div style="padding: 40px; text-align: center;"><h1>404 Page Not Found</h1></div>`;break}}var Og=!1;function kg(){let e=document.querySelector(`#app`);e.innerHTML=`
+  `),Z()}var $=null;function Og(t){$=t,window.addEventListener(`hashchange`,kg),window.location.hash?kg():window.location.hash=e.HOME}function kg(){let t=window.location.hash.split(`?`)[0];switch($&&($.innerHTML=``),t){case`#/login`:case`#/signup`:ug($,t);break;case e.HOME:cg($);break;case e.PROFILE:fg($);break;case e.POST_DETAIL:_g($);break;case`#/search`:yg($);break;case e.PETITIONS:bg($);break;case e.POLLS:Cg($);break;case e.ANNOUNCEMENTS:wg($);break;case e.EVENTS:Tg($);break;case e.ADMIN:Eg($);break;case e.SETTINGS:Dg($);break;default:$.innerHTML=`<div style="padding: 40px; text-align: center;"><h1>404 Page Not Found</h1></div>`;break}}var Ag=!1;function jg(){let e=document.querySelector(`#app`);e.innerHTML=`
     <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; width: 100%;">
       <div style="width: 56px; height: 56px; background: linear-gradient(135deg, #1D9BF0, #0077B5); border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 28px; box-shadow: 0 6px 20px rgba(29, 155, 240, 0.35);" class="pulse-badge">
         B
       </div>
       <p style="margin-top: 16px; color: var(--text-secondary); font-size: 14px; font-weight: 600;">Restoring session...</p>
     </div>
-  `,vp(q,async t=>{if(t)try{Nh(`backbench_token`,await t.getIdToken(),30),Nh(`backbench_uid`,t.uid,30)}catch(e){console.error(`Error retrieving ID token:`,e)}else Ph(`backbench_token`),Ph(`backbench_uid`);Og?!t&&window.location.hash!==`#/login`&&window.location.hash!==`#/signup`&&(window.location.hash=`#/login`):(Og=!0,Eg(e))})}document.addEventListener(`DOMContentLoaded`,kg);
+  `,vp(q,async t=>{if(t)try{Nh(`backbench_token`,await t.getIdToken(),30),Nh(`backbench_uid`,t.uid,30)}catch(e){console.error(`Error retrieving ID token:`,e)}else Ph(`backbench_token`),Ph(`backbench_uid`);Ag?!t&&window.location.hash!==`#/login`&&window.location.hash!==`#/signup`&&(window.location.hash=`#/login`):(Ag=!0,Og(e))})}document.addEventListener(`DOMContentLoaded`,jg);
