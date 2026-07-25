@@ -52,6 +52,11 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
               <span class="sidebar-label">Profile</span>
             </a>
 
+            <a href="#/friends" class="nav-item ${isRoute('#/friends') ? 'active' : ''}">
+              <span class="material-symbols-outlined">group</span>
+              <span class="sidebar-label">Friends</span>
+            </a>
+
             <a href="#/search" class="nav-item ${isRoute('#/search') ? 'active' : ''}">
               <span class="material-symbols-outlined">search</span>
               <span class="sidebar-label">Search</span>
@@ -169,14 +174,14 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
         <a href="${ROUTES.HOME}" class="mobile-nav-item ${isRoute(ROUTES.HOME) ? 'active' : ''}">
           <span class="material-symbols-outlined">home</span>
         </a>
+        <a href="#/friends" class="mobile-nav-item ${isRoute('#/friends') ? 'active' : ''}">
+          <span class="material-symbols-outlined">group</span>
+        </a>
         <a href="#/search" class="mobile-nav-item ${isRoute('#/search') ? 'active' : ''}">
           <span class="material-symbols-outlined">search</span>
         </a>
         <a href="${ROUTES.PETITIONS}" class="mobile-nav-item ${isRoute(ROUTES.PETITIONS) ? 'active' : ''}">
           <span class="material-symbols-outlined">campaign</span>
-        </a>
-        <a href="${ROUTES.POLLS}" class="mobile-nav-item ${isRoute(ROUTES.POLLS) ? 'active' : ''}">
-          <span class="material-symbols-outlined">poll</span>
         </a>
         <a href="${ROUTES.PROFILE}" class="mobile-nav-item ${isRoute(ROUTES.PROFILE) ? 'active' : ''}">
           <span class="material-symbols-outlined">person</span>
