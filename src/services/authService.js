@@ -13,6 +13,23 @@ import { ROLES } from '../constants/roles.js';
 import { deleteCookie } from '../helpers/cookie.js';
 import { invalidateUserCache } from './postService.js';
 
+function formatAuthError(error) {
+  const code = error?.code || '';
+  const msg = error?.message || '';
+
+  if (code === 'auth/unauthorized-domain' || msg.includes('unauthorized-domain')) {
+    const domain = window.location.hostname;
+    return `Unauthorized Domain Error: Please add "${domain}" to Firebase Console -> Authentication -> Settings -> Authorized domains.`;
+  }
+  if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+    return 'Invalid email or password. Please verify your login credentials.';
+  }
+  if (code === 'auth/email-already-in-use') {
+    return 'An account with this email address already exists. Please log in instead.';
+  }
+  return msg || 'Authentication failed. Please try again.';
+}
+
 export function isProfileComplete(profile) {
   if (!profile) return false;
   const username = profile.username;
@@ -57,7 +74,7 @@ export async function registerUser(data) {
     return { success: true, user: profileData };
   } catch (error) {
     console.error('Registration error:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: formatAuthError(error) };
   }
 }
 
@@ -67,7 +84,7 @@ export async function loginUser(email, password) {
     return { success: true, user: userCredential.user };
   } catch (error) {
     console.error('Login error:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: formatAuthError(error) };
   }
 }
 
@@ -146,6 +163,6 @@ export async function loginWithGoogle() {
         error: 'An account already exists with this email address using Email & Password. Please log in with your email and password instead.'
       };
     }
-    return { success: false, error: error.message };
+    return { success: false, error: formatAuthError(error) };
   }
 }
