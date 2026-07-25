@@ -3,6 +3,7 @@ import { renderHome } from '../home/home.js';
 import { renderAuth } from '../auth/auth.js';
 import { renderProfile } from '../profiles/profiles.js';
 import { renderFriends } from '../friends/friends.js';
+import { renderNotifications } from '../notifications/notifications.js';
 import { renderPostDetail } from '../posts/postDetail.js';
 import { renderSearch } from '../search/search.js';
 import { renderOnboarding } from '../auth/onboarding.js';
@@ -65,6 +66,9 @@ async function handleRoute() {
       break;
     case ROUTES.PROFILE:
       renderProfile(rootElement);
+      break;
+    case '#/notifications':
+      renderNotifications(rootElement);
       break;
     case '#/friends':
       renderFriends(rootElement);

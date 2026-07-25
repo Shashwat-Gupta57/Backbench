@@ -3,6 +3,7 @@ import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLike
 import { createPoll, subscribeToPolls, getUserVote, voteInPoll } from '../services/pollService.js';
 import { getFriendUids } from '../services/friendService.js';
 import { deletePostAsStaff } from '../services/adminService.js';
+import { reportPost } from '../services/reportService.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 import { createPostCardHTML } from '../components/PostCard.js';
 import { createPollCardHTML } from '../components/PollCard.js';
@@ -263,10 +264,10 @@ export function renderHome(container) {
       friendUids.push(currentUid);
     }
 
-    // Filter items based on active tab
+    // Filter items based on active tab & excluded held moderation posts
     const filteredPosts = activeTabMode === 'friends' 
-      ? latestPosts.filter(p => friendUids.includes(p.authorId))
-      : latestPosts;
+      ? latestPosts.filter(p => friendUids.includes(p.authorId) && p.status !== 'AWAITING_MODERATION')
+      : latestPosts.filter(p => p.status !== 'AWAITING_MODERATION');
 
     const filteredPolls = activeTabMode === 'friends'
       ? latestPolls.filter(p => friendUids.includes(p.creatorId))
@@ -357,16 +358,15 @@ export function renderHome(container) {
       });
     });
 
-    // Attach Staff Takedown Powers
-    if (isStaffOrAdmin) {
-      feedContainer.querySelectorAll('.post-card').forEach(card => {
-        const optionsBtn = card.querySelector('.btn-ghost[title="Options"]');
-        if (optionsBtn) {
-          optionsBtn.title = "Staff Takedown Powers";
-          optionsBtn.style.color = "var(--error-color)";
-          optionsBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            const postId = card.dataset.postId;
+    // Attach Post Options Context Menu (Staff Takedown Powers OR Community Reporting)
+    feedContainer.querySelectorAll('.post-card').forEach(card => {
+      const optionsBtn = card.querySelector('.btn-ghost[title="Options"]');
+      if (optionsBtn) {
+        optionsBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const postId = card.dataset.postId;
+
+          if (isStaffOrAdmin) {
             if (confirm('🛡️ Staff Moderation Action:\nDo you want to put down (delete) this post from Backbench?')) {
               try {
                 await deletePostAsStaff(postId);
@@ -376,10 +376,26 @@ export function renderHome(container) {
                 alert(err.message || 'Failed to delete post.');
               }
             }
-          });
-        }
-      });
-    }
+          } else {
+            const reason = prompt('🚩 Report Post to SJC Moderation\nPlease state reason for reporting this post:', 'Inappropriate content');
+            if (reason && reason.trim()) {
+              try {
+                const res = await reportPost(postId, reason.trim());
+                if (res.autoTakenDown) {
+                  alert('Thank you. This post has accumulated 2 community reports and has been automatically taken down for Staff review.');
+                  card.style.opacity = '0.2';
+                  card.style.pointerEvents = 'none';
+                } else {
+                  alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
+                }
+              } catch (err) {
+                alert(err.message || 'Failed to submit report.');
+              }
+            }
+          }
+        });
+      }
+    });
 
     // Attach Poll Voting for Polls on Home Feed
     feedContainer.querySelectorAll('.poll-option-btn').forEach(btn => {
@@ -402,7 +418,7 @@ export function renderHome(container) {
     // Clicking post card opens Full Post Detail Page
     feedContainer.querySelectorAll('.post-card').forEach(card => {
       card.addEventListener('click', (e) => {
-        if (!e.target.closest('.action-btn') && !e.target.closest('.btn-ghost')) {
+        if (!e.target.closest('.action-btn') && !e.target.closest('.btn-ghost') && !e.target.closest('a')) {
           const postId = card.dataset.postId;
           if (postId) {
             window.location.hash = `${ROUTES.POST_DETAIL}?id=${postId}`;

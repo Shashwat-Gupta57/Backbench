@@ -2,7 +2,8 @@ import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { auth } from '../firebase/firebase.js';
 import { ROLES } from '../constants/roles.js';
 import { getUserProfile } from '../services/postService.js';
-import { getCampusAnalyticsStats, getAllUsersRoster, setUserRole, toggleUserSuspension } from '../services/adminService.js';
+import { getCampusAnalyticsStats, getAllUsersRoster, setUserRole, toggleUserSuspension, deletePostAsStaff } from '../services/adminService.js';
+import { getReportedPostsQueue, approveAndReinstatePost } from '../services/reportService.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { escapeHTML } from '../helpers/formatters.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
@@ -48,9 +49,10 @@ export async function renderAdmin(container) {
     return;
   }
 
-  // Fetch live stats & roster
+  // Fetch live stats, roster & reported queue
   const stats = await getCampusAnalyticsStats();
   const usersRoster = await getAllUsersRoster();
+  const reportedQueue = await getReportedPostsQueue();
 
   const isAdmin = userRole === ROLES.ADMIN;
 
@@ -88,16 +90,68 @@ export async function renderAdmin(container) {
         </div>
 
         <div class="card" style="padding: 16px; border-radius: 16px; text-align: center; border: 1px solid var(--border-color);">
-          <span class="material-symbols-outlined" style="font-size: 28px; color: var(--error-color);">favorite</span>
-          <div style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin-top: 4px;">${stats.totalLikes}</div>
-          <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Total Likes</span>
+          <span class="material-symbols-outlined" style="font-size: 28px; color: var(--error-color);">flag</span>
+          <div style="font-size: 22px; font-weight: 800; color: var(--error-color); margin-top: 4px;">${reportedQueue.length}</div>
+          <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Held Reports</span>
+        </div>
+      </div>
+
+      <!-- Reported Posts Validation Queue Card -->
+      <div class="card" style="padding: 24px; border-radius: 20px; border: 1px solid var(--border-color); margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+              <span class="material-symbols-outlined" style="color: var(--error-color);">gavel</span>
+              Reported Posts Moderation Queue (${reportedQueue.length})
+            </h3>
+            <span style="font-size: 13px; color: var(--text-secondary);">Posts accumulating 2+ community reports are held here awaiting Staff review.</span>
+          </div>
         </div>
 
-        <div class="card" style="padding: 16px; border-radius: 16px; text-align: center; border: 1px solid var(--border-color);">
-          <span class="material-symbols-outlined" style="font-size: 28px; color: #9B51E0;">campaign</span>
-          <div style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin-top: 4px;">${stats.totalPetitions}</div>
-          <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Petitions</span>
-        </div>
+        ${reportedQueue.length === 0 ? `
+          <div style="padding: 24px; text-align: center; color: var(--text-secondary); font-size: 14px;">
+            ✓ No reported posts awaiting validation. The campus feed is clean!
+          </div>
+        ` : `
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            ${reportedQueue.map(async p => {
+              const author = await getUserProfile(p.authorId);
+              const authorName = author?.name ? escapeHTML(author.name) : 'Student';
+              const count = p.reportCount || 0;
+
+              return `
+                <div class="card fade-in" style="padding: 16px; border-radius: 14px; background: var(--bg-primary); border: 1px solid var(--border-color);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="brand-badge" style="font-size: 11px; background: rgba(244, 33, 46, 0.2); color: var(--error-color); border-color: var(--error-color);">
+                        ${count} REPORT${count === 1 ? '' : 'S'} · AWAITING VALIDATION
+                      </span>
+                      <span style="font-size: 13px; color: var(--text-secondary);">Posted by <strong>${authorName}</strong> (@${escapeHTML(author?.username || 'student')})</span>
+                    </div>
+
+                    <a href="#/post?id=${p.postId}" class="btn btn-outline" style="font-size: 11px; padding: 4px 10px;">
+                      View Full Post
+                    </a>
+                  </div>
+
+                  <div style="font-size: 15px; color: var(--text-primary); font-weight: 500; margin-bottom: 12px; line-height: 1.4;">
+                    "${escapeHTML(p.content)}"
+                  </div>
+
+                  <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="btn approve-post-btn" data-post-id="${p.postId}" style="font-size: 12px; padding: 6px 14px; background: #00BA7C; font-weight: 700;">
+                      ✓ Approve & Reinstate Post
+                    </button>
+                    
+                    <button class="btn delete-reported-btn" data-post-id="${p.postId}" style="font-size: 12px; padding: 6px 14px; background: var(--error-color); font-weight: 700;">
+                      🗑️ Delete Post Permanently
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
       </div>
 
       <!-- User Management Roster Card -->
@@ -188,6 +242,42 @@ export async function renderAdmin(container) {
 
   container.innerHTML = createLayout(content, ROUTES.ADMIN, userRole);
   attachLayoutListeners();
+
+  // Approve & Reinstate Post Handler
+  container.querySelectorAll('.approve-post-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const postId = btn.dataset.postId;
+      btn.disabled = true;
+      btn.textContent = 'Reinstating...';
+
+      try {
+        await approveAndReinstatePost(postId);
+        renderAdmin(container);
+      } catch (err) {
+        alert(err.message || 'Failed to approve post.');
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // Delete Post Permanently Handler
+  container.querySelectorAll('.delete-reported-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const postId = btn.dataset.postId;
+      if (confirm('Are you sure you want to permanently delete this reported post?')) {
+        btn.disabled = true;
+        btn.textContent = 'Deleting...';
+
+        try {
+          await deletePostAsStaff(postId);
+          renderAdmin(container);
+        } catch (err) {
+          alert(err.message || 'Failed to delete post.');
+          btn.disabled = false;
+        }
+      }
+    });
+  });
 
   // Search Filter in Roster Table
   const searchInput = document.getElementById('roster-search-input');

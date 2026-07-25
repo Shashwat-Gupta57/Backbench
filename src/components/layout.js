@@ -4,6 +4,8 @@ import { ref, get } from 'firebase/database';
 import { logoutUser } from '../services/authService.js';
 import { searchCampusUsers, toggleAddFriend, isFriend } from '../services/searchService.js';
 import { getTrendingHashtags } from '../services/postService.js';
+import { subscribeToUserNotifications } from '../services/notificationService.js';
+import { getSavedAccounts, switchToAccount, removeSavedAccount, logoutAllAccounts } from '../services/multiAccountService.js';
 import { escapeHTML } from '../helpers/formatters.js';
 
 function isRoute(route) {
@@ -51,6 +53,12 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
             <a href="${ROUTES.PROFILE}" class="nav-item ${isRoute(ROUTES.PROFILE) ? 'active' : ''}">
               <span class="material-symbols-outlined">person</span>
               <span class="sidebar-label">Profile</span>
+            </a>
+
+            <a href="#/notifications" class="nav-item ${isRoute('#/notifications') ? 'active' : ''}" style="position: relative;">
+              <span class="material-symbols-outlined">notifications</span>
+              <span class="sidebar-label">Notifications</span>
+              <span id="unread-notif-badge" class="brand-badge" style="display: none; position: absolute; right: 12px; background: var(--error-color); color: #fff; border: none; font-size: 11px; padding: 2px 6px;"></span>
             </a>
 
             <a href="#/friends" class="nav-item ${isRoute('#/friends') ? 'active' : ''}">
@@ -107,18 +115,45 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
           </button>
         </div>
 
-        <!-- Bottom Left User Profile Pill (Twitter Style) -->
-        <div class="sidebar-user-profile" id="user-menu-btn" title="View Profile">
-          <div class="user-mini-info">
-            <div class="avatar" style="width: 38px; height: 38px; font-size: 15px;">${avatarInitial}</div>
-            <div style="display: flex; flex-direction: column;">
-              <span class="user-mini-name">${escapeHTML(userName)}</span>
-              <span class="user-mini-handle">@${escapeHTML(userName.toLowerCase().replace(/\s+/g, ''))}</span>
+        <!-- Bottom Left User Profile Pill with Multi-Account Switcher Popover -->
+        <div style="position: relative; margin-top: auto;">
+          <div class="sidebar-user-profile" id="user-menu-btn" title="Account Switcher">
+            <div class="user-mini-info">
+              <div class="avatar" style="width: 38px; height: 38px; font-size: 15px;">${avatarInitial}</div>
+              <div style="display: flex; flex-direction: column;">
+                <span class="user-mini-name">${escapeHTML(userName)}</span>
+                <span class="user-mini-handle">@${escapeHTML(userName.toLowerCase().replace(/\s+/g, ''))}</span>
+              </div>
+            </div>
+            <span class="material-symbols-outlined" style="font-size: 20px; color: var(--text-secondary);">unfold_more</span>
+          </div>
+
+          <!-- Multi-Account Switcher Popover -->
+          <div id="multi-account-popover" style="display: none; position: absolute; bottom: 60px; left: 0; width: 260px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.8); z-index: 1000; padding: 12px;" class="fade-in">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px; padding: 0 4px;">
+              Switch Backbench Account (Max 3)
+            </div>
+
+            <div id="saved-accounts-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;">
+            </div>
+
+            <div style="border-top: 1px solid var(--border-subtle); padding-top: 8px; display: flex; flex-direction: column; gap: 4px;">
+              <a href="#/login" id="add-account-link" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px; justify-content: flex-start; gap: 8px; border: none; text-align: left; background: var(--bg-tertiary);">
+                <span class="material-symbols-outlined" style="font-size: 16px;">person_add</span>
+                Add an existing account
+              </a>
+
+              <button id="logout-current-btn" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px; justify-content: flex-start; gap: 8px; border: none; text-align: left; color: var(--error-color);">
+                <span class="material-symbols-outlined" style="font-size: 16px;">logout</span>
+                Log out @${escapeHTML(userName.toLowerCase().replace(/\s+/g, ''))}
+              </button>
+
+              <button id="logout-all-btn" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px; justify-content: flex-start; gap: 8px; border: none; text-align: left; color: var(--error-color);">
+                <span class="material-symbols-outlined" style="font-size: 16px;">group_off</span>
+                Log out of all accounts
+              </button>
             </div>
           </div>
-          <button id="logout-btn" class="btn-ghost" title="Logout" style="padding: 6px;">
-            <span class="material-symbols-outlined" style="font-size: 20px;">logout</span>
-          </button>
         </div>
       </aside>
 
@@ -171,14 +206,14 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
         <a href="${ROUTES.HOME}" class="mobile-nav-item ${isRoute(ROUTES.HOME) ? 'active' : ''}">
           <span class="material-symbols-outlined">home</span>
         </a>
+        <a href="#/notifications" class="mobile-nav-item ${isRoute('#/notifications') ? 'active' : ''}">
+          <span class="material-symbols-outlined">notifications</span>
+        </a>
         <a href="#/friends" class="mobile-nav-item ${isRoute('#/friends') ? 'active' : ''}">
           <span class="material-symbols-outlined">group</span>
         </a>
         <a href="#/search" class="mobile-nav-item ${isRoute('#/search') ? 'active' : ''}">
           <span class="material-symbols-outlined">search</span>
-        </a>
-        <a href="${ROUTES.PETITIONS}" class="mobile-nav-item ${isRoute(ROUTES.PETITIONS) ? 'active' : ''}">
-          <span class="material-symbols-outlined">campaign</span>
         </a>
         <a href="${ROUTES.PROFILE}" class="mobile-nav-item ${isRoute(ROUTES.PROFILE) ? 'active' : ''}">
           <span class="material-symbols-outlined">person</span>
@@ -194,22 +229,116 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
 }
 
 export function attachLayoutListeners() {
+  const currentUser = auth.currentUser;
   const userMenuBtn = document.getElementById('user-menu-btn');
-  if (userMenuBtn) {
+  const popover = document.getElementById('multi-account-popover');
+  const savedAccountsList = document.getElementById('saved-accounts-list');
+  const logoutCurrentBtn = document.getElementById('logout-current-btn');
+  const logoutAllBtn = document.getElementById('logout-all-btn');
+
+  // Toggle Multi-Account Popover Menu
+  if (userMenuBtn && popover && savedAccountsList) {
     userMenuBtn.addEventListener('click', (e) => {
-      if (!e.target.closest('#logout-btn')) {
-        window.location.hash = ROUTES.PROFILE;
+      e.stopPropagation();
+      const isVisible = popover.style.display === 'block';
+
+      if (isVisible) {
+        popover.style.display = 'none';
+      } else {
+        popover.style.display = 'block';
+
+        // Render saved accounts list
+        const accounts = getSavedAccounts();
+        const currentUid = currentUser ? currentUser.uid : '';
+
+        if (accounts.length === 0 && currentUser) {
+          savedAccountsList.innerHTML = `
+            <div style="padding: 8px; font-size: 13px; color: var(--text-secondary); text-align: center;">
+              Log in with another account to add it to your quick switcher.
+            </div>
+          `;
+        } else {
+          let html = '';
+          accounts.forEach(acc => {
+            const isActive = acc.uid === currentUid;
+            const initial = acc.name ? acc.name.charAt(0).toUpperCase() : '?';
+
+            html += `
+              <div class="saved-account-item ${isActive ? 'active' : ''}" data-uid="${acc.uid}" style="display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 10px; cursor: pointer; transition: background 0.15s ease; background: ${isActive ? 'rgba(29, 155, 240, 0.12)' : 'transparent'};">
+                <div style="display: flex; align-items: center; gap: 10px; min-width: 0;">
+                  <div class="avatar" style="width: 32px; height: 32px; font-size: 13px;">${initial}</div>
+                  <div style="display: flex; flex-direction: column; min-width: 0;">
+                    <span style="font-size: 13px; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHTML(acc.name)}</span>
+                    <span style="font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@${escapeHTML(acc.username)}</span>
+                  </div>
+                </div>
+
+                ${isActive ? `
+                  <span class="material-symbols-outlined" style="font-size: 18px; color: var(--accent-primary);">check_circle</span>
+                ` : ''}
+              </div>
+            `;
+          });
+          savedAccountsList.innerHTML = html;
+
+          // Attach click listeners to switch account
+          savedAccountsList.querySelectorAll('.saved-account-item').forEach(item => {
+            item.addEventListener('click', async () => {
+              const targetUid = item.dataset.uid;
+              if (targetUid !== currentUid) {
+                popover.style.display = 'none';
+                try {
+                  await switchToAccount(targetUid);
+                } catch (err) {
+                  alert(err.message || 'Failed to switch account.');
+                }
+              }
+            });
+          });
+        }
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#multi-account-popover') && !e.target.closest('#user-menu-btn')) {
+        popover.style.display = 'none';
       }
     });
   }
 
-  const logoutBtn = document.getElementById('logout-btn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', async (e) => {
+  if (logoutCurrentBtn) {
+    logoutCurrentBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (confirm('Are you sure you want to log out of Backbench?')) {
+      if (confirm('Log out of current account?')) {
+        if (currentUser) {
+          removeSavedAccount(currentUser.uid);
+        }
         await logoutUser();
         window.location.hash = '#/login';
+        window.location.reload();
+      }
+    });
+  }
+
+  if (logoutAllBtn) {
+    logoutAllBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (confirm('Log out of ALL saved accounts on this browser?')) {
+        await logoutAllAccounts();
+      }
+    });
+  }
+
+  // Real-time Unread Notifications Badge
+  const badge = document.getElementById('unread-notif-badge');
+  if (currentUser && badge) {
+    subscribeToUserNotifications(currentUser.uid, (list) => {
+      const unreadCount = list.filter(n => !n.read).length;
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
       }
     });
   }

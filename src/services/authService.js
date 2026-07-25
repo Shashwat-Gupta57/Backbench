@@ -13,6 +13,7 @@ import { PATHS } from '../constants/firebasePaths.js';
 import { ROLES } from '../constants/roles.js';
 import { deleteCookie } from '../helpers/cookie.js';
 import { invalidateUserCache } from './postService.js';
+import { saveAccountSession } from './multiAccountService.js';
 
 function formatAuthError(error) {
   const code = error?.code || '';
@@ -102,7 +103,7 @@ export async function updateUserPassword(newPassword) {
 
 export async function registerUser(data) {
   try {
-    const { email, password, username, name, admissionNumber, userClass, mobile } = data;
+    const { email, password, username, name, admissionNumber, userClass, mobile, isTeacher, role } = data;
     
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
@@ -115,11 +116,12 @@ export async function registerUser(data) {
       class: userClass,
       mobile: mobile,
       email: email,
+      isTeacher: isTeacher || false,
+      role: role || ROLES.STUDENT,
       bio: '',
       tagline: '',
       joinedDate: new Date().toISOString(),
       verifiedStudent: false,
-      role: ROLES.STUDENT,
       postCount: 0,
       replyCount: 0,
       likeCount: 0,
@@ -129,6 +131,8 @@ export async function registerUser(data) {
     
     await set(ref(db, `${PATHS.USERS}/${user.uid}`), profileData);
     invalidateUserCache(user.uid);
+    saveAccountSession(email, password, profileData);
+
     return { success: true, user: profileData };
   } catch (error) {
     console.error('Registration error:', error);
@@ -142,10 +146,19 @@ export async function loginUser(email, password) {
       await initializeMasterAdmin();
     }
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    let role = ROLES.STUDENT;
+
     if (email.trim().toLowerCase() === 'admin@backbench.net') {
+      role = ROLES.ADMIN;
       await update(ref(db, `${PATHS.USERS}/${userCredential.user.uid}`), { role: ROLES.ADMIN });
       invalidateUserCache(userCredential.user.uid);
     }
+
+    const snap = await get(ref(db, `${PATHS.USERS}/${userCredential.user.uid}`));
+    const profile = snap.exists() ? snap.val() : { uid: userCredential.user.uid, name: email.split('@')[0], username: email.split('@')[0], role: role };
+
+    saveAccountSession(email, password, profile);
+
     return { success: true, user: userCredential.user };
   } catch (error) {
     console.error('Login error:', error);

@@ -16,6 +16,8 @@ export async function createPost(content) {
     content: content,
     hashtags: hashtags,
     timestamp: new Date().toISOString(),
+    status: 'ACTIVE',
+    reportCount: 0,
     edited: false,
     likes: 0,
     reshares: 0,
@@ -36,7 +38,10 @@ export function subscribeToFeed(limit, callback) {
   const listener = onValue(postsQuery, (snapshot) => {
     const posts = [];
     snapshot.forEach((childSnap) => {
-      posts.push(childSnap.val());
+      const p = childSnap.val();
+      if (p.status !== 'AWAITING_MODERATION') {
+        posts.push(p);
+      }
     });
     callback(posts.reverse());
   });
@@ -79,14 +84,16 @@ export async function getTrendingHashtags(limit = 5) {
     const counts = {};
     snap.forEach((childSnap) => {
       const p = childSnap.val();
-      let tags = p.hashtags;
-      if (!tags && p.content) {
-        tags = extractHashtags(p.content);
-      }
-      if (tags && Array.isArray(tags)) {
-        tags.forEach(t => {
-          counts[t] = (counts[t] || 0) + 1;
-        });
+      if (p.status !== 'AWAITING_MODERATION') {
+        let tags = p.hashtags;
+        if (!tags && p.content) {
+          tags = extractHashtags(p.content);
+        }
+        if (tags && Array.isArray(tags)) {
+          tags.forEach(t => {
+            counts[t] = (counts[t] || 0) + 1;
+          });
+        }
       }
     });
 
@@ -111,7 +118,7 @@ export async function getRelatedPosts(currentPostId, currentTags = [], limit = 4
     const related = [];
     snap.forEach((childSnap) => {
       const p = childSnap.val();
-      if (p.postId !== currentPostId) {
+      if (p.postId !== currentPostId && p.status !== 'AWAITING_MODERATION') {
         let tags = p.hashtags;
         if (!tags && p.content) tags = extractHashtags(p.content);
 
