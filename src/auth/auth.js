@@ -22,7 +22,7 @@ export function renderAuth(container, path) {
         </div>
 
         <!-- Auth Tabs -->
-        <div style="display: flex; background: var(--bg-primary); padding: 4px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 24px;">
+        <div style="display: flex; background: var(--bg-primary); padding: 4px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px;">
           <a href="#/login" class="btn" style="flex: 1; text-align: center; background: ${isLogin ? 'var(--bg-tertiary)' : 'transparent'}; color: ${isLogin ? 'var(--text-primary)' : 'var(--text-secondary)'}; border-radius: 8px; padding: 8px; font-size: 14px; border: ${isLogin ? '1px solid var(--border-color)' : 'none'};">Log In</a>
           <a href="#/signup" class="btn" style="flex: 1; text-align: center; background: ${!isLogin ? 'var(--bg-tertiary)' : 'transparent'}; color: ${!isLogin ? 'var(--text-primary)' : 'var(--text-secondary)'}; border-radius: 8px; padding: 8px; font-size: 14px; border: ${!isLogin ? '1px solid var(--border-color)' : 'none'};">Sign Up</a>
         </div>
@@ -30,8 +30,19 @@ export function renderAuth(container, path) {
         <!-- Form -->
         <form id="auth-form" style="display: flex; flex-direction: column;">
           ${!isLogin ? `
-            <input class="input-field" type="text" id="name" placeholder="Full Name" required />
-            <input class="input-field" type="text" id="username" placeholder="Username (e.g. shashwat.gupta)" required />
+            <!-- Role Selection -->
+            <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Account Type</label>
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+              <button type="button" id="select-student-btn" class="btn" style="flex: 1; padding: 8px; font-size: 13px; font-weight: 700; border-radius: 10px; background: var(--accent-primary);">
+                🎓 Student
+              </button>
+              <button type="button" id="select-teacher-btn" class="btn btn-outline" style="flex: 1; padding: 8px; font-size: 13px; font-weight: 700; border-radius: 10px;">
+                👨‍🏫 Teacher / Faculty
+              </button>
+            </div>
+
+            <input class="input-field" type="text" id="name" placeholder="Official Full Name" required />
+            <input class="input-field" type="text" id="username" placeholder="Username (e.g. prof.sharma)" required />
             <div style="display: flex; gap: 12px;">
               <input class="input-field" type="text" id="admissionNumber" placeholder="Admission No." required />
               <input class="input-field" type="text" id="class" placeholder="Class (e.g. 12A)" required />
@@ -82,6 +93,40 @@ export function renderAuth(container, path) {
   const passwordInput = document.getElementById('password');
   const togglePasswordBtn = document.getElementById('toggle-password-btn');
 
+  let selectedRole = 'student';
+
+  if (!isLogin) {
+    const selectStudentBtn = document.getElementById('select-student-btn');
+    const selectTeacherBtn = document.getElementById('select-teacher-btn');
+    const admInput = document.getElementById('admissionNumber');
+    const classInput = document.getElementById('class');
+    const nameInput = document.getElementById('name');
+
+    if (selectStudentBtn && selectTeacherBtn) {
+      selectStudentBtn.addEventListener('click', () => {
+        selectedRole = 'student';
+        selectStudentBtn.className = 'btn';
+        selectStudentBtn.style.background = 'var(--accent-primary)';
+        selectTeacherBtn.className = 'btn btn-outline';
+        selectTeacherBtn.style.background = 'transparent';
+        if (admInput) admInput.placeholder = 'Admission No.';
+        if (classInput) classInput.placeholder = 'Class (e.g. 12A)';
+        if (nameInput) nameInput.placeholder = 'Official Full Name';
+      });
+
+      selectTeacherBtn.addEventListener('click', () => {
+        selectedRole = 'teacher';
+        selectTeacherBtn.className = 'btn';
+        selectTeacherBtn.style.background = '#00BA7C';
+        selectStudentBtn.className = 'btn btn-outline';
+        selectStudentBtn.style.background = 'transparent';
+        if (admInput) admInput.placeholder = 'Employee / Teacher ID';
+        if (classInput) classInput.placeholder = 'Dept (e.g. Physics)';
+        if (nameInput) nameInput.placeholder = 'Official Faculty Name (e.g. Dr. Sharma)';
+      });
+    }
+  }
+
   togglePasswordBtn.addEventListener('click', () => {
     const isPassword = passwordInput.type === 'password';
     passwordInput.type = isPassword ? 'text' : 'password';
@@ -104,7 +149,10 @@ export function renderAuth(container, path) {
       errorDiv.textContent = res.error;
       errorDiv.style.display = 'block';
       googleBtn.disabled = false;
-      googleBtn.innerHTML = '<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 18px; height: 18px;" alt="Google" /> Continue with Google';
+      googleBtn.innerHTML = `
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width: 18px; height: 18px;" alt="Google" />
+        Continue with Google
+      `;
     }
   });
 
@@ -112,14 +160,14 @@ export function renderAuth(container, path) {
     e.preventDefault();
     errorDiv.style.display = 'none';
 
-    const email = document.getElementById('email').value;
+    const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
 
-    const submitBtn = form.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Authenticating...';
-
     if (isLogin) {
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Logging in...';
+
       const res = await loginUser(email, password);
       if (res.success) {
         window.location.hash = '#/';
@@ -130,22 +178,32 @@ export function renderAuth(container, path) {
         submitBtn.textContent = 'Log In';
       }
     } else {
-      const name = document.getElementById('name').value;
-      const username = document.getElementById('username').value;
-      const admissionNumber = document.getElementById('admissionNumber').value;
-      const userClass = document.getElementById('class').value;
-      const mobile = document.getElementById('mobile').value;
+      const name = document.getElementById('name').value.trim();
+      const username = document.getElementById('username').value.trim();
+      const admissionNumber = document.getElementById('admissionNumber').value.trim();
+      const userClass = document.getElementById('class').value.trim();
+      const mobile = document.getElementById('mobile').value.trim();
 
       if (!validateUsername(username)) {
         errorDiv.textContent = "Username must be 3-20 characters long (letters, numbers, underscores, and dots only).";
         errorDiv.style.display = 'block';
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Create Account';
         return;
       }
 
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating Account...';
+
       const res = await registerUser({
-        email, password, name, username, admissionNumber, userClass, mobile
+        email,
+        password,
+        username,
+        name,
+        admissionNumber,
+        userClass,
+        mobile,
+        isTeacher: selectedRole === 'teacher',
+        role: selectedRole === 'teacher' ? 'teacher' : 'student'
       });
 
       if (res.success) {

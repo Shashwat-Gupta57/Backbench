@@ -24,15 +24,26 @@ export async function renderOnboarding(container) {
             B
           </div>
           <h1 style="font-size: 22px; font-weight: 800; letter-spacing: -0.5px; text-align: center;">
-            Complete Your Student Profile
+            Complete Your Campus Profile
           </h1>
           <p style="color: var(--text-secondary); font-size: 14px; margin-top: 4px; text-align: center;">
-            Please provide your St. Joseph's College student details to access Backbench.
+            Provide your St. Joseph's College details to access Backbench.
           </p>
         </div>
 
         <form id="onboarding-form" style="display: flex; flex-direction: column;">
-          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Full Name</label>
+          <!-- Role Selector -->
+          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">Are you a Student or Teacher?</label>
+          <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+            <button type="button" id="onboard-student-btn" class="btn" style="flex: 1; padding: 8px; font-size: 13px; font-weight: 700; border-radius: 10px; background: var(--accent-primary);">
+              🎓 Student
+            </button>
+            <button type="button" id="onboard-teacher-btn" class="btn btn-outline" style="flex: 1; padding: 8px; font-size: 13px; font-weight: 700; border-radius: 10px;">
+              👨‍🏫 Teacher / Faculty
+            </button>
+          </div>
+
+          <label id="label-name" style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Full Name</label>
           <input class="input-field" type="text" id="onboard-name" value="${user.displayName || existingProfile.name || ''}" placeholder="Full Name" required />
 
           <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Choose Username</label>
@@ -40,12 +51,12 @@ export async function renderOnboarding(container) {
 
           <div style="display: flex; gap: 12px;">
             <div style="flex: 1;">
-              <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Admission No.</label>
+              <label id="label-admission" style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Admission No.</label>
               <input class="input-field" type="text" id="onboard-admission" value="${existingProfile.admissionNumber && existingProfile.admissionNumber !== 'N/A' ? existingProfile.admissionNumber : ''}" placeholder="e.g. 10420" required />
             </div>
             
             <div style="flex: 1;">
-              <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Class & Sec</label>
+              <label id="label-class" style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Class & Sec</label>
               <input class="input-field" type="text" id="onboard-class" value="${existingProfile.class && existingProfile.class !== 'N/A' ? existingProfile.class : ''}" placeholder="e.g. 12A" required />
             </div>
           </div>
@@ -66,15 +77,56 @@ export async function renderOnboarding(container) {
   const form = document.getElementById('onboarding-form');
   const errorDiv = document.getElementById('onboard-error');
   const submitBtn = document.getElementById('onboard-submit-btn');
+  const studentBtn = document.getElementById('onboard-student-btn');
+  const teacherBtn = document.getElementById('onboard-teacher-btn');
+  const nameInput = document.getElementById('onboard-name');
+  const admissionInput = document.getElementById('onboard-admission');
+  const classInput = document.getElementById('onboard-class');
+  const labelAdmission = document.getElementById('label-admission');
+  const labelClass = document.getElementById('label-class');
+
+  let selectedRole = existingProfile.role === 'teacher' ? 'teacher' : 'student';
+
+  const updateRoleUI = (role) => {
+    selectedRole = role;
+    if (role === 'teacher') {
+      teacherBtn.className = 'btn';
+      teacherBtn.style.background = '#00BA7C';
+      studentBtn.className = 'btn btn-outline';
+      studentBtn.style.background = 'transparent';
+      labelAdmission.textContent = 'Teacher / Employee ID';
+      admissionInput.placeholder = 'e.g. T-104';
+      labelClass.textContent = 'Department';
+      classInput.placeholder = 'e.g. Computer Science';
+      nameInput.placeholder = 'Official Faculty Name (e.g. Dr. Sharma)';
+    } else {
+      studentBtn.className = 'btn';
+      studentBtn.style.background = 'var(--accent-primary)';
+      teacherBtn.className = 'btn btn-outline';
+      teacherBtn.style.background = 'transparent';
+      labelAdmission.textContent = 'Admission No.';
+      admissionInput.placeholder = 'e.g. 10420';
+      labelClass.textContent = 'Class & Sec';
+      classInput.placeholder = 'e.g. 12A';
+      nameInput.placeholder = 'Full Name';
+    }
+  };
+
+  if (existingProfile.role === 'teacher') {
+    updateRoleUI('teacher');
+  }
+
+  studentBtn.addEventListener('click', () => updateRoleUI('student'));
+  teacherBtn.addEventListener('click', () => updateRoleUI('teacher'));
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorDiv.style.display = 'none';
 
-    const name = document.getElementById('onboard-name').value.trim();
+    const name = nameInput.value.trim();
     const username = document.getElementById('onboard-username').value.trim();
-    const admissionNumber = document.getElementById('onboard-admission').value.trim();
-    const userClass = document.getElementById('onboard-class').value.trim();
+    const admissionNumber = admissionInput.value.trim();
+    const userClass = classInput.value.trim();
     const mobile = document.getElementById('onboard-mobile').value.trim();
 
     if (!validateUsername(username)) {
@@ -84,13 +136,13 @@ export async function renderOnboarding(container) {
     }
 
     if (!admissionNumber) {
-      errorDiv.textContent = "Admission Number is required.";
+      errorDiv.textContent = selectedRole === 'teacher' ? "Employee / Teacher ID is required." : "Admission Number is required.";
       errorDiv.style.display = 'block';
       return;
     }
 
     if (!userClass) {
-      errorDiv.textContent = "Class & Section is required.";
+      errorDiv.textContent = selectedRole === 'teacher' ? "Department is required." : "Class & Section is required.";
       errorDiv.style.display = 'block';
       return;
     }
@@ -105,7 +157,9 @@ export async function renderOnboarding(container) {
         username,
         admissionNumber,
         class: userClass,
-        mobile
+        mobile,
+        isTeacher: selectedRole === 'teacher',
+        role: selectedRole === 'teacher' ? 'teacher' : (existingProfile.role === 'admin' ? 'admin' : 'student')
       });
 
       invalidateUserCache(user.uid);

@@ -3,6 +3,7 @@ import { auth, db } from '../firebase/firebase.js';
 import { ref, get } from 'firebase/database';
 import { logoutUser } from '../services/authService.js';
 import { searchCampusUsers, toggleAddFriend, isFriend } from '../services/searchService.js';
+import { getTrendingHashtags } from '../services/postService.js';
 import { escapeHTML } from '../helpers/formatters.js';
 
 function isRoute(route) {
@@ -159,17 +160,8 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
         <!-- Trending at SJC -->
         <div class="widget-card">
           <div class="widget-title">Trending at SJC</div>
-          <div style="display: flex; flex-direction: column; gap: 14px; font-size: 14px;">
-            <div>
-              <span style="color: var(--text-secondary); font-size: 12px;">1 · Trending in Science Block</span>
-              <div style="font-weight: 700; color: var(--text-primary);">#SJCHackathon2026</div>
-              <span style="color: var(--text-secondary); font-size: 12px;">142 posts</span>
-            </div>
-            <div>
-              <span style="color: var(--text-secondary); font-size: 12px;">2 · Student Petitions</span>
-              <div style="font-weight: 700; color: var(--text-primary);">Extended Library Hours</div>
-              <span style="color: var(--text-secondary); font-size: 12px;">89 supporters</span>
-            </div>
+          <div id="trending-hashtags-container" style="display: flex; flex-direction: column; gap: 12px; font-size: 14px;">
+            <div style="color: var(--text-secondary); font-size: 13px;">Loading trending topics...</div>
           </div>
         </div>
       </aside>
@@ -238,6 +230,35 @@ export function attachLayoutListeners() {
 
   if (sidebarPostBtn) sidebarPostBtn.addEventListener('click', handleComposerClick);
   if (mobileFab) mobileFab.addEventListener('click', handleComposerClick);
+
+  // Dynamic Trending Hashtags Widget Loading
+  const trendingContainer = document.getElementById('trending-hashtags-container');
+  if (trendingContainer) {
+    getTrendingHashtags(5).then(list => {
+      if (!list || list.length === 0) {
+        trendingContainer.innerHTML = `
+          <div>
+            <span style="color: var(--text-secondary); font-size: 12px;">1 · Campus Trending</span>
+            <div style="font-weight: 700; color: var(--accent-primary); cursor: pointer;" onclick="window.location.hash='#/search?q=%23SJCHackathon2026'">#SJCHackathon2026</div>
+            <span style="color: var(--text-secondary); font-size: 12px;">142 posts</span>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      list.forEach((t, idx) => {
+        html += `
+          <div style="cursor: pointer;" onclick="window.location.hash='#/search?q=%23${encodeURIComponent(t.tag)}'">
+            <span style="color: var(--text-secondary); font-size: 12px;">${idx + 1} · Trending in Campus</span>
+            <div style="font-weight: 700; color: var(--accent-primary);">#${escapeHTML(t.tag)}</div>
+            <span style="color: var(--text-secondary); font-size: 12px;">${t.count} post${t.count === 1 ? '' : 's'}</span>
+          </div>
+        `;
+      });
+      trendingContainer.innerHTML = html;
+    }).catch(err => console.error(err));
+  }
 
   // Live Campus Search Logic (Filtered after 3 letters)
   const searchInput = document.getElementById('right-sidebar-search-input');

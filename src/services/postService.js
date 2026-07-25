@@ -1,16 +1,20 @@
 import { db, auth } from '../firebase/firebase.js';
 import { ref, push, set, get, update, query, orderByChild, equalTo, limitToLast, onValue, off, remove, runTransaction } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
+import { extractHashtags } from '../helpers/formatters.js';
 
 export async function createPost(content) {
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
 
+  const hashtags = extractHashtags(content);
   const postRef = push(ref(db, PATHS.POSTS));
+
   const postData = {
     postId: postRef.key,
     authorId: user.uid,
     content: content,
+    hashtags: hashtags,
     timestamp: new Date().toISOString(),
     edited: false,
     likes: 0,
@@ -67,133 +71,171 @@ export function subscribeToUserPosts(uid, callback) {
   return () => off(postsQuery, 'value', listener);
 }
 
-// Caching user profiles to avoid unnecessary refetches
-const userCache = {};
+export async function getTrendingHashtags(limit = 5) {
+  try {
+    const snap = await get(ref(db, PATHS.POSTS));
+    if (!snap.exists()) return [];
 
-export function invalidateUserCache(uid) {
-  if (uid) delete userCache[uid];
+    const counts = {};
+    snap.forEach((childSnap) => {
+      const p = childSnap.val();
+      let tags = p.hashtags;
+      if (!tags && p.content) {
+        tags = extractHashtags(p.content);
+      }
+      if (tags && Array.isArray(tags)) {
+        tags.forEach(t => {
+          counts[t] = (counts[t] || 0) + 1;
+        });
+      }
+    });
+
+    const list = Object.keys(counts).map(tag => ({
+      tag,
+      count: counts[tag]
+    }));
+
+    list.sort((a, b) => b.count - a.count);
+    return list.slice(0, limit);
+  } catch (err) {
+    console.error('Error getting trending hashtags:', err);
+    return [];
+  }
 }
 
-export async function getUserProfile(uid) {
-  if (!uid) return null;
-  if (userCache[uid]) return userCache[uid];
-
+export async function getRelatedPosts(currentPostId, currentTags = [], limit = 4) {
   try {
-    const snap = await get(ref(db, `${PATHS.USERS}/${uid}`));
-    if (snap.exists()) {
-      userCache[uid] = snap.val();
-      return userCache[uid];
-    }
+    const snap = await get(ref(db, PATHS.POSTS));
+    if (!snap.exists()) return [];
+
+    const related = [];
+    snap.forEach((childSnap) => {
+      const p = childSnap.val();
+      if (p.postId !== currentPostId) {
+        let tags = p.hashtags;
+        if (!tags && p.content) tags = extractHashtags(p.content);
+
+        let overlap = 0;
+        if (tags && Array.isArray(tags) && currentTags.length > 0) {
+          overlap = tags.filter(t => currentTags.includes(t)).length;
+        }
+
+        if (overlap > 0 || related.length < limit) {
+          related.push({ ...p, score: overlap });
+        }
+      }
+    });
+
+    related.sort((a, b) => b.score - a.score || new Date(b.timestamp) - new Date(a.timestamp));
+    return related.slice(0, limit);
   } catch (err) {
-    console.error('Error fetching user profile:', err);
+    console.error('Error getting related posts:', err);
+    return [];
+  }
+}
+
+// Caching user profiles to avoid unnecessary refetches
+const userCache = new Map();
+
+export async function getUserProfile(uid) {
+  if (userCache.has(uid)) {
+    return userCache.get(uid);
   }
 
-  // Fallback for current logged-in user if DB node hasn't been created yet
-  const currentUser = auth.currentUser;
-  if (currentUser && currentUser.uid === uid) {
-    const fallbackProfile = {
-      uid: currentUser.uid,
-      username: currentUser.email ? currentUser.email.split('@')[0] : 'student',
-      name: currentUser.displayName || 'Student',
-      email: currentUser.email || '',
-      class: 'N/A',
-      admissionNumber: 'N/A',
-      joinedDate: new Date().toISOString(),
-      verifiedStudent: false,
-      role: 'student',
-      postCount: 0,
-      replyCount: 0,
-      likesReceived: 0,
-      profilePicture: currentUser.photoURL || ''
-    };
-    return fallbackProfile;
+  const userRef = ref(db, `${PATHS.USERS}/${uid}`);
+  const snap = await get(userRef);
+
+  if (snap.exists()) {
+    const data = snap.val();
+    userCache.set(uid, data);
+    return data;
   }
 
   return null;
 }
 
-export async function updateUserProfile(uid, updateData) {
-  if (!uid) return;
-  await update(ref(db, `${PATHS.USERS}/${uid}`), updateData);
-  invalidateUserCache(uid);
+export function invalidateUserCache(uid) {
+  userCache.delete(uid);
 }
 
-export async function isPostLikedByUser(postId, uid) {
-  if (!uid || !postId) return false;
-  const snap = await get(ref(db, `${PATHS.POST_LIKES}/${postId}/${uid}`));
-  return snap.exists();
+export async function updateUserProfile(uid, data) {
+  const userRef = ref(db, `${PATHS.USERS}/${uid}`);
+  await update(userRef, data);
+  userCache.delete(uid);
 }
 
 export async function toggleLikePost(postId) {
   const user = auth.currentUser;
-  if (!user) return { liked: false, likes: 0 };
+  if (!user) throw new Error('Not authenticated');
 
   const likeRef = ref(db, `${PATHS.POST_LIKES}/${postId}/${user.uid}`);
-  const postRef = ref(db, `${PATHS.POSTS}/${postId}`);
   const snap = await get(likeRef);
 
-  let nowLiked = false;
+  let isLiked = false;
 
   if (snap.exists()) {
     await remove(likeRef);
-    nowLiked = false;
+    isLiked = false;
   } else {
     await set(likeRef, true);
-    nowLiked = true;
+    isLiked = true;
   }
 
-  let updatedLikes = 0;
+  const postRef = ref(db, `${PATHS.POSTS}/${postId}`);
+  let newLikes = 0;
+
   await runTransaction(postRef, (post) => {
     if (post) {
-      if (nowLiked) {
-        post.likes = (post.likes || 0) + 1;
-      } else {
-        post.likes = Math.max(0, (post.likes || 0) - 1);
-      }
-      updatedLikes = post.likes;
+      post.likes = isLiked ? (post.likes || 0) + 1 : Math.max(0, (post.likes || 0) - 1);
+      newLikes = post.likes;
     }
     return post;
   });
 
-  return { liked: nowLiked, likes: updatedLikes };
+  return { liked: isLiked, likes: newLikes };
 }
 
-export async function isPostResharedByUser(postId, uid) {
-  if (!uid || !postId) return false;
-  const snap = await get(ref(db, `${PATHS.POST_RESHARES}/${postId}/${uid}`));
+export async function isPostLikedByUser(postId, uid) {
+  if (!uid) return false;
+  const likeRef = ref(db, `${PATHS.POST_LIKES}/${postId}/${uid}`);
+  const snap = await get(likeRef);
   return snap.exists();
 }
 
 export async function toggleResharePost(postId) {
   const user = auth.currentUser;
-  if (!user) return { reshared: false, reshares: 0 };
+  if (!user) throw new Error('Not authenticated');
 
   const reshareRef = ref(db, `${PATHS.POST_RESHARES}/${postId}/${user.uid}`);
-  const postRef = ref(db, `${PATHS.POSTS}/${postId}`);
   const snap = await get(reshareRef);
 
-  let nowReshared = false;
+  let isReshared = false;
 
   if (snap.exists()) {
     await remove(reshareRef);
-    nowReshared = false;
+    isReshared = false;
   } else {
-    await set(reshareRef, { timestamp: new Date().toISOString() });
-    nowReshared = true;
+    await set(reshareRef, new Date().toISOString());
+    isReshared = true;
   }
 
-  let updatedReshares = 0;
+  const postRef = ref(db, `${PATHS.POSTS}/${postId}`);
+  let newReshares = 0;
+
   await runTransaction(postRef, (post) => {
     if (post) {
-      if (nowReshared) {
-        post.reshares = (post.reshares || 0) + 1;
-      } else {
-        post.reshares = Math.max(0, (post.reshares || 0) - 1);
-      }
-      updatedReshares = post.reshares;
+      post.reshares = isReshared ? (post.reshares || 0) + 1 : Math.max(0, (post.reshares || 0) - 1);
+      newReshares = post.reshares;
     }
     return post;
   });
 
-  return { reshared: nowReshared, reshares: updatedReshares };
+  return { reshared: isReshared, reshares: newReshares };
+}
+
+export async function isPostResharedByUser(postId, uid) {
+  if (!uid) return false;
+  const reshareRef = ref(db, `${PATHS.POST_RESHARES}/${postId}/${uid}`);
+  const snap = await get(reshareRef);
+  return snap.exists();
 }

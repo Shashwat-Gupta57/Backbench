@@ -1,12 +1,13 @@
 import { formatTimeAgo } from '../helpers/time.js';
-import { escapeHTML } from '../helpers/formatters.js';
+import { escapeHTML, renderFormattedContent } from '../helpers/formatters.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { getUserFontFamily } from '../constants/fonts.js';
 
 export function createPostCardHTML(post, author, isLiked = false, isReshared = false) {
   const name = author?.name ? escapeHTML(author.name) : 'Anonymous Student';
   const username = author?.username ? escapeHTML(author.username) : 'student';
-  const verified = author?.verifiedStudent || author?.role === 'staff' || author?.role === 'admin';
+  const isTeacher = author?.isTeacher || author?.role === 'teacher';
+  const verified = author?.verifiedStudent || author?.role === 'staff' || author?.role === 'admin' || isTeacher;
   const fontStyle = getUserFontFamily(author);
 
   const avatarHTML = renderUserAvatar(author, 44, 'border: 1px solid var(--border-color);');
@@ -18,7 +19,13 @@ export function createPostCardHTML(post, author, isLiked = false, isReshared = f
         <div class="post-header">
           <div class="author-meta">
             <span class="author-name" style="font-family: ${fontStyle};">${name}</span>
-            ${verified ? `<span class="material-symbols-outlined verified-icon" title="Verified Member">verified</span>` : ''}
+            ${isTeacher ? `
+              <span class="brand-badge" style="font-size: 10px; background: rgba(0, 186, 124, 0.2); color: #00BA7C; border-color: #00BA7C; display: inline-flex; align-items: center; gap: 2px;">
+                <span class="material-symbols-outlined" style="font-size: 12px;">school</span> Faculty
+              </span>
+            ` : verified ? `
+              <span class="material-symbols-outlined verified-icon" title="Verified Member">verified</span>
+            ` : ''}
             <span class="author-handle">@${username}</span>
             <span class="post-dot">·</span>
             <span class="post-time">${formatTimeAgo(post.timestamp)}</span>
@@ -28,8 +35,8 @@ export function createPostCardHTML(post, author, isLiked = false, isReshared = f
           </button>
         </div>
         
-        <div class="post-body" style="font-family: ${fontStyle};">
-          ${escapeHTML(post.content)}
+        <div class="post-body" style="font-family: ${fontStyle}; font-size: 15px; line-height: 1.5; color: var(--text-primary);">
+          ${renderFormattedContent(post.content)}
         </div>
         
         <div class="post-actions">
