@@ -114,7 +114,7 @@ export async function renderProfile(container) {
     <!-- Profile Info Box -->
     <div style="padding: 0 16px 16px 16px; border-bottom: 1px solid var(--border-color);" class="fade-in">
       <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: -50px; margin-bottom: 16px;">
-        <div style="position: relative;" id="avatar-wrapper">
+        <div style="position: relative;" id="avatar-wrapper" title="${isSelf ? 'Click to change profile picture' : ''}">
           ${avatarDisplayHTML}
           ${isSelf ? `
             <div style="position: absolute; bottom: 4px; right: 4px; background: var(--accent-primary); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #fff; border: 2px solid var(--bg-primary); pointer-events: none;">
@@ -124,7 +124,7 @@ export async function renderProfile(container) {
         </div>
 
         ${isSelf ? 
-          '<button class="btn btn-outline" id="edit-profile-btn" style="border-radius: 9999px; font-weight: 700;">Edit Profile Photo</button>' : 
+          '<button class="btn btn-outline" id="edit-profile-btn" style="border-radius: 9999px; font-weight: 700;">Edit Profile</button>' : 
           '<button class="btn" style="border-radius: 9999px;">Follow</button>'
         }
       </div>
@@ -137,6 +137,17 @@ export async function renderProfile(container) {
         <span style="color: var(--text-secondary); font-size: 15px;">@${escapeHTML(userProfile.username)}</span>
       </div>
 
+      <!-- Framed Tagline Quote (Max 45 chars) -->
+      ${userProfile.tagline ? `
+        <div style="margin-top: 12px; padding: 10px 14px; background: rgba(29, 155, 240, 0.08); border-left: 3.5px solid var(--accent-primary); border-radius: 0 10px 10px 0; display: flex; align-items: center; gap: 10px;">
+          <span class="material-symbols-outlined" style="font-size: 20px; color: var(--accent-primary); flex-shrink: 0;">format_quote</span>
+          <span style="font-size: 14px; font-style: italic; font-weight: 600; color: var(--text-primary); letter-spacing: -0.2px;">
+            “${escapeHTML(userProfile.tagline)}”
+          </span>
+        </div>
+      ` : ''}
+
+      <!-- Bio -->
       <p style="margin-top: 12px; font-size: 15px; line-height: 1.5; color: var(--text-primary);">
         ${escapeHTML(userProfile.bio || 'St. Joseph\'s College Student')}
       </p>
@@ -171,21 +182,114 @@ export async function renderProfile(container) {
     <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);">
       <p style="font-size: 14px;">Posts by @${escapeHTML(userProfile.username)} will appear here.</p>
     </div>
+
+    <!-- Edit Profile Modal Overlay -->
+    <div id="edit-profile-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; padding: 20px;">
+      <div class="card fade-in" style="width: 100%; max-width: 480px; padding: 24px; border-radius: 20px; position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h3 style="font-size: 19px; font-weight: 800;">Edit Profile</h3>
+          <button id="close-modal-btn" class="btn-ghost" style="padding: 4px;">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <form id="edit-profile-form">
+          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: block;">Full Name</label>
+          <input type="text" id="edit-name" class="input-field" value="${escapeHTML(userProfile.name)}" required />
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Personal Quote / Tagline (Framed)</label>
+            <span id="tagline-counter" style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">0 / 45</span>
+          </div>
+          <input type="text" id="edit-tagline" class="input-field" maxlength="45" value="${escapeHTML(userProfile.tagline || '')}" placeholder="e.g. I follow the path of peace" />
+
+          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: block;">Bio</label>
+          <textarea id="edit-bio" class="input-field" rows="3" style="resize: none;" placeholder="Tell the campus about yourself...">${escapeHTML(userProfile.bio || '')}</textarea>
+
+          <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px;">
+            <button type="button" id="change-photo-btn" class="btn btn-outline" style="margin-right: auto; font-size: 13px; padding: 8px 16px;">
+              Change Photo
+            </button>
+            <button type="button" id="cancel-edit-btn" class="btn btn-outline" style="font-size: 14px; padding: 10px 20px;">
+              Cancel
+            </button>
+            <button type="submit" id="save-profile-btn" class="btn" style="font-size: 14px; padding: 10px 20px;">
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   `;
 
   container.innerHTML = createLayout(content, ROUTES.PROFILE);
   attachLayoutListeners();
 
-  // Attach PFP Upload listeners if viewing self
+  // Attach Edit Profile Modal & Photo upload listeners if viewing self
   if (isSelf) {
     const fileInput = document.getElementById('pfp-upload-input');
     const editBtn = document.getElementById('edit-profile-btn');
     const avatarWrapper = document.getElementById('avatar-wrapper');
+    const modal = document.getElementById('edit-profile-modal');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const cancelEditBtn = document.getElementById('cancel-edit-btn');
+    const changePhotoBtn = document.getElementById('change-photo-btn');
+    const editForm = document.getElementById('edit-profile-form');
+    const taglineInput = document.getElementById('edit-tagline');
+    const taglineCounter = document.getElementById('tagline-counter');
 
-    const triggerUpload = () => fileInput.click();
+    const openModal = () => { modal.style.display = 'flex'; };
+    const closeModal = () => { modal.style.display = 'none'; };
 
-    if (editBtn) editBtn.addEventListener('click', triggerUpload);
-    if (avatarWrapper) avatarWrapper.addEventListener('click', triggerUpload);
+    if (editBtn) editBtn.addEventListener('click', openModal);
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+    if (cancelEditBtn) cancelEditBtn.addEventListener('click', closeModal);
+
+    if (avatarWrapper) avatarWrapper.addEventListener('click', () => fileInput.click());
+    if (changePhotoBtn) changePhotoBtn.addEventListener('click', () => fileInput.click());
+
+    // Tagline counter
+    if (taglineInput && taglineCounter) {
+      taglineCounter.textContent = `${taglineInput.value.length} / 45`;
+      taglineInput.addEventListener('input', () => {
+        taglineCounter.textContent = `${taglineInput.value.length} / 45`;
+      });
+    }
+
+    // Save profile form submission
+    if (editForm) {
+      editForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('edit-name').value.trim();
+        const tagline = taglineInput.value.trim();
+        const bio = document.getElementById('edit-bio').value.trim();
+
+        if (tagline.length > 45) {
+          alert('Tagline quote cannot exceed 45 characters.');
+          return;
+        }
+
+        const saveBtn = document.getElementById('save-profile-btn');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        try {
+          await updateUserProfile(userProfile.uid, {
+            name,
+            tagline,
+            bio
+          });
+          closeModal();
+          renderProfile(container);
+        } catch (err) {
+          console.error(err);
+          alert('Failed to save profile changes.');
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Changes';
+        }
+      });
+    }
 
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -211,7 +315,7 @@ export async function renderProfile(container) {
       } finally {
         if (editBtn) {
           editBtn.disabled = false;
-          editBtn.textContent = 'Edit Profile Photo';
+          editBtn.textContent = 'Edit Profile';
         }
       }
     });
