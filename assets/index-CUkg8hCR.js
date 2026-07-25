@@ -733,12 +733,12 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
           <input class="input-field" type="text" id="onboard-name" value="${n.displayName||r.name||``}" placeholder="Full Name" required />
 
           <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Choose Username</label>
-          <input class="input-field" type="text" id="onboard-username" value="${r.username||n.email?.split(`@`)[0]||``}" placeholder="Username (e.g. shashwat_gupta)" required />
+          <input class="input-field" type="text" id="onboard-username" value="${r.username||n.email?.split(`@`)[0]||``}" placeholder="Username (e.g. shashwat.gupta)" required />
 
           <div style="display: flex; gap: 12px;">
             <div style="flex: 1;">
               <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Admission No.</label>
-              <input class="input-field" type="text" id="onboard-admission" value="${r.admissionNumber&&r.admissionNumber!==`N/A`?r.admissionNumber:``}" placeholder="e.g. 28452" required />
+              <input class="input-field" type="text" id="onboard-admission" value="${r.admissionNumber&&r.admissionNumber!==`N/A`?r.admissionNumber:``}" placeholder="e.g. 10420" required />
             </div>
             
             <div style="flex: 1;">
@@ -758,7 +758,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
         </form>
       </div>
     </div>
-  `;let i=document.getElementById(`onboarding-form`),a=document.getElementById(`onboard-error`),o=document.getElementById(`onboard-submit-btn`);i.addEventListener(`submit`,async t=>{t.preventDefault(),a.style.display=`none`;let r=document.getElementById(`onboard-name`).value.trim(),i=document.getElementById(`onboard-username`).value.trim(),s=document.getElementById(`onboard-admission`).value.trim(),c=document.getElementById(`onboard-class`).value.trim(),l=document.getElementById(`onboard-mobile`).value.trim();if(!fg(i)){a.textContent=`Username must be 3-20 characters long (letters, numbers, and underscores only).`,a.style.display=`block`;return}if(!s){a.textContent=`Admission Number is required.`,a.style.display=`block`;return}if(!c){a.textContent=`Class & Section is required.`,a.style.display=`block`;return}o.disabled=!0,o.textContent=`Saving Profile...`;try{await uu(B(q,`${Y.USERS}/${n.uid}`),{name:r,username:i,admissionNumber:s,class:c,mobile:l}),zh(n.uid),window.location.hash=e.HOME}catch(e){console.error(e),a.textContent=e.message||`Failed to save profile details.`,a.style.display=`block`,o.disabled=!1,o.textContent=`Complete & Enter Backbench`}})}function wg(e){e.innerHTML=Z(`
+  `;let i=document.getElementById(`onboarding-form`),a=document.getElementById(`onboard-error`),o=document.getElementById(`onboard-submit-btn`);i.addEventListener(`submit`,async t=>{t.preventDefault(),a.style.display=`none`;let r=document.getElementById(`onboard-name`).value.trim(),i=document.getElementById(`onboard-username`).value.trim(),s=document.getElementById(`onboard-admission`).value.trim(),c=document.getElementById(`onboard-class`).value.trim(),l=document.getElementById(`onboard-mobile`).value.trim();if(!fg(i)){a.textContent=`Username must be 3-20 characters long (letters, numbers, underscores, and dots only).`,a.style.display=`block`;return}if(!s){a.textContent=`Admission Number is required.`,a.style.display=`block`;return}if(!c){a.textContent=`Class & Section is required.`,a.style.display=`block`;return}o.disabled=!0,o.textContent=`Saving Profile...`;try{await uu(B(q,`${Y.USERS}/${n.uid}`),{name:r,username:i,admissionNumber:s,class:c,mobile:l}),zh(n.uid),window.location.hash=e.HOME}catch(e){console.error(e),a.textContent=e.message||`Failed to save profile details.`,a.style.display=`block`,o.disabled=!1,o.textContent=`Complete & Enter Backbench`}})}function wg(e){e.innerHTML=Z(`
     <div style="padding: var(--spacing-md); border-bottom: 1px solid var(--border-color);">
       <h2 style="font-size: 20px;">Petitions</h2>
     </div>
