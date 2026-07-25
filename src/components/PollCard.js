@@ -1,12 +1,14 @@
 import { formatTimeAgo } from '../helpers/time.js';
 import { escapeHTML } from '../helpers/formatters.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
+import { getUserFontFamily } from '../constants/fonts.js';
 
 export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
   const name = author?.name ? escapeHTML(author.name) : 'Anonymous Student';
   const username = author?.username ? escapeHTML(author.username) : 'student';
   const totalVotes = poll.totalVotes || 0;
   const hasVoted = userVotedOptionIndex !== null;
+  const fontStyle = getUserFontFamily(author);
 
   const avatarHTML = renderUserAvatar(author, 44, 'border: 1px solid var(--border-color);');
 
@@ -17,7 +19,7 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
     optionsHTML = `
       <div class="poll-options-container" style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
         ${poll.options.map((opt, idx) => `
-          <button class="poll-option-btn" data-poll-id="${poll.pollId}" data-option-index="${idx}">
+          <button class="poll-option-btn" data-poll-id="${poll.pollId}" data-option-index="${idx}" style="font-family: ${fontStyle};">
             <span>${escapeHTML(opt.text)}</span>
           </button>
         `).join('')}
@@ -35,7 +37,7 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
           return `
             <div class="poll-result-bar-wrapper ${isUserChoice ? 'user-selected' : ''}">
               <div class="poll-result-fill" style="width: ${percentage}%;"></div>
-              <div class="poll-result-label">
+              <div class="poll-result-label" style="font-family: ${fontStyle};">
                 <span style="display: flex; align-items: center; gap: 6px; font-weight: ${isUserChoice ? '700' : '500'};">
                   ${escapeHTML(opt.text)}
                   ${isUserChoice ? `<span class="material-symbols-outlined" style="font-size: 16px; color: var(--accent-primary);">check_circle</span>` : ''}
@@ -58,7 +60,7 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
         <div style="flex: 1; min-width: 0;">
           <div class="post-header">
             <div class="author-meta">
-              <span class="author-name">${name}</span>
+              <span class="author-name" style="font-family: ${fontStyle};">${name}</span>
               <span class="author-handle">@${username}</span>
               <span class="post-dot">·</span>
               <span class="post-time">${formatTimeAgo(poll.timestamp)}</span>
@@ -66,7 +68,7 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
             <span class="brand-badge" style="font-size: 11px;">CAMPUS POLL</span>
           </div>
 
-          <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-top: 6px; line-height: 1.4;">
+          <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-top: 6px; line-height: 1.4; font-family: ${fontStyle};">
             ${escapeHTML(poll.question)}
           </div>
 

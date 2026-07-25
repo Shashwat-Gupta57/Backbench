@@ -1,167 +1,181 @@
 import { ROUTES } from '../constants/routes.js';
+import { auth, db } from '../firebase/firebase.js';
+import { ref, get } from 'firebase/database';
 import { logoutUser } from '../services/authService.js';
 import { searchCampusUsers, toggleAddFriend, isFriend } from '../services/searchService.js';
-import { auth } from '../firebase/firebase.js';
 import { escapeHTML } from '../helpers/formatters.js';
 
-export function createLayout(contentHTML, currentRoute = ROUTES.HOME) {
-  const user = auth.currentUser;
-  const userEmail = user?.email || 'student@sjc.edu';
-  const userName = user?.displayName || userEmail.split('@')[0];
+function isRoute(route) {
+  return window.location.hash.split('?')[0] === route || (route === ROUTES.HOME && (!window.location.hash || window.location.hash === '#/'));
+}
+
+export function createLayout(mainContentHTML, currentRoute = '', userRole = 'student') {
+  const currentUser = auth.currentUser;
+  const userName = currentUser ? (currentUser.displayName || currentUser.email.split('@')[0]) : 'Student';
   const avatarInitial = userName.charAt(0).toUpperCase();
 
-  const isRoute = (path) => currentRoute === path || window.location.hash.startsWith(path);
-
   return `
-    <!-- Left Sidebar (240px) -->
-    <aside class="sidebar-container">
-      <div>
-        <div class="brand-header">
-          <div class="brand-logo">B</div>
-          <div style="display: flex; flex-direction: column;">
-            <span class="brand-text">Backbench</span>
-            <span class="brand-badge">SJC 2026</span>
+    <div class="app-layout">
+      <!-- Left Navigation Sidebar -->
+      <aside class="sidebar-container">
+        <div class="sidebar-top">
+          <!-- Backbench Brand Header -->
+          <a href="${ROUTES.HOME}" class="brand-logo">
+            <div class="brand-icon">B</div>
+            <div class="brand-text">
+              <span class="brand-title">Backbench</span>
+              <span class="brand-badge">SJC 2026</span>
+            </div>
+          </a>
+
+          <!-- Main Navigation Menu Links -->
+          <nav class="sidebar-nav">
+            <a href="${ROUTES.HOME}" class="nav-item ${isRoute(ROUTES.HOME) ? 'active' : ''}">
+              <span class="material-symbols-outlined">home</span>
+              <span class="sidebar-label">Home</span>
+            </a>
+            
+            <a href="${ROUTES.PROFILE}" class="nav-item ${isRoute(ROUTES.PROFILE) ? 'active' : ''}">
+              <span class="material-symbols-outlined">person</span>
+              <span class="sidebar-label">Profile</span>
+            </a>
+
+            <a href="#/search" class="nav-item ${isRoute('#/search') ? 'active' : ''}">
+              <span class="material-symbols-outlined">search</span>
+              <span class="sidebar-label">Search</span>
+            </a>
+            
+            <a href="${ROUTES.PETITIONS}" class="nav-item ${isRoute(ROUTES.PETITIONS) ? 'active' : ''}">
+              <span class="material-symbols-outlined">campaign</span>
+              <span class="sidebar-label">Petitions</span>
+            </a>
+            
+            <a href="${ROUTES.POLLS}" class="nav-item ${isRoute(ROUTES.POLLS) ? 'active' : ''}">
+              <span class="material-symbols-outlined">poll</span>
+              <span class="sidebar-label">Polls</span>
+            </a>
+            
+            <a href="${ROUTES.ANNOUNCEMENTS}" class="nav-item ${isRoute(ROUTES.ANNOUNCEMENTS) ? 'active' : ''}">
+              <span class="material-symbols-outlined">campaign</span>
+              <span class="sidebar-label">Announcements</span>
+            </a>
+            
+            <a href="${ROUTES.EVENTS}" class="nav-item ${isRoute(ROUTES.EVENTS) ? 'active' : ''}">
+              <span class="material-symbols-outlined">event</span>
+              <span class="sidebar-label">Events</span>
+            </a>
+            
+            ${userRole === 'admin' ? `
+              <a href="${ROUTES.ADMIN}" class="nav-item ${isRoute(ROUTES.ADMIN) ? 'active' : ''}">
+                <span class="material-symbols-outlined">admin_panel_settings</span>
+                <span class="sidebar-label">Admin</span>
+              </a>
+            ` : userRole === 'staff' ? `
+              <a href="${ROUTES.ADMIN}" class="nav-item ${isRoute(ROUTES.ADMIN) ? 'active' : ''}">
+                <span class="material-symbols-outlined">shield_person</span>
+                <span class="sidebar-label">Staff</span>
+              </a>
+            ` : ''}
+          </nav>
+          
+          <button class="btn sidebar-post-btn" id="sidebar-open-composer">
+            <span class="material-symbols-outlined">edit</span>
+            <span class="sidebar-post-text">Post</span>
+          </button>
+        </div>
+
+        <!-- Bottom Left User Profile Pill (Twitter Style) -->
+        <div class="sidebar-user-profile" id="user-menu-btn" title="View Profile">
+          <div class="user-mini-info">
+            <div class="avatar" style="width: 38px; height: 38px; font-size: 15px;">${avatarInitial}</div>
+            <div style="display: flex; flex-direction: column;">
+              <span class="user-mini-name">${escapeHTML(userName)}</span>
+              <span class="user-mini-handle">@${escapeHTML(userName.toLowerCase().replace(/\s+/g, ''))}</span>
+            </div>
+          </div>
+          <button id="logout-btn" class="btn-ghost" title="Logout" style="padding: 6px;">
+            <span class="material-symbols-outlined" style="font-size: 20px;">logout</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Centered Feed (Max 650px) -->
+      <main class="main-content">
+        ${mainContentHTML}
+      </main>
+
+      <!-- Right Sidebar (Widgets & Global Campus Search) -->
+      <aside class="right-sidebar">
+        <!-- Search Input Box with Live Dropdown -->
+        <div style="position: relative;" class="search-box">
+          <span class="material-symbols-outlined">search</span>
+          <input type="text" id="right-sidebar-search-input" placeholder="Search campus users (min 3 chars).." />
+          
+          <!-- Live Search Overlay Dropdown -->
+          <div id="search-results-dropdown" style="display: none; position: absolute; top: 48px; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); z-index: 100; max-height: 360px; overflow-y: auto; padding: 8px;" class="fade-in">
           </div>
         </div>
-        
-        <nav class="nav-menu">
-          <a href="${ROUTES.HOME}" class="nav-item ${isRoute(ROUTES.HOME) ? 'active' : ''}">
-            <span class="material-symbols-outlined">home</span>
-            <span class="sidebar-label">Home</span>
-          </a>
-          
-          <a href="${ROUTES.PROFILE}" class="nav-item ${isRoute(ROUTES.PROFILE) ? 'active' : ''}">
-            <span class="material-symbols-outlined">person</span>
-            <span class="sidebar-label">Profile</span>
-          </a>
 
-          <a href="#/search" class="nav-item ${isRoute('#/search') ? 'active' : ''}">
-            <span class="material-symbols-outlined">search</span>
-            <span class="sidebar-label">Search</span>
-          </a>
-          
-          <a href="${ROUTES.PETITIONS}" class="nav-item ${isRoute(ROUTES.PETITIONS) ? 'active' : ''}">
-            <span class="material-symbols-outlined">campaign</span>
-            <span class="sidebar-label">Petitions</span>
-          </a>
-          
-          <a href="${ROUTES.POLLS}" class="nav-item ${isRoute(ROUTES.POLLS) ? 'active' : ''}">
-            <span class="material-symbols-outlined">poll</span>
-            <span class="sidebar-label">Polls</span>
-          </a>
-          
-          <a href="${ROUTES.ANNOUNCEMENTS}" class="nav-item ${isRoute(ROUTES.ANNOUNCEMENTS) ? 'active' : ''}">
-            <span class="material-symbols-outlined">campaign</span>
-            <span class="sidebar-label">Announcements</span>
-          </a>
-          
-          <a href="${ROUTES.EVENTS}" class="nav-item ${isRoute(ROUTES.EVENTS) ? 'active' : ''}">
-            <span class="material-symbols-outlined">event</span>
-            <span class="sidebar-label">Events</span>
-          </a>
-          
-          <a href="${ROUTES.ADMIN}" class="nav-item ${isRoute(ROUTES.ADMIN) ? 'active' : ''}">
-            <span class="material-symbols-outlined">admin_panel_settings</span>
-            <span class="sidebar-label">Admin</span>
-          </a>
-        </nav>
-        
-        <button class="btn sidebar-post-btn" id="sidebar-open-composer">
-          <span class="material-symbols-outlined">edit</span>
-          <span class="sidebar-post-text">Post</span>
-        </button>
-      </div>
-
-      <!-- Bottom Left User Profile Pill (Twitter Style) -->
-      <div class="sidebar-user-profile" id="user-menu-btn" title="View Profile">
-        <div class="user-mini-info">
-          <div class="avatar" style="width: 38px; height: 38px; font-size: 15px;">${avatarInitial}</div>
-          <div style="display: flex; flex-direction: column;">
-            <span class="user-mini-name">${userName}</span>
-            <span class="user-mini-handle">@${userName.toLowerCase().replace(/\s+/g, '')}</span>
+        <!-- Campus Updates Widget -->
+        <div class="widget-card">
+          <div class="widget-title">
+            <span>SJC Campus Updates</span>
+            <span class="material-symbols-outlined" style="color: var(--accent-primary); font-size: 20px;">verified</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 14px;">
+            <div style="padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle);">
+              <div style="color: var(--text-secondary); font-size: 12px; font-weight: 600;">ANNOUNCEMENT · 2h ago</div>
+              <div style="font-weight: 600; margin-top: 2px;">Mid-Semester Exam Timetable Released</div>
+            </div>
+            <div>
+              <div style="color: var(--text-secondary); font-size: 12px; font-weight: 600;">CAMPUS EVENT · Tomorrow</div>
+              <div style="font-weight: 600; margin-top: 2px;">Annual Inter-Class Coding Hackathon 2026</div>
+            </div>
           </div>
         </div>
-        <button id="logout-btn" class="btn-ghost" title="Logout" style="padding: 6px;">
-          <span class="material-symbols-outlined" style="font-size: 20px;">logout</span>
-        </button>
-      </div>
-    </aside>
 
-    <!-- Centered Feed (Max 650px) -->
-    <main class="main-content">
-      ${contentHTML}
-    </main>
-
-    <!-- Right Sidebar (320px) -->
-    <aside class="right-sidebar">
-      <div class="search-box" style="position: relative;">
-        <span class="material-symbols-outlined">search</span>
-        <input type="text" id="right-sidebar-search-input" placeholder="Search campus users (min 3 chars)..." autocomplete="off" />
-        
-        <!-- Live Search Overlay Dropdown -->
-        <div id="search-results-dropdown" style="display: none; position: absolute; top: 48px; left: 0; right: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); z-index: 100; max-height: 360px; overflow-y: auto; padding: 8px;" class="fade-in">
-        </div>
-      </div>
-
-      <!-- Campus Updates Widget -->
-      <div class="widget-card">
-        <div class="widget-title">
-          <span>SJC Campus Updates</span>
-          <span class="material-symbols-outlined" style="color: var(--accent-primary); font-size: 20px;">verified</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 14px;">
-          <div style="padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle);">
-            <div style="color: var(--text-secondary); font-size: 12px; font-weight: 600;">ANNOUNCEMENT · 2h ago</div>
-            <div style="font-weight: 600; margin-top: 2px;">Mid-Semester Exam Timetable Released</div>
-          </div>
-          <div>
-            <div style="color: var(--text-secondary); font-size: 12px; font-weight: 600;">CAMPUS EVENT · Tomorrow</div>
-            <div style="font-weight: 600; margin-top: 2px;">Annual Inter-Class Coding Hackathon 2026</div>
+        <!-- Trending at SJC -->
+        <div class="widget-card">
+          <div class="widget-title">Trending at SJC</div>
+          <div style="display: flex; flex-direction: column; gap: 14px; font-size: 14px;">
+            <div>
+              <span style="color: var(--text-secondary); font-size: 12px;">1 · Trending in Science Block</span>
+              <div style="font-weight: 700; color: var(--text-primary);">#SJCHackathon2026</div>
+              <span style="color: var(--text-secondary); font-size: 12px;">142 posts</span>
+            </div>
+            <div>
+              <span style="color: var(--text-secondary); font-size: 12px;">2 · Student Petitions</span>
+              <div style="font-weight: 700; color: var(--text-primary);">Extended Library Hours</div>
+              <span style="color: var(--text-secondary); font-size: 12px;">89 supporters</span>
+            </div>
           </div>
         </div>
-      </div>
+      </aside>
 
-      <!-- Trending at SJC -->
-      <div class="widget-card">
-        <div class="widget-title">Trending at SJC</div>
-        <div style="display: flex; flex-direction: column; gap: 14px; font-size: 14px;">
-          <div>
-            <span style="color: var(--text-secondary); font-size: 12px;">1 · Trending in Science Block</span>
-            <div style="font-weight: 700; color: var(--text-primary);">#SJCHackathon2026</div>
-            <span style="color: var(--text-secondary); font-size: 12px;">142 posts</span>
-          </div>
-          <div>
-            <span style="color: var(--text-secondary); font-size: 12px;">2 · Student Petitions</span>
-            <div style="font-weight: 700; color: var(--text-primary);">Extended Library Hours</div>
-            <span style="color: var(--text-secondary); font-size: 12px;">89 supporters</span>
-          </div>
-        </div>
-      </div>
-    </aside>
+      <!-- Mobile Bottom Navigation Bar (<540px) -->
+      <nav class="mobile-bottom-nav">
+        <a href="${ROUTES.HOME}" class="mobile-nav-item ${isRoute(ROUTES.HOME) ? 'active' : ''}">
+          <span class="material-symbols-outlined">home</span>
+        </a>
+        <a href="#/search" class="mobile-nav-item ${isRoute('#/search') ? 'active' : ''}">
+          <span class="material-symbols-outlined">search</span>
+        </a>
+        <a href="${ROUTES.PETITIONS}" class="mobile-nav-item ${isRoute(ROUTES.PETITIONS) ? 'active' : ''}">
+          <span class="material-symbols-outlined">campaign</span>
+        </a>
+        <a href="${ROUTES.POLLS}" class="mobile-nav-item ${isRoute(ROUTES.POLLS) ? 'active' : ''}">
+          <span class="material-symbols-outlined">poll</span>
+        </a>
+        <a href="${ROUTES.PROFILE}" class="mobile-nav-item ${isRoute(ROUTES.PROFILE) ? 'active' : ''}">
+          <span class="material-symbols-outlined">person</span>
+        </a>
+      </nav>
 
-    <!-- Mobile Bottom Navigation Bar (<540px) -->
-    <nav class="mobile-bottom-nav">
-      <a href="${ROUTES.HOME}" class="mobile-nav-item ${isRoute(ROUTES.HOME) ? 'active' : ''}">
-        <span class="material-symbols-outlined">home</span>
-      </a>
-      <a href="#/search" class="mobile-nav-item ${isRoute('#/search') ? 'active' : ''}">
-        <span class="material-symbols-outlined">search</span>
-      </a>
-      <a href="${ROUTES.PETITIONS}" class="mobile-nav-item ${isRoute(ROUTES.PETITIONS) ? 'active' : ''}">
-        <span class="material-symbols-outlined">campaign</span>
-      </a>
-      <a href="${ROUTES.POLLS}" class="mobile-nav-item ${isRoute(ROUTES.POLLS) ? 'active' : ''}">
-        <span class="material-symbols-outlined">poll</span>
-      </a>
-      <a href="${ROUTES.PROFILE}" class="mobile-nav-item ${isRoute(ROUTES.PROFILE) ? 'active' : ''}">
-        <span class="material-symbols-outlined">person</span>
-      </a>
-    </nav>
-
-    <!-- Mobile Floating Action Button -->
-    <button class="mobile-fab" id="mobile-fab-composer" title="New Post">
-      <span class="material-symbols-outlined">edit</span>
-    </button>
+      <!-- Mobile Floating Action Button -->
+      <button class="mobile-fab" id="mobile-fab-composer" title="New Post">
+        <span class="material-symbols-outlined">edit</span>
+      </button>
+    </div>
   `;
 }
 
@@ -179,24 +193,29 @@ export function attachLayoutListeners() {
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      await logoutUser();
-      window.location.hash = '#/login';
+      if (confirm('Are you sure you want to log out of Backbench?')) {
+        await logoutUser();
+        window.location.hash = '#/login';
+      }
     });
   }
 
-  // Sidebar post focus helper
+  // Sidebar Post composer button trigger
   const sidebarPostBtn = document.getElementById('sidebar-open-composer');
   const mobileFab = document.getElementById('mobile-fab-composer');
-  const focusPostInput = () => {
-    const textarea = document.getElementById('post-input');
-    if (textarea) {
-      textarea.focus();
-      textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  
+  const handleComposerClick = () => {
+    if (window.location.hash !== ROUTES.HOME) {
+      window.location.hash = ROUTES.HOME;
     }
+    setTimeout(() => {
+      const input = document.getElementById('post-input');
+      if (input) input.focus();
+    }, 150);
   };
 
-  if (sidebarPostBtn) sidebarPostBtn.addEventListener('click', focusPostInput);
-  if (mobileFab) mobileFab.addEventListener('click', focusPostInput);
+  if (sidebarPostBtn) sidebarPostBtn.addEventListener('click', handleComposerClick);
+  if (mobileFab) mobileFab.addEventListener('click', handleComposerClick);
 
   // Live Campus Search Logic (Filtered after 3 letters)
   const searchInput = document.getElementById('right-sidebar-search-input');

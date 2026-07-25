@@ -2,6 +2,7 @@ import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser, isPostResharedByUser, toggleResharePost } from '../services/postService.js';
 import { createPoll, subscribeToPolls, getUserVote, voteInPoll } from '../services/pollService.js';
 import { getFriendUids } from '../services/friendService.js';
+import { deletePostAsStaff } from '../services/adminService.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 import { createPostCardHTML } from '../components/PostCard.js';
 import { createPollCardHTML } from '../components/PollCard.js';
@@ -13,13 +14,17 @@ import { auth } from '../firebase/firebase.js';
 let feedUnsubscribe = null;
 let pollsUnsubscribe = null;
 
-export function renderHome(container) {
+export async function renderHome(container) {
   if (!auth.currentUser) {
     window.location.hash = '#/login';
     return;
   }
 
   const currentUser = auth.currentUser;
+  const userProfile = await getUserProfile(currentUser.uid);
+  const userRole = userProfile?.role || 'student';
+  const isStaffOrAdmin = userRole === 'staff' || userRole === 'admin';
+
   const avatarHTML = renderUserAvatar(currentUser.photoURL || '', 40);
 
   const content = `
@@ -89,7 +94,7 @@ export function renderHome(container) {
     </div>
   `;
 
-  container.innerHTML = createLayout(content, ROUTES.HOME);
+  container.innerHTML = createLayout(content, ROUTES.HOME, userRole);
   attachLayoutListeners();
 
   const postInput = document.getElementById('post-input');
@@ -328,6 +333,30 @@ export function renderHome(container) {
         }
       });
     });
+
+    // Attach Staff Takedown Powers
+    if (isStaffOrAdmin) {
+      feedContainer.querySelectorAll('.post-card').forEach(card => {
+        const optionsBtn = card.querySelector('.btn-ghost[title="Options"]');
+        if (optionsBtn) {
+          optionsBtn.title = "Staff Takedown Powers";
+          optionsBtn.style.color = "var(--error-color)";
+          optionsBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const postId = card.dataset.postId;
+            if (confirm('🛡️ Staff Moderation Action:\nDo you want to put down (delete) this post from Backbench?')) {
+              try {
+                await deletePostAsStaff(postId);
+                card.style.opacity = '0.3';
+                card.style.pointerEvents = 'none';
+              } catch (err) {
+                alert(err.message || 'Failed to delete post.');
+              }
+            }
+          });
+        }
+      });
+    }
 
     // Attach Poll Voting for Polls on Home Feed
     feedContainer.querySelectorAll('.poll-option-btn').forEach(btn => {

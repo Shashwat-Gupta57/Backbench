@@ -1,82 +1,26 @@
 export const PRESET_BANNERS = [
-  {
-    id: 'sjc-blue',
-    name: 'SJC Blue',
-    gradient: 'linear-gradient(135deg, #1D9BF0 0%, #004477 100%)'
-  },
-  {
-    id: 'cyber-midnight',
-    name: 'Cyber Midnight',
-    gradient: 'linear-gradient(135deg, #7928CA 0%, #FF0080 100%)'
-  },
-  {
-    id: 'emerald-neon',
-    name: 'Emerald Neon',
-    gradient: 'linear-gradient(135deg, #00b09b 0%, #96c93d 100%)'
-  },
-  {
-    id: 'sunset-horizon',
-    name: 'Sunset Horizon',
-    gradient: 'linear-gradient(135deg, #FF416C 0%, #FF4B2B 100%)'
-  },
-  {
-    id: 'deep-space',
-    name: 'Deep Space Nebula',
-    gradient: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)'
-  },
-  {
-    id: 'golden-aura',
-    name: 'Golden Aura',
-    gradient: 'linear-gradient(135deg, #F2994A 0%, #F2C94C 100%)'
-  },
-  {
-    id: 'mesh-cosmic',
-    name: 'Cosmic Mesh',
-    gradient: 'radial-gradient(at 0% 0%, #1D9BF0 0, transparent 60%), radial-gradient(at 100% 0%, #7928CA 0, transparent 60%), linear-gradient(135deg, #090A0F 0%, #16181C 100%)'
-  },
-  {
-    id: 'royal-amethyst',
-    name: 'Royal Amethyst',
-    gradient: 'linear-gradient(135deg, #654ea3 0%, #eaafc8 100%)'
-  },
-  {
-    id: 'crimson-fire',
-    name: 'Crimson Fire',
-    gradient: 'linear-gradient(135deg, #8A2387 0%, #E94057 50%, #F27121 100%)'
-  },
-  {
-    id: 'nordic-aurora',
-    name: 'Nordic Aurora',
-    gradient: 'linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%)'
-  },
-  {
-    id: 'tokyo-neon',
-    name: 'Tokyo Neon',
-    gradient: 'linear-gradient(135deg, #f857a6 0%, #ff5858 100%)'
-  },
-  {
-    id: 'dark-synth',
-    name: 'Dark Synth',
-    gradient: 'linear-gradient(135deg, #232526 0%, #414345 100%)'
-  },
-  {
-    id: 'vaporwave',
-    name: 'Vaporwave Dream',
-    gradient: 'linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)'
-  },
-  {
-    id: 'oceanic-abyss',
-    name: 'Oceanic Abyss',
-    gradient: 'linear-gradient(135deg, #2b5876 0%, #4e4376 100%)'
-  },
-  {
-    id: 'solar-flare',
-    name: 'Solar Flare',
-    gradient: 'linear-gradient(135deg, #f12711 0%, #f5af19 100%)'
-  },
-  {
-    id: 'zenith-violet',
-    name: 'Zenith Violet',
-    gradient: 'linear-gradient(135deg, #3a1c71 0%, #d76d77 50%, #ffaf7b 100%)'
-  }
+  { id: 'gradient-1', name: 'SJC Ocean Blue', gradient: 'linear-gradient(135deg, #1D9BF0 0%, #004477 100%)' },
+  { id: 'gradient-2', name: 'Neon Cyberpunk', gradient: 'linear-gradient(135deg, #FF0080 0%, #7928CA 100%)' },
+  { id: 'gradient-3', name: 'Emerald Glow', gradient: 'linear-gradient(135deg, #00b09b 0%, #96c93d 100%)' },
+  { id: 'gradient-4', name: 'Golden Sunset', gradient: 'linear-gradient(135deg, #F2994A 0%, #F2C94C 100%)' },
+  { id: 'gradient-5', name: 'Crimson Fire', gradient: 'linear-gradient(135deg, #E94057 0%, #F27121 100%)' },
+  { id: 'gradient-6', name: 'Midnight Purple', gradient: 'linear-gradient(135deg, #4A00E0 0%, #8E2DE2 100%)' },
+  { id: 'gradient-7', name: 'Dark Obsidian', gradient: 'linear-gradient(135deg, #16181C 0%, #2F3336 100%)' },
+  { id: 'gradient-8', name: 'Teal Lagoon', gradient: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' },
+  { id: 'gradient-9', name: 'Aurora Borealis', gradient: 'linear-gradient(135deg, #43cea2 0%, #185a9d 100%)' },
+  { id: 'gradient-10', name: 'Velvet Dusk', gradient: 'linear-gradient(135deg, #2C3E50 0%, #FD746C 100%)' },
+  { id: 'gradient-11', name: 'Electric Violet', gradient: 'linear-gradient(135deg, #DA22FF 0%, #9733EE 100%)' },
+  { id: 'gradient-12', name: 'Cosmic Nebula', gradient: 'linear-gradient(135deg, #020024 0%, #090979 50%, #00d4ff 100%)' },
+  { id: 'gradient-13', name: 'Sunset Coral', gradient: 'linear-gradient(135deg, #ff9966 0%, #ff5e62 100%)' },
+  { id: 'gradient-14', name: 'Emerald Forest', gradient: 'linear-gradient(135deg, #134E5E 0%, #71B280 100%)' },
+  { id: 'gradient-15', name: 'Rose Gold', gradient: 'linear-gradient(135deg, #f4c4f3 0%, #fc67fa 100%)' },
+  { id: 'gradient-16', name: 'Midnight Gold', gradient: 'linear-gradient(135deg, #BF953F 0%, #FCF6BA 50%, #B38728 100%)' },
+  { id: 'gradient-17', name: 'Cyber Matrix', gradient: 'linear-gradient(135deg, #000000 0%, #0f9b0f 100%)' },
+  { id: 'gradient-18', name: 'Plum Royalty', gradient: 'linear-gradient(135deg, #614385 0%, #516395 100%)' },
+  { id: 'gradient-19', name: 'Citrus Splash', gradient: 'linear-gradient(135deg, #FFE000 0%, #799F0C 100%)' },
+  { id: 'gradient-20', name: 'Deep Space', gradient: 'linear-gradient(135deg, #000000 0%, #434343 100%)' },
+  { id: 'gradient-21', name: 'Aether Blue', gradient: 'linear-gradient(135deg, #3a7bd5 0%, #3a6073 100%)' },
+  { id: 'gradient-22', name: 'Flamingo Coral', gradient: 'linear-gradient(135deg, #ef629f 0%, #eecda3 100%)' },
+  { id: 'gradient-23', name: 'Sublime Light', gradient: 'linear-gradient(135deg, #fc5c7d 0%, #6a82fb 100%)' },
+  { id: 'gradient-24', name: 'Frosted Prism', gradient: 'linear-gradient(135deg, #a8c0ff 0%, #3f2b96 100%)' }
 ];

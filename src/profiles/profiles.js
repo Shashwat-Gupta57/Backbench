@@ -4,7 +4,7 @@ import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { ROUTES } from '../constants/routes.js';
 import { PRESET_BANNERS } from '../constants/banners.js';
-import { PRESET_QUOTE_STYLES } from '../constants/quotes.js';
+import { PRESET_QUOTE_STYLES, PRESET_QUOTE_FONTS, getQuoteFontFamily } from '../constants/quotes.js';
 import { PRESET_USER_FONTS, getUserFontFamily } from '../constants/fonts.js';
 import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost, isPostResharedByUser, toggleResharePost } from '../services/postService.js';
 import { isFriend, toggleAddFriend, getFriendsCount, getFriendsProfiles } from '../services/friendService.js';
@@ -106,8 +106,10 @@ export async function renderProfile(container) {
   
   // Resolve Quote & Font Themes
   const currentQuoteTheme = PRESET_QUOTE_STYLES.find(s => s.id === userProfile.quoteThemeId) || PRESET_QUOTE_STYLES[0];
+  const quoteFontFamily = getQuoteFontFamily(userProfile.quoteFontId);
   const userFontFamily = getUserFontFamily(userProfile);
   const currentFontThemeId = userProfile.fontThemeId || 'default';
+  const currentQuoteFontId = userProfile.quoteFontId || 'georgia';
 
   // Check friendship status & friend counts
   const userIsFriend = !isSelf ? await isFriend(userProfile.uid) : false;
@@ -126,7 +128,7 @@ export async function renderProfile(container) {
         class="banner-swatch ${isSelected ? 'selected' : ''}" 
         data-gradient="${escapeHTML(b.gradient)}"
         title="${b.name}"
-        style="height: 40px; border-radius: 10px; background: ${b.gradient}; cursor: pointer; border: ${isSelected ? '3px solid #fff' : '1px solid rgba(255,255,255,0.2)'}; box-shadow: ${isSelected ? '0 0 12px var(--accent-primary)' : 'none'}; transition: all 0.2s ease;"
+        style="height: 38px; border-radius: 8px; background: ${b.gradient}; cursor: pointer; border: ${isSelected ? '3px solid #fff' : '1px solid rgba(255,255,255,0.2)'}; box-shadow: ${isSelected ? '0 0 12px var(--accent-primary)' : 'none'}; transition: all 0.2s ease;"
       ></div>
     `;
   }).join('');
@@ -155,6 +157,20 @@ export async function renderProfile(container) {
         style="padding: 8px 12px; border-radius: 10px; background: var(--bg-primary); border: ${isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)'}; cursor: pointer; text-align: center; transition: all 0.2s ease;"
       >
         <span style="font-family: ${f.fontFamily}; font-size: 14px; font-weight: 700; color: ${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'};">${f.name}</span>
+      </div>
+    `;
+  }).join('');
+
+  const quoteFontSwatchesHTML = PRESET_QUOTE_FONTS.map(qf => {
+    const isSelected = qf.id === currentQuoteFontId;
+    return `
+      <div 
+        class="quote-font-swatch ${isSelected ? 'selected' : ''}" 
+        data-quote-font-id="${qf.id}"
+        title="${qf.name}"
+        style="padding: 6px 10px; border-radius: 8px; background: var(--bg-primary); border: ${isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)'}; cursor: pointer; text-align: center; transition: all 0.2s ease;"
+      >
+        <span style="font-family: ${qf.fontFamily}; font-size: 13px; font-weight: 700; color: ${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'};">${qf.name}</span>
       </div>
     `;
   }).join('');
@@ -216,7 +232,7 @@ export async function renderProfile(container) {
             <span class="material-symbols-outlined" style="font-size: 22px; color: ${currentQuoteTheme.accent}; flex-shrink: 0; margin-top: 1px;">format_quote</span>
             <div style="display: flex; flex-direction: column;">
               <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; color: ${currentQuoteTheme.accent}; text-transform: uppercase; margin-bottom: 2px;">Campus Motto</span>
-              <span id="profile-quote-text" style="font-size: 16px; font-style: italic; font-weight: 600; color: var(--text-primary); line-height: 1.4; letter-spacing: -0.2px; font-family: ${userFontFamily};">
+              <span id="profile-quote-text" style="font-size: 17px; font-style: italic; font-weight: 600; color: var(--text-primary); line-height: 1.4; letter-spacing: -0.2px; font-family: ${quoteFontFamily};">
                 “${escapeHTML(userProfile.tagline)}”
               </span>
             </div>
@@ -278,7 +294,7 @@ export async function renderProfile(container) {
 
     <!-- Edit Profile Modal Overlay -->
     <div id="edit-profile-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; padding: 20px;">
-      <div class="card fade-in" style="width: 100%; max-width: 500px; padding: 24px; border-radius: 20px; position: relative; max-height: 90vh; overflow-y: auto;">
+      <div class="card fade-in" style="width: 100%; max-width: 520px; padding: 24px; border-radius: 20px; position: relative; max-height: 90vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h3 style="font-size: 19px; font-weight: 800;">Edit Profile</h3>
           <button id="close-modal-btn" class="btn-ghost" style="padding: 4px;">
@@ -287,17 +303,22 @@ export async function renderProfile(container) {
         </div>
 
         <form id="edit-profile-form">
-          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Typography Theme (Applies to Name, Bio & Posts)</label>
+          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">User Font Theme (Name, Bio & Posts)</label>
           <div id="font-swatches-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px;">
             ${fontSwatchesHTML}
           </div>
 
-          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Choose Cover Banner Theme</label>
-          <div id="banner-swatches-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px;">
+          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Campus Motto Quote Font Style</label>
+          <div id="quote-font-swatches-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px;">
+            ${quoteFontSwatchesHTML}
+          </div>
+
+          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Cover Banner Theme (24 Themes)</label>
+          <div id="banner-swatches-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 16px; max-height: 120px; overflow-y: auto; padding: 4px; border: 1px solid var(--border-color); border-radius: 12px;">
             ${bannerSwatchesHTML}
           </div>
 
-          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Quote Card Background Theme</label>
+          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Quote Card Background Theme (12 Themes)</label>
           <div id="quote-swatches-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
             ${quoteSwatchesHTML}
           </div>
@@ -528,6 +549,7 @@ export async function renderProfile(container) {
     let selectedBannerGradient = currentBannerGradient;
     let selectedQuoteThemeId = currentQuoteTheme.id;
     let selectedFontThemeId = currentFontThemeId;
+    let selectedQuoteFontId = currentQuoteFontId;
 
     // Font Swatches click selection
     const fontSwatches = document.querySelectorAll('.font-swatch');
@@ -548,7 +570,28 @@ export async function renderProfile(container) {
         // Live preview font on profile elements
         if (displayNameEl) displayNameEl.style.fontFamily = fontStyle;
         if (bioTextEl) bioTextEl.style.fontFamily = fontStyle;
-        if (quoteTextEl) quoteTextEl.style.fontFamily = fontStyle;
+      });
+    });
+
+    // Quote Font Swatches click selection
+    const quoteFontSwatches = document.querySelectorAll('.quote-font-swatch');
+    quoteFontSwatches.forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        selectedQuoteFontId = swatch.dataset.quoteFontId;
+        const qFontStyle = getQuoteFontFamily(selectedQuoteFontId);
+
+        quoteFontSwatches.forEach(s => {
+          s.style.border = '1px solid var(--border-color)';
+          const span = s.querySelector('span');
+          if (span) span.style.color = 'var(--text-primary)';
+        });
+        swatch.style.border = '2px solid var(--accent-primary)';
+        const activeSpan = swatch.querySelector('span');
+        if (activeSpan) activeSpan.style.color = 'var(--accent-primary)';
+
+        if (quoteTextEl) {
+          quoteTextEl.style.fontFamily = qFontStyle;
+        }
       });
     });
 
@@ -662,6 +705,7 @@ export async function renderProfile(container) {
             bio,
             bannerStyle: selectedBannerGradient,
             quoteThemeId: selectedQuoteThemeId,
+            quoteFontId: selectedQuoteFontId,
             fontThemeId: selectedFontThemeId
           });
           closeModal();
