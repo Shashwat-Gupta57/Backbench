@@ -4,6 +4,8 @@ import { getUserProfile, toggleLikePost } from '../services/postService.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 import { formatTimeAgo } from '../helpers/time.js';
 import { escapeHTML } from '../helpers/formatters.js';
+import { renderUserAvatar } from '../helpers/avatar.js';
+import { getUserFontFamily } from '../constants/fonts.js';
 import { LIMITS } from '../constants/limits.js';
 import { ROUTES } from '../constants/routes.js';
 import { auth } from '../firebase/firebase.js';
@@ -50,12 +52,13 @@ export async function renderPostDetail(container) {
 
   const author = await getUserProfile(post.authorId);
   const currentUser = auth.currentUser;
-  const currentAvatarInitial = currentUser.email ? currentUser.email.charAt(0).toUpperCase() : 'S';
+  const currentAvatarHTML = renderUserAvatar(currentUser.photoURL || '', 40);
 
-  const avatarInitial = author?.name ? author.name.charAt(0).toUpperCase() : '?';
+  const authorAvatarHTML = renderUserAvatar(author, 48, 'border: 1px solid var(--border-color);');
   const name = author?.name ? escapeHTML(author.name) : 'Anonymous Student';
   const username = author?.username ? escapeHTML(author.username) : 'student';
   const verified = author?.verifiedStudent || author?.role === 'staff' || author?.role === 'admin';
+  const authorFont = getUserFontFamily(author);
 
   const postDate = new Date(post.timestamp || Date.now());
   const formattedTime = postDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
@@ -77,9 +80,9 @@ export async function renderPostDetail(container) {
       <!-- Author Meta -->
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
         <div style="display: flex; align-items: center; gap: 12px;">
-          <div class="avatar" style="width: 48px; height: 48px; font-size: 19px;">${avatarInitial}</div>
+          ${authorAvatarHTML}
           <div style="display: flex; flex-direction: column;">
-            <span style="font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 4px;">
+            <span style="font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 4px; font-family: ${authorFont};">
               ${name}
               ${verified ? `<span class="material-symbols-outlined verified-icon">verified</span>` : ''}
             </span>
@@ -93,7 +96,7 @@ export async function renderPostDetail(container) {
       </div>
 
       <!-- Main Post Content (Large Text) -->
-      <div style="font-size: 19px; line-height: 1.5; color: var(--text-primary); margin-bottom: 16px; word-break: break-word; white-space: pre-line;">
+      <div style="font-size: 19px; line-height: 1.5; color: var(--text-primary); margin-bottom: 16px; word-break: break-word; white-space: pre-line; font-family: ${authorFont};">
         ${escapeHTML(post.content)}
       </div>
 
@@ -127,7 +130,7 @@ export async function renderPostDetail(container) {
 
     <!-- Reply Composer -->
     <div class="composer" style="border-bottom: 1px solid var(--border-color);">
-      <div class="avatar">${currentAvatarInitial}</div>
+      ${currentAvatarHTML}
       <div class="composer-main">
         <textarea id="reply-input" placeholder="Post your reply" rows="2"></textarea>
 
@@ -244,17 +247,18 @@ export async function renderPostDetail(container) {
     let html = '';
     for (const reply of replies) {
       const replyAuthor = await getUserProfile(reply.authorId);
-      const rInitial = replyAuthor?.name ? replyAuthor.name.charAt(0).toUpperCase() : '?';
+      const replyAvatarHTML = renderUserAvatar(replyAuthor, 40);
       const rName = replyAuthor?.name ? escapeHTML(replyAuthor.name) : 'Student';
       const rUsername = replyAuthor?.username ? escapeHTML(replyAuthor.username) : 'student';
+      const replyFont = getUserFontFamily(replyAuthor);
 
       html += `
         <article class="post-card fade-in" style="border-bottom: 1px solid var(--border-color);">
-          <div class="avatar">${rInitial}</div>
+          ${replyAvatarHTML}
           <div style="flex: 1; min-width: 0;">
             <div class="post-header">
               <div class="author-meta">
-                <span class="author-name">${rName}</span>
+                <span class="author-name" style="font-family: ${replyFont};">${rName}</span>
                 <span class="author-handle">@${rUsername}</span>
                 <span class="post-dot">·</span>
                 <span class="post-time">${formatTimeAgo(reply.timestamp)}</span>
@@ -265,7 +269,7 @@ export async function renderPostDetail(container) {
               Replying to <span style="color: var(--accent-primary);">@${username}</span>
             </div>
 
-            <div class="post-body">
+            <div class="post-body" style="font-family: ${replyFont};">
               ${escapeHTML(reply.content)}
             </div>
           </div>

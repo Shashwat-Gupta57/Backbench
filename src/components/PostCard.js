@@ -1,11 +1,13 @@
 import { formatTimeAgo } from '../helpers/time.js';
 import { escapeHTML } from '../helpers/formatters.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
+import { getUserFontFamily } from '../constants/fonts.js';
 
 export function createPostCardHTML(post, author, isLiked = false) {
   const name = author?.name ? escapeHTML(author.name) : 'Anonymous Student';
   const username = author?.username ? escapeHTML(author.username) : 'student';
   const verified = author?.verifiedStudent || author?.role === 'staff' || author?.role === 'admin';
+  const fontStyle = getUserFontFamily(author);
 
   const avatarHTML = renderUserAvatar(author, 44, 'border: 1px solid var(--border-color);');
 
@@ -15,7 +17,7 @@ export function createPostCardHTML(post, author, isLiked = false) {
       <div style="flex: 1; min-width: 0;">
         <div class="post-header">
           <div class="author-meta">
-            <span class="author-name">${name}</span>
+            <span class="author-name" style="font-family: ${fontStyle};">${name}</span>
             ${verified ? `<span class="material-symbols-outlined verified-icon" title="Verified Member">verified</span>` : ''}
             <span class="author-handle">@${username}</span>
             <span class="post-dot">·</span>
@@ -26,7 +28,7 @@ export function createPostCardHTML(post, author, isLiked = false) {
           </button>
         </div>
         
-        <div class="post-body">
+        <div class="post-body" style="font-family: ${fontStyle};">
           ${escapeHTML(post.content)}
         </div>
         

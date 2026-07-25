@@ -5,6 +5,7 @@ import { PATHS } from '../constants/firebasePaths.js';
 import { ROUTES } from '../constants/routes.js';
 import { PRESET_BANNERS } from '../constants/banners.js';
 import { PRESET_QUOTE_STYLES } from '../constants/quotes.js';
+import { PRESET_USER_FONTS, getUserFontFamily } from '../constants/fonts.js';
 import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost } from '../services/postService.js';
 import { processProfilePicture } from '../helpers/image.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
@@ -86,8 +87,10 @@ export async function renderProfile(container) {
   const verified = userProfile.verifiedStudent || userProfile.role === 'staff' || userProfile.role === 'admin';
   const currentBannerGradient = userProfile.bannerStyle || PRESET_BANNERS[0].gradient;
   
-  // Resolve Quote Theme
+  // Resolve Quote & Font Themes
   const currentQuoteTheme = PRESET_QUOTE_STYLES.find(s => s.id === userProfile.quoteThemeId) || PRESET_QUOTE_STYLES[0];
+  const userFontFamily = getUserFontFamily(userProfile);
+  const currentFontThemeId = userProfile.fontThemeId || 'default';
 
   const avatarDisplayHTML = renderUserAvatar(
     userProfile, 
@@ -121,6 +124,20 @@ export async function renderProfile(container) {
     `;
   }).join('');
 
+  const fontSwatchesHTML = PRESET_USER_FONTS.map(f => {
+    const isSelected = f.id === currentFontThemeId;
+    return `
+      <div 
+        class="font-swatch ${isSelected ? 'selected' : ''}" 
+        data-font-id="${f.id}"
+        title="${f.name}"
+        style="padding: 8px 12px; border-radius: 10px; background: var(--bg-primary); border: ${isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)'}; cursor: pointer; text-align: center; transition: all 0.2s ease;"
+      >
+        <span style="font-family: ${f.fontFamily}; font-size: 14px; font-weight: 700; color: ${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'};">${f.name}</span>
+      </div>
+    `;
+  }).join('');
+
   const content = `
     <!-- Hidden File Input for 480p PFP Upload -->
     <input type="file" id="pfp-upload-input" accept="image/*" style="display: none;" />
@@ -132,7 +149,7 @@ export async function renderProfile(container) {
           <span class="material-symbols-outlined">arrow_back</span>
         </button>
         <div>
-          <h1 class="header-title" style="display: flex; align-items: center; gap: 4px;">
+          <h1 class="header-title" style="display: flex; align-items: center; gap: 4px; font-family: ${userFontFamily};">
             ${escapeHTML(userProfile.name)}
             ${verified ? `<span class="material-symbols-outlined verified-icon">verified</span>` : ''}
           </h1>
@@ -163,7 +180,7 @@ export async function renderProfile(container) {
       </div>
 
       <div style="display: flex; flex-direction: column; gap: 4px;">
-        <h2 style="font-size: 22px; font-weight: 800; display: flex; align-items: center; gap: 6px;">
+        <h2 id="profile-display-name" style="font-size: 22px; font-weight: 800; display: flex; align-items: center; gap: 6px; font-family: ${userFontFamily};">
           ${escapeHTML(userProfile.name)}
           ${verified ? `<span class="material-symbols-outlined verified-icon">verified</span>` : ''}
         </h2>
@@ -178,7 +195,7 @@ export async function renderProfile(container) {
             <span class="material-symbols-outlined" style="font-size: 22px; color: ${currentQuoteTheme.accent}; flex-shrink: 0; margin-top: 1px;">format_quote</span>
             <div style="display: flex; flex-direction: column;">
               <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; color: ${currentQuoteTheme.accent}; text-transform: uppercase; margin-bottom: 2px;">Campus Motto</span>
-              <span style="font-size: 15px; font-style: italic; font-weight: 600; color: var(--text-primary); line-height: 1.4; letter-spacing: -0.2px;">
+              <span id="profile-quote-text" style="font-size: 16px; font-style: italic; font-weight: 600; color: var(--text-primary); line-height: 1.4; letter-spacing: -0.2px; font-family: ${userFontFamily};">
                 “${escapeHTML(userProfile.tagline)}”
               </span>
             </div>
@@ -187,7 +204,7 @@ export async function renderProfile(container) {
       ` : ''}
 
       <!-- Bio -->
-      <p style="margin-top: 12px; font-size: 15px; line-height: 1.5; color: var(--text-primary);">
+      <p id="profile-bio-text" style="margin-top: 12px; font-size: 15px; line-height: 1.5; color: var(--text-primary); font-family: ${userFontFamily};">
         ${escapeHTML(userProfile.bio || 'St. Joseph\'s College Student')}
       </p>
 
@@ -233,6 +250,11 @@ export async function renderProfile(container) {
         </div>
 
         <form id="edit-profile-form">
+          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Typography Theme (Applies to Name, Bio & Posts)</label>
+          <div id="font-swatches-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px;">
+            ${fontSwatchesHTML}
+          </div>
+
           <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Choose Cover Banner Theme</label>
           <div id="banner-swatches-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px;">
             ${bannerSwatchesHTML}
@@ -356,9 +378,36 @@ export async function renderProfile(container) {
     const taglineCounter = document.getElementById('tagline-counter');
     const coverBanner = document.getElementById('profile-cover-banner');
     const quoteCard = document.getElementById('profile-quote-card');
+    const displayNameEl = document.getElementById('profile-display-name');
+    const bioTextEl = document.getElementById('profile-bio-text');
+    const quoteTextEl = document.getElementById('profile-quote-text');
 
     let selectedBannerGradient = currentBannerGradient;
     let selectedQuoteThemeId = currentQuoteTheme.id;
+    let selectedFontThemeId = currentFontThemeId;
+
+    // Font Swatches click selection
+    const fontSwatches = document.querySelectorAll('.font-swatch');
+    fontSwatches.forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        selectedFontThemeId = swatch.dataset.fontId;
+        const fontStyle = getUserFontFamily(selectedFontThemeId);
+
+        fontSwatches.forEach(s => {
+          s.style.border = '1px solid var(--border-color)';
+          const span = s.querySelector('span');
+          if (span) span.style.color = 'var(--text-primary)';
+        });
+        swatch.style.border = '2px solid var(--accent-primary)';
+        const activeSpan = swatch.querySelector('span');
+        if (activeSpan) activeSpan.style.color = 'var(--accent-primary)';
+
+        // Live preview font on profile elements
+        if (displayNameEl) displayNameEl.style.fontFamily = fontStyle;
+        if (bioTextEl) bioTextEl.style.fontFamily = fontStyle;
+        if (quoteTextEl) quoteTextEl.style.fontFamily = fontStyle;
+      });
+    });
 
     // Banner Swatches click selection
     const bannerSwatches = document.querySelectorAll('.banner-swatch');
@@ -449,7 +498,8 @@ export async function renderProfile(container) {
             tagline,
             bio,
             bannerStyle: selectedBannerGradient,
-            quoteThemeId: selectedQuoteThemeId
+            quoteThemeId: selectedQuoteThemeId,
+            fontThemeId: selectedFontThemeId
           });
           closeModal();
           renderProfile(container);
