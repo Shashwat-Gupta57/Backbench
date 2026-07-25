@@ -10,6 +10,7 @@ import { renderPetitionDetail } from '../petitions/petitionDetail.js';
 import { renderPolls } from '../polls/polls.js';
 import { renderAnnouncements } from '../announcements/announcements.js';
 import { renderEvents } from '../events/events.js';
+import { renderEventDetail } from '../events/eventDetail.js';
 import { renderAdmin } from '../admin/admin.js';
 import { renderSettings } from '../settings/settings.js';
 import { auth } from '../firebase/firebase.js';
@@ -84,6 +85,9 @@ async function handleRoute() {
       break;
     case ROUTES.EVENTS:
       renderEvents(rootElement);
+      break;
+    case '#/event':
+      renderEventDetail(rootElement);
       break;
     case ROUTES.ADMIN:
       renderAdmin(rootElement);
