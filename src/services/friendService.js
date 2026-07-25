@@ -15,26 +15,34 @@ export async function isFriend(targetUid) {
   }
 }
 
+export async function isMutualFriend(myUid, targetUid) {
+  if (!myUid || !targetUid) return false;
+  try {
+    const snap1 = await get(ref(db, `${PATHS.FRIENDS}/${myUid}/${targetUid}`));
+    const snap2 = await get(ref(db, `${PATHS.FRIENDS}/${targetUid}/${myUid}`));
+    return snap1.exists() && snap2.exists();
+  } catch (err) {
+    return false;
+  }
+}
+
 export async function toggleAddFriend(targetUid) {
   const user = auth.currentUser;
   if (!user || !targetUid) return false;
   if (user.uid === targetUid) throw new Error("You cannot add yourself as a friend.");
 
   const myFriendRef = ref(db, `${PATHS.FRIENDS}/${user.uid}/${targetUid}`);
-  const targetFriendRef = ref(db, `${PATHS.FRIENDS}/${targetUid}/${user.uid}`);
-
   const snap = await get(myFriendRef);
+
   if (snap.exists()) {
     // Unfriend
     await remove(myFriendRef);
-    await remove(targetFriendRef);
     return false; // Now not friends
   } else {
-    // Add friend (Bi-directional record)
+    // Add friend (User's unilateral action)
     const timestamp = new Date().toISOString();
     await set(myFriendRef, { timestamp });
-    await set(targetFriendRef, { timestamp });
-    return true; // Now friends
+    return true; // Now friended
   }
 }
 
@@ -61,7 +69,10 @@ export async function getFriendsProfiles(uid) {
   const profiles = [];
   for (const fUid of uids) {
     const p = await getUserProfile(fUid);
-    if (p) profiles.push(p);
+    if (p) {
+      const isMutual = await isMutualFriend(uid, fUid);
+      profiles.push({ ...p, isMutual });
+    }
   }
   return profiles;
 }
