@@ -423,3 +423,58 @@ a:hover {
   font-size: 14px;
   margin-bottom: var(--spacing-md);
 }
+
+/* Printable Petition Imprint Document Styles */
+@media print {
+  .sidebar-container,
+  .right-sidebar,
+  .mobile-bottom-nav,
+  .mobile-fab,
+  .sticky-header,
+  .print-hide {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  main.main-content {
+    max-width: 100% !important;
+    border: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #imprint-document-container {
+    padding: 0 !important;
+    color: #000000 !important;
+  }
+
+  .imprint-seal-header {
+    border: 2px solid #000000 !important;
+    background: #f8f9fa !important;
+    color: #000000 !important;
+  }
+
+  h1, h2, h3, p, span, td, th {
+    color: #000000 !important;
+  }
+
+  .brand-badge {
+    border: 1px solid #000000 !important;
+    color: #000000 !important;
+    background: transparent !important;
+  }
+
+  table {
+    border-collapse: collapse !important;
+  }
+
+  tr {
+    border-bottom: 1px solid #ccc !important;
+  }
+}
+
