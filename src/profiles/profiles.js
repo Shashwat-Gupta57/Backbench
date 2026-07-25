@@ -36,11 +36,12 @@ export async function renderProfile(container) {
 
   const hash = window.location.hash;
   let targetUsername = null;
+  let rawTargetParam = '';
 
   if (hash.includes('?u=')) {
-    const rawParam = hash.split('?u=')[1];
-    if (rawParam) {
-      targetUsername = decodeURIComponent(rawParam).trim().replace(/^@+/, '');
+    rawTargetParam = hash.split('?u=')[1] || '';
+    if (rawTargetParam) {
+      targetUsername = decodeURIComponent(rawTargetParam).trim().replace(/^[@\-\s]+/, '');
     }
   }
 
@@ -49,7 +50,7 @@ export async function renderProfile(container) {
   try {
     if (targetUsername) {
       const usersRef = ref(db, PATHS.USERS);
-      // Attempt 1: Exact lookup
+      // Attempt 1: Exact lookup by cleaned username
       const q = query(usersRef, orderByChild('username'), equalTo(targetUsername));
       const snap = await get(q);
 
@@ -57,12 +58,27 @@ export async function renderProfile(container) {
         const data = snap.val();
         userProfile = Object.values(data)[0];
       } else {
-        // Attempt 2: Case-insensitive fallback scan across users node
+        // Attempt 2: Comprehensive fallback scan across users node
         const allSnap = await get(usersRef);
         if (allSnap.exists()) {
+          const cleanTarget = targetUsername.toLowerCase().replace(/^[@\-\s]+/, '');
           allSnap.forEach((childSnap) => {
             const u = childSnap.val();
-            if (u && u.username && u.username.toLowerCase() === targetUsername.toLowerCase()) {
+            if (!u) return;
+
+            const uName = (u.username || '').toLowerCase().replace(/^[@\-\s]+/, '');
+            const uUid = (u.uid || '');
+            const uEmail = (u.email || '').toLowerCase();
+            const uFullName = (u.name || '').toLowerCase();
+
+            if (
+              uName === cleanTarget ||
+              uUid === targetUsername ||
+              uUid === rawTargetParam ||
+              uEmail === cleanTarget ||
+              (uName && cleanTarget && (uName.includes(cleanTarget) || cleanTarget.includes(uName))) ||
+              (uFullName && cleanTarget && uFullName.includes(cleanTarget))
+            ) {
               userProfile = u;
             }
           });
@@ -80,6 +96,7 @@ export async function renderProfile(container) {
     userProfile = await getUserProfile(auth.currentUser.uid);
   }
 
+  // If user profile is not found at all
   if (!userProfile) {
     container.innerHTML = createLayout(`
       <header class="sticky-header">
@@ -93,432 +110,241 @@ export async function renderProfile(container) {
       <div style="padding: 60px 20px; text-align: center;" class="fade-in">
         <span class="material-symbols-outlined" style="font-size: 48px; color: var(--error-color); margin-bottom: 12px;">person_off</span>
         <h2 style="font-size: 20px; font-weight: 800;">User not found</h2>
-        <p style="color: var(--text-secondary); margin-top: 4px;">The student profile "@${escapeHTML(targetUsername || '')}" does not exist on Backbench.</p>
+        <p style="color: var(--text-secondary); margin-top: 4px;">The student profile "@${escapeHTML(targetUsername || 'user')}" does not exist on Backbench.</p>
       </div>
     `, ROUTES.PROFILE);
     attachLayoutListeners();
     return;
   }
 
-  const isSelf = userProfile.uid === auth.currentUser.uid;
-  const verified = userProfile.verifiedStudent || userProfile.role === 'staff' || userProfile.role === 'admin';
-  const currentBannerGradient = userProfile.bannerStyle || PRESET_BANNERS[0].gradient;
-  
-  // Resolve Quote & Font Themes
-  const currentQuoteTheme = PRESET_QUOTE_STYLES.find(s => s.id === userProfile.quoteThemeId) || PRESET_QUOTE_STYLES[0];
-  const quoteFontFamily = getQuoteFontFamily(userProfile.quoteFontId);
+  const isOwnProfile = auth.currentUser.uid === userProfile.uid;
   const userFontFamily = getUserFontFamily(userProfile);
-  const currentFontThemeId = userProfile.fontThemeId || 'default';
-  const currentQuoteFontId = userProfile.quoteFontId || 'georgia';
+  const quoteFontFamily = getQuoteFontFamily(userProfile.quoteFontId);
 
-  // Check friendship status & friend counts
-  const userIsFriend = !isSelf ? await isFriend(userProfile.uid) : false;
+  // Check friended status if viewing someone else's profile
+  let friended = false;
+  if (!isOwnProfile) {
+    friended = await isFriend(userProfile.uid);
+  }
+
+  // Fetch friends count
   const friendsCount = await getFriendsCount(userProfile.uid);
 
-  const avatarDisplayHTML = renderUserAvatar(
-    userProfile, 
-    100, 
-    `border: 4px solid var(--bg-primary); box-shadow: 0 6px 20px rgba(0,0,0,0.5); cursor: ${isSelf ? 'pointer' : 'default'};`
-  );
+  // Banner & Quote Theme Resolution
+  const selectedBannerObj = PRESET_BANNERS.find(b => b.id === userProfile.bannerPreset) || PRESET_BANNERS[0];
+  const bannerBg = userProfile.bannerCustom || selectedBannerObj.gradient;
 
-  const bannerSwatchesHTML = PRESET_BANNERS.map(b => {
-    const isSelected = b.gradient === currentBannerGradient;
-    return `
-      <div 
-        class="banner-swatch ${isSelected ? 'selected' : ''}" 
-        data-gradient="${escapeHTML(b.gradient)}"
-        title="${b.name}"
-        style="height: 38px; border-radius: 8px; background: ${b.gradient}; cursor: pointer; border: ${isSelected ? '3px solid #fff' : '1px solid rgba(255,255,255,0.2)'}; box-shadow: ${isSelected ? '0 0 12px var(--accent-primary)' : 'none'}; transition: all 0.2s ease;"
-      ></div>
-    `;
-  }).join('');
+  const selectedQuoteObj = PRESET_QUOTE_STYLES.find(q => q.id === userProfile.quotePreset) || PRESET_QUOTE_STYLES[0];
+  const quoteBg = selectedQuoteObj.bg;
+  const quoteBorder = selectedQuoteObj.border;
+  const quoteAccent = selectedQuoteObj.accent;
 
-  const quoteSwatchesHTML = PRESET_QUOTE_STYLES.map(qs => {
-    const isSelected = qs.id === currentQuoteTheme.id;
-    return `
-      <div 
-        class="quote-swatch ${isSelected ? 'selected' : ''}" 
-        data-quote-id="${qs.id}"
-        title="${qs.name}"
-        style="height: 36px; border-radius: 8px; background: ${qs.bg}; border: ${isSelected ? '3px solid ' + qs.accent : qs.border}; cursor: pointer; box-shadow: ${isSelected ? qs.shadow : 'none'}; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center;"
-      >
-        <span style="font-size: 11px; font-weight: 700; color: ${qs.accent};">${qs.name}</span>
-      </div>
-    `;
-  }).join('');
-
-  const fontSwatchesHTML = PRESET_USER_FONTS.map(f => {
-    const isSelected = f.id === currentFontThemeId;
-    return `
-      <div 
-        class="font-swatch ${isSelected ? 'selected' : ''}" 
-        data-font-id="${f.id}"
-        title="${f.name}"
-        style="padding: 8px 12px; border-radius: 10px; background: var(--bg-primary); border: ${isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)'}; cursor: pointer; text-align: center; transition: all 0.2s ease;"
-      >
-        <span style="font-family: ${f.fontFamily}; font-size: 14px; font-weight: 700; color: ${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'};">${f.name}</span>
-      </div>
-    `;
-  }).join('');
-
-  const quoteFontSwatchesHTML = PRESET_QUOTE_FONTS.map(qf => {
-    const isSelected = qf.id === currentQuoteFontId;
-    return `
-      <div 
-        class="quote-font-swatch ${isSelected ? 'selected' : ''}" 
-        data-quote-font-id="${qf.id}"
-        title="${qf.name}"
-        style="padding: 6px 10px; border-radius: 8px; background: var(--bg-primary); border: ${isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)'}; cursor: pointer; text-align: center; transition: all 0.2s ease;"
-      >
-        <span style="font-family: ${qf.fontFamily}; font-size: 13px; font-weight: 700; color: ${isSelected ? 'var(--accent-primary)' : 'var(--text-primary)'};">${qf.name}</span>
-      </div>
-    `;
-  }).join('');
+  const initial = userProfile.name ? userProfile.name.charAt(0).toUpperCase() : 'S';
+  const pfpHTML = userProfile.profilePicture
+    ? `<img src="${userProfile.profilePicture}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />`
+    : `<div class="avatar" style="width: 100%; height: 100%; font-size: 36px; border-radius: 50%;">${initial}</div>`;
 
   const content = `
-    <!-- Hidden File Input for 480p PFP Upload -->
-    <input type="file" id="pfp-upload-input" accept="image/*" style="display: none;" />
-
     <!-- Header -->
     <header class="sticky-header">
       <div style="display: flex; align-items: center; gap: 16px;">
         <button class="btn-ghost" onclick="window.history.back()" title="Back">
           <span class="material-symbols-outlined">arrow_back</span>
         </button>
-        <div>
-          <h1 class="header-title" style="display: flex; align-items: center; gap: 4px; font-family: ${userFontFamily};">
-            ${escapeHTML(userProfile.name)}
-            ${verified ? `<span class="material-symbols-outlined verified-icon">verified</span>` : ''}
-          </h1>
-          <span id="profile-header-post-count" style="color: var(--text-secondary); font-size: 13px;">${userProfile.postCount || 0} posts</span>
+        <div style="display: flex; flex-direction: column;">
+          <h1 class="header-title" style="font-family: ${userFontFamily};">${escapeHTML(userProfile.name || 'Student')}</h1>
+          <span style="font-size: 12px; color: var(--text-secondary);" id="profile-post-count-header">0 Posts</span>
         </div>
       </div>
     </header>
 
-    <!-- Hero Cover Banner -->
-    <div id="profile-cover-banner" style="height: 140px; background: ${currentBannerGradient}; position: relative; transition: background 0.3s ease;"></div>
+    <!-- Cover Banner -->
+    <div style="height: 150px; background: ${bannerBg}; width: 100%; position: relative;"></div>
 
-    <!-- Profile Info Box -->
-    <div style="padding: 0 16px 16px 16px; border-bottom: 1px solid var(--border-color);" class="fade-in">
-      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: -50px; margin-bottom: 16px;">
-        <div style="position: relative;" id="avatar-wrapper" title="${isSelf ? 'Click to change profile picture' : ''}">
-          ${avatarDisplayHTML}
-          ${isSelf ? `
-            <div style="position: absolute; bottom: 4px; right: 4px; background: var(--accent-primary); border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: #fff; border: 2px solid var(--bg-primary); pointer-events: none;">
-              <span class="material-symbols-outlined" style="font-size: 16px;">photo_camera</span>
-            </div>
-          ` : ''}
+    <!-- Profile Header Info -->
+    <div style="padding: 0 16px 16px 16px; position: relative;" class="fade-in">
+      
+      <!-- Avatar & Action Buttons Row -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: -45px; margin-bottom: 12px;">
+        <div style="width: 90px; height: 90px; border-radius: 50%; border: 4px solid var(--bg-primary); background: var(--bg-secondary); overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.5);">
+          ${pfpHTML}
         </div>
 
-        ${isSelf ? 
-          '<button class="btn btn-outline" id="edit-profile-btn" style="border-radius: 9999px; font-weight: 700;">Edit Profile</button>' : 
-          `<button class="btn ${userIsFriend ? 'btn-outline' : ''}" id="profile-friend-btn" data-uid="${userProfile.uid}" style="border-radius: 9999px; font-weight: 700;">${userIsFriend ? 'Friends' : '+ Add Friend'}</button>`
-        }
+        <div>
+          ${isOwnProfile ? `
+            <button id="edit-profile-btn" class="btn btn-outline" style="font-weight: 700;">Edit Profile</button>
+          ` : `
+            <button id="profile-friend-btn" class="btn ${friended ? 'btn-outline' : ''}">
+              ${friended ? 'Friends' : '+ Add Friend'}
+            </button>
+          `}
+        </div>
       </div>
 
-      <div style="display: flex; flex-direction: column; gap: 4px;">
-        <h2 id="profile-display-name" style="font-size: 22px; font-weight: 800; display: flex; align-items: center; gap: 6px; font-family: ${userFontFamily};">
-          ${escapeHTML(userProfile.name)}
-          ${verified ? `<span class="material-symbols-outlined verified-icon">verified</span>` : ''}
+      <!-- Names & Badges -->
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <h2 style="font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 6px; font-family: ${userFontFamily};">
+          ${escapeHTML(userProfile.name || 'Student')}
+          ${userProfile.isTeacher ? `
+            <span class="brand-badge" style="font-size: 11px; background: rgba(0, 186, 124, 0.2); color: #00BA7C; border-color: #00BA7C; display: inline-flex; align-items: center; gap: 2px;">
+              <span class="material-symbols-outlined" style="font-size: 13px;">school</span> Faculty
+            </span>
+          ` : (userProfile.verifiedStudent || userProfile.role === 'staff' || userRole === 'admin') ? `
+            <span class="material-symbols-outlined verified-icon" style="font-size: 20px;">verified</span>
+          ` : ''}
         </h2>
-        <span style="color: var(--text-secondary); font-size: 15px;">@${escapeHTML(userProfile.username)}</span>
+        <span style="font-size: 14px; color: var(--text-secondary);">@${escapeHTML(userProfile.username || 'student')}</span>
       </div>
 
-      <!-- Modern Customized Personal Tagline Quote Card -->
-      ${userProfile.tagline ? `
-        <div id="profile-quote-card" class="tagline-quote-card" style="margin-top: 14px; padding: 14px 18px; background: ${currentQuoteTheme.bg}; border: ${currentQuoteTheme.border}; border-radius: 16px; position: relative; overflow: hidden; box-shadow: ${currentQuoteTheme.shadow}; transition: all 0.3s ease;">
-          <div style="position: absolute; right: -8px; bottom: -24px; font-size: 96px; color: ${currentQuoteTheme.accent}; opacity: 0.08; font-family: Georgia, serif; font-weight: 800; pointer-events: none; user-select: none; line-height: 1;">”</div>
-          <div style="display: flex; align-items: flex-start; gap: 10px; position: relative; z-index: 1;">
-            <span class="material-symbols-outlined" style="font-size: 22px; color: ${currentQuoteTheme.accent}; flex-shrink: 0; margin-top: 1px;">format_quote</span>
-            <div style="display: flex; flex-direction: column;">
-              <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; color: ${currentQuoteTheme.accent}; text-transform: uppercase; margin-bottom: 2px;">Campus Motto</span>
-              <span id="profile-quote-text" style="font-size: 17px; font-style: italic; font-weight: 600; color: var(--text-primary); line-height: 1.4; letter-spacing: -0.2px; font-family: ${quoteFontFamily};">
-                “${escapeHTML(userProfile.tagline)}”
-              </span>
-            </div>
-          </div>
+      <!-- Bio / Description -->
+      ${userProfile.bio ? `
+        <div style="margin-top: 10px; font-size: 14px; color: var(--text-primary); line-height: 1.4; font-family: ${userFontFamily};">
+          ${escapeHTML(userProfile.bio)}
         </div>
       ` : ''}
 
-      <!-- Bio -->
-      <p id="profile-bio-text" style="margin-top: 12px; font-size: 15px; line-height: 1.5; color: var(--text-primary); font-family: ${userFontFamily};">
-        ${escapeHTML(userProfile.bio || 'St. Joseph\'s College Student')}
-      </p>
+      <!-- Custom Campus Quote Banner -->
+      ${userProfile.tagline ? `
+        <div style="margin-top: 12px; padding: 12px 16px; border-radius: 12px; background: ${quoteBg}; border: ${quoteBorder}; display: flex; align-items: center; gap: 10px;">
+          <span class="material-symbols-outlined" style="color: ${quoteAccent}; font-size: 22px;">format_quote</span>
+          <span style="font-size: 14px; font-style: italic; color: var(--text-primary); font-family: ${quoteFontFamily};">
+            “${escapeHTML(userProfile.tagline)}”
+          </span>
+        </div>
+      ` : ''}
 
-      <div style="display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; color: var(--text-secondary); font-size: 14px;">
-        <div style="display: flex; align-items: center; gap: 6px;">
+      <!-- Meta Info Pills (Class, Admission, Mobile, Joined Date) -->
+      <div style="display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; font-size: 13px; color: var(--text-secondary);">
+        <div style="display: flex; align-items: center; gap: 4px;">
           <span class="material-symbols-outlined" style="font-size: 18px;">school</span>
           <span>Class ${escapeHTML(userProfile.class || 'N/A')}</span>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span class="material-symbols-outlined" style="font-size: 18px;">badge</span>
+          <span>Adm: ${escapeHTML(userProfile.admissionNumber || 'N/A')}</span>
+        </div>
+
+        ${userProfile.mobile ? `
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">call</span>
+            <span>${escapeHTML(userProfile.mobile)}</span>
+          </div>
+        ` : ''}
+
+        <div style="display: flex; align-items: center; gap: 4px;">
           <span class="material-symbols-outlined" style="font-size: 18px;">calendar_today</span>
           <span>Joined ${new Date(userProfile.joinedDate || Date.now()).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
         </div>
       </div>
 
-      <div style="display: flex; gap: 24px; margin-top: 16px; font-size: 14px;">
-        <div id="open-friends-modal-btn" style="cursor: pointer; transition: opacity 0.2s ease;"><strong style="color: var(--text-primary);">${friendsCount}</strong> <span style="color: var(--text-secondary);">Friends</span></div>
-        <div><strong style="color: var(--text-primary);">${userProfile.likesReceived || 0}</strong> <span style="color: var(--text-secondary);">Likes</span></div>
-        <div><strong style="color: var(--text-primary);">${userProfile.replyCount || 0}</strong> <span style="color: var(--text-secondary);">Replies</span></div>
-        <div><strong id="profile-stats-post-count" style="color: var(--text-primary);">${userProfile.postCount || 0}</strong> <span style="color: var(--text-secondary);">Posts</span></div>
+      <!-- Friends Counter Pill -->
+      <div style="margin-top: 12px; font-size: 14px; display: flex; gap: 16px;">
+        <span style="color: var(--text-secondary);">
+          <strong style="color: var(--text-primary);">${friendsCount}</strong> Friends
+        </span>
       </div>
     </div>
 
-    <!-- Activity Tabs -->
+    <!-- Profile Tabs -->
     <div class="header-tabs">
-      <button class="tab-button active">Posts</button>
-      <button class="tab-button">Replies</button>
-      <button class="tab-button">Likes</button>
+      <button class="tab-button active" id="profile-tab-posts">Posts</button>
+      <button class="tab-button" id="profile-tab-likes">Likes</button>
     </div>
 
-    <!-- Live User Posts Feed Container -->
-    <div id="user-posts-feed" class="feed-container">
-      ${renderFeedSkeletons(2)}
+    <!-- Feed Container -->
+    <div id="profile-feed-container">
+      ${renderFeedSkeletons(3)}
     </div>
 
-    <!-- Friends List Modal Overlay -->
-    <div id="friends-list-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; padding: 20px;">
-      <div class="card fade-in" style="width: 100%; max-width: 440px; padding: 24px; border-radius: 20px; position: relative; max-height: 80vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="font-size: 19px; font-weight: 800;">Friends (${friendsCount})</h3>
-          <button id="close-friends-modal-btn" class="btn-ghost" style="padding: 4px;">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-        </div>
-        <div id="friends-list-container" style="display: flex; flex-direction: column; gap: 8px;">
-          <div style="padding: 20px; text-align: center; color: var(--text-secondary);">Loading friends...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Edit Profile Modal Overlay -->
-    <div id="edit-profile-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 2000; align-items: center; justify-content: center; padding: 20px;">
-      <div class="card fade-in" style="width: 100%; max-width: 520px; padding: 24px; border-radius: 20px; position: relative; max-height: 90vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h3 style="font-size: 19px; font-weight: 800;">Edit Profile</h3>
-          <button id="close-modal-btn" class="btn-ghost" style="padding: 4px;">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-        </div>
-
-        <form id="edit-profile-form">
-          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">User Font Theme (Name, Bio & Posts)</label>
-          <div id="font-swatches-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px;">
-            ${fontSwatchesHTML}
-          </div>
-
-          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Campus Motto Quote Font Style</label>
-          <div id="quote-font-swatches-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px;">
-            ${quoteFontSwatchesHTML}
-          </div>
-
-          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Cover Banner Theme (24 Themes)</label>
-          <div id="banner-swatches-grid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 16px; max-height: 120px; overflow-y: auto; padding: 4px; border: 1px solid var(--border-color); border-radius: 12px;">
-            ${bannerSwatchesHTML}
-          </div>
-
-          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Quote Card Background Theme (12 Themes)</label>
-          <div id="quote-swatches-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
-            ${quoteSwatchesHTML}
-          </div>
-
-          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: block;">Full Name</label>
-          <input type="text" id="edit-name" class="input-field" value="${escapeHTML(userProfile.name)}" required />
-
-          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: block;">Username (@handle)</label>
-          <input type="text" id="edit-username" class="input-field" value="${escapeHTML(userProfile.username)}" required />
-
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Campus Motto / Personal Quote</label>
-            <span id="tagline-counter" style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">0 / 45</span>
-          </div>
-          <input type="text" id="edit-tagline" class="input-field" maxlength="45" value="${escapeHTML(userProfile.tagline || '')}" placeholder="e.g. I follow the path of peace" />
-
-          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: block;">Bio</label>
-          <textarea id="edit-bio" class="input-field" rows="3" style="resize: none;" placeholder="Tell the campus about yourself...">${escapeHTML(userProfile.bio || '')}</textarea>
-
-          <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 16px;">
-            <button type="button" id="change-photo-btn" class="btn btn-outline" style="margin-right: auto; font-size: 13px; padding: 8px 16px;">
-              Change Photo
-            </button>
-            <button type="button" id="cancel-edit-btn" class="btn btn-outline" style="font-size: 14px; padding: 10px 20px;">
-              Cancel
-            </button>
-            <button type="submit" id="save-profile-btn" class="btn" style="font-size: 14px; padding: 10px 20px;">
-              Save Changes
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <!-- Edit Profile Modal Overlay (Only rendered for own profile) -->
+    ${isOwnProfile ? renderEditProfileModal(userProfile) : ''}
   `;
 
   container.innerHTML = createLayout(content, ROUTES.PROFILE);
   attachLayoutListeners();
 
-  // Attach Friends List Modal listeners
-  const openFriendsModalBtn = document.getElementById('open-friends-modal-btn');
-  const friendsListModal = document.getElementById('friends-list-modal');
-  const closeFriendsModalBtn = document.getElementById('close-friends-modal-btn');
-  const friendsListContainer = document.getElementById('friends-list-container');
+  const profileFeedContainer = document.getElementById('profile-feed-container');
+  const postCountHeader = document.getElementById('profile-post-count-header');
+  const tabPosts = document.getElementById('profile-tab-posts');
+  const tabLikes = document.getElementById('profile-tab-likes');
 
-  if (openFriendsModalBtn && friendsListModal) {
-    openFriendsModalBtn.addEventListener('click', async () => {
-      friendsListModal.style.display = 'flex';
-      friendsListContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Loading friends...</div>`;
-
-      try {
-        const friends = await getFriendsProfiles(userProfile.uid);
-        if (friends.length === 0) {
-          friendsListContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-secondary);">No friends added yet.</div>`;
-          return;
-        }
-
-        let fHtml = '';
-        for (const f of friends) {
-          const fAvatar = renderUserAvatar(f, 40);
-          fHtml += `
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 10px; background: var(--bg-primary); cursor: pointer;" class="friend-item" data-username="${escapeHTML(f.username)}">
-              <div style="display: flex; align-items: center; gap: 10px;">
-                ${fAvatar}
-                <div style="display: flex; flex-direction: column;">
-                  <span style="font-weight: 700; font-size: 14px;">${escapeHTML(f.name)}</span>
-                  <span style="color: var(--text-secondary); font-size: 12px;">@${escapeHTML(f.username)}</span>
-                </div>
-              </div>
-              <span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-secondary);">chevron_right</span>
-            </div>
-          `;
-        }
-        friendsListContainer.innerHTML = fHtml;
-
-        friendsListContainer.querySelectorAll('.friend-item').forEach(item => {
-          item.addEventListener('click', () => {
-            const u = item.dataset.username;
-            friendsListModal.style.display = 'none';
-            window.location.hash = `#/profile?u=${u}`;
-          });
-        });
-      } catch (err) {
-        console.error(err);
-        friendsListContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--error-color);">Error loading friends.</div>`;
-      }
-    });
-  }
-
-  if (closeFriendsModalBtn && friendsListModal) {
-    closeFriendsModalBtn.addEventListener('click', () => {
-      friendsListModal.style.display = 'none';
-    });
-  }
-
-  // Attach Add Friend button for non-self profiles
-  const profileFriendBtn = document.getElementById('profile-friend-btn');
-  if (profileFriendBtn) {
-    profileFriendBtn.addEventListener('click', async () => {
-      profileFriendBtn.disabled = true;
+  // Handle Friend Toggle Action
+  const friendBtn = document.getElementById('profile-friend-btn');
+  if (friendBtn) {
+    friendBtn.addEventListener('click', async () => {
+      friendBtn.disabled = true;
       try {
         const nowFriend = await toggleAddFriend(userProfile.uid);
-        profileFriendBtn.textContent = nowFriend ? 'Friends' : '+ Add Friend';
-        profileFriendBtn.className = `btn ${nowFriend ? 'btn-outline' : ''}`;
+        friendBtn.textContent = nowFriend ? 'Friends' : '+ Add Friend';
+        friendBtn.className = `btn ${nowFriend ? 'btn-outline' : ''}`;
       } catch (err) {
-        console.error(err);
+        alert(err.message || 'Failed to update friend status');
       } finally {
-        profileFriendBtn.disabled = false;
+        friendBtn.disabled = false;
       }
     });
   }
 
-  // Subscribe & render user's posts
-  const postsFeed = document.getElementById('user-posts-feed');
-  const headerCount = document.getElementById('profile-header-post-count');
-  const statsCount = document.getElementById('profile-stats-post-count');
+  // Subscribe to User Posts Feed
+  let userPostsUnsub = null;
 
-  subscribeToUserPosts(userProfile.uid, async (posts) => {
-    if (!postsFeed) return;
+  userPostsUnsub = subscribeToUserPosts(userProfile.uid, async (posts) => {
+    if (!profileFeedContainer) return;
 
-    if (headerCount) headerCount.textContent = `${posts.length} posts`;
-    if (statsCount) statsCount.textContent = posts.length;
+    if (postCountHeader) {
+      postCountHeader.textContent = `${posts.length} Post${posts.length === 1 ? '' : 's'}`;
+    }
 
     if (posts.length === 0) {
-      postsFeed.innerHTML = `
-        <div style="padding: 60px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
-          <span class="material-symbols-outlined" style="font-size: 44px; color: var(--border-color); margin-bottom: 8px;">post_add</span>
-          <p style="font-size: 15px; font-weight: 600; color: var(--text-primary);">No posts yet</p>
-          <p style="font-size: 13px; margin-top: 4px;">When @${escapeHTML(userProfile.username)} posts on Backbench, they will appear here.</p>
+      profileFeedContainer.innerHTML = `
+        <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
+          <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">post_add</span>
+          <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">No posts yet</h3>
+          <p style="font-size: 14px;">When ${isOwnProfile ? 'you post' : 'this student posts'}, their content will appear here.</p>
         </div>
       `;
       return;
     }
 
-    let postsHTML = '';
+    let html = '';
     const currentUid = auth.currentUser.uid;
 
     for (const post of posts) {
       const isLiked = await isPostLikedByUser(post.postId, currentUid);
       const isReshared = await isPostResharedByUser(post.postId, currentUid);
-      postsHTML += createPostCardHTML(post, userProfile, isLiked, isReshared);
+      html += createPostCardHTML(post, userProfile, isLiked, isReshared);
     }
 
-    postsFeed.innerHTML = postsHTML;
+    profileFeedContainer.innerHTML = html;
 
-    // Attach post card click handlers (navigate to post detail page)
-    postsFeed.querySelectorAll('.post-card').forEach(card => {
+    // Attach Post Card Listeners
+    profileFeedContainer.querySelectorAll('.post-card').forEach(card => {
       card.addEventListener('click', (e) => {
-        if (!e.target.closest('.action-btn')) {
+        if (!e.target.closest('.action-btn') && !e.target.closest('.btn-ghost') && !e.target.closest('a')) {
           const postId = card.dataset.postId;
-          window.location.hash = `#/post?id=${postId}`;
+          if (postId) {
+            window.location.hash = `${ROUTES.POST_DETAIL}?id=${postId}`;
+          }
         }
       });
     });
 
-    // Attach like button handlers
-    postsFeed.querySelectorAll('.like-btn').forEach(btn => {
+    profileFeedContainer.querySelectorAll('.like-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const postId = btn.dataset.postId;
         btn.disabled = true;
 
         try {
-          const res = await toggleLikePost(postId);
-          const countSpan = btn.querySelector('.like-count');
-
-          if (res.liked) {
+          const result = await toggleLikePost(postId);
+          if (result.liked) {
             btn.classList.add('liked', 'heart-pop');
           } else {
             btn.classList.remove('liked', 'heart-pop');
           }
-
-          if (countSpan) countSpan.textContent = res.likes;
-        } catch (err) {
-          console.error(err);
-        } finally {
-          btn.disabled = false;
-        }
-      });
-    });
-
-    // Attach reshare button handlers
-    postsFeed.querySelectorAll('.reshare-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const postId = btn.dataset.postId;
-        btn.disabled = true;
-
-        try {
-          const res = await toggleResharePost(postId);
-          const countSpan = btn.querySelector('.reshare-count');
-
-          if (res.reshared) {
-            btn.classList.add('reshared');
-            btn.style.color = '#00BA7C';
-          } else {
-            btn.classList.remove('reshared');
-            btn.style.color = '';
-          }
-
-          if (countSpan) countSpan.textContent = res.reshares;
+          const countSpan = btn.querySelector('.like-count');
+          if (countSpan) countSpan.textContent = result.likes;
         } catch (err) {
           console.error(err);
         } finally {
@@ -528,224 +354,213 @@ export async function renderProfile(container) {
     });
   });
 
-  // Attach Edit Profile Modal & Photo upload listeners if viewing self
-  if (isSelf) {
-    const fileInput = document.getElementById('pfp-upload-input');
-    const editBtn = document.getElementById('edit-profile-btn');
-    const avatarWrapper = document.getElementById('avatar-wrapper');
-    const modal = document.getElementById('edit-profile-modal');
-    const closeModalBtn = document.getElementById('close-modal-btn');
-    const cancelEditBtn = document.getElementById('cancel-edit-btn');
-    const changePhotoBtn = document.getElementById('change-photo-btn');
-    const editForm = document.getElementById('edit-profile-form');
-    const taglineInput = document.getElementById('edit-tagline');
-    const taglineCounter = document.getElementById('tagline-counter');
-    const coverBanner = document.getElementById('profile-cover-banner');
-    const quoteCard = document.getElementById('profile-quote-card');
-    const displayNameEl = document.getElementById('profile-display-name');
-    const bioTextEl = document.getElementById('profile-bio-text');
-    const quoteTextEl = document.getElementById('profile-quote-text');
+  // Edit Profile Modal Logic
+  if (isOwnProfile) {
+    setupEditProfileModal(userProfile, container);
+  }
+}
 
-    let selectedBannerGradient = currentBannerGradient;
-    let selectedQuoteThemeId = currentQuoteTheme.id;
-    let selectedFontThemeId = currentFontThemeId;
-    let selectedQuoteFontId = currentQuoteFontId;
+function renderEditProfileModal(profile) {
+  const currentBannerId = profile.bannerPreset || PRESET_BANNERS[0].id;
+  const currentQuoteId = profile.quotePreset || PRESET_QUOTE_STYLES[0].id;
+  const currentFontId = profile.fontId || PRESET_USER_FONTS[0].id;
+  const currentQuoteFontId = profile.quoteFontId || PRESET_QUOTE_FONTS[0].id;
 
-    // Font Swatches click selection
-    const fontSwatches = document.querySelectorAll('.font-swatch');
-    fontSwatches.forEach(swatch => {
-      swatch.addEventListener('click', () => {
-        selectedFontThemeId = swatch.dataset.fontId;
-        const fontStyle = getUserFontFamily(selectedFontThemeId);
+  const bannerSwatchesHTML = PRESET_BANNERS.map(b => `
+    <div class="banner-swatch ${b.id === currentBannerId ? 'active' : ''}" data-id="${b.id}" style="background: ${b.gradient}; height: 40px; border-radius: 8px; cursor: pointer; border: 2px solid ${b.id === currentBannerId ? 'var(--accent-primary)' : 'transparent'};" title="${b.name}"></div>
+  `).join('');
 
-        fontSwatches.forEach(s => {
-          s.style.border = '1px solid var(--border-color)';
-          const span = s.querySelector('span');
-          if (span) span.style.color = 'var(--text-primary)';
-        });
-        swatch.style.border = '2px solid var(--accent-primary)';
-        const activeSpan = swatch.querySelector('span');
-        if (activeSpan) activeSpan.style.color = 'var(--accent-primary)';
+  const quoteSwatchesHTML = PRESET_QUOTE_STYLES.map(q => `
+    <div class="quote-swatch ${q.id === currentQuoteId ? 'active' : ''}" data-id="${q.id}" style="background: ${q.bg}; border: ${q.border}; height: 40px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="${q.name}">
+      <span class="material-symbols-outlined" style="color: ${q.accent}; font-size: 18px;">format_quote</span>
+    </div>
+  `).join('');
 
-        // Live preview font on profile elements
-        if (displayNameEl) displayNameEl.style.fontFamily = fontStyle;
-        if (bioTextEl) bioTextEl.style.fontFamily = fontStyle;
-      });
+  const fontOptionsHTML = PRESET_USER_FONTS.map(f => `
+    <option value="${f.id}" ${f.id === currentFontId ? 'selected' : ''} style="font-family: ${f.family};">${f.name}</option>
+  `).join('');
+
+  const quoteFontOptionsHTML = PRESET_QUOTE_FONTS.map(f => `
+    <option value="${f.id}" ${f.id === currentQuoteFontId ? 'selected' : ''} style="font-family: ${f.family};">${f.name}</option>
+  `).join('');
+
+  return `
+    <div id="edit-profile-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 1000; justify-content: center; align-items: center; padding: 20px;">
+      <div class="card fade-in" style="width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; padding: 24px; border-radius: 24px; box-shadow: 0 12px 40px rgba(0,0,0,0.8);">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="font-size: 18px; font-weight: 800;">Edit Student Profile</h2>
+          <button id="close-edit-modal-btn" class="btn-ghost" style="padding: 4px;">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <form id="edit-profile-form">
+          <!-- Profile Picture Picker -->
+          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+            <div style="width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--border-color); overflow: hidden;" id="modal-pfp-preview">
+              ${profile.profilePicture ? `<img src="${profile.profilePicture}" style="width:100%;height:100%;object-fit:cover;" />` : `<div class="avatar" style="width:100%;height:100%;font-size:24px;">${profile.name ? profile.name.charAt(0).toUpperCase() : 'S'}</div>`}
+            </div>
+            <div>
+              <label class="btn btn-outline" style="font-size: 12px; padding: 6px 12px; cursor: pointer;">
+                Change Photo
+                <input type="file" id="edit-pfp-input" accept="image/*" style="display: none;" />
+              </label>
+            </div>
+          </div>
+
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">Full Name</label>
+          <input type="text" id="edit-name" class="input-field" value="${escapeHTML(profile.name || '')}" required />
+
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">Username</label>
+          <input type="text" id="edit-username" class="input-field" value="${escapeHTML(profile.username || '')}" required />
+
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">Bio / Description</label>
+          <textarea id="edit-bio" class="input-field" rows="2" style="resize: none;">${escapeHTML(profile.bio || '')}</textarea>
+
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">Campus Motto / Quote</label>
+          <input type="text" id="edit-tagline" class="input-field" value="${escapeHTML(profile.tagline || '')}" placeholder="Your personal slogan..." />
+
+          <!-- Cover Banner Gradient Selection (24 Presets) -->
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-top: 4px; display: block;">Cover Banner Theme (24 Gradients)</label>
+          <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 14px;" id="banner-swatches-container">
+            ${bannerSwatchesHTML}
+          </div>
+
+          <!-- Quote Background Theme Selection (12 Presets) -->
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block;">Quote Theme (12 Styles)</label>
+          <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 14px;" id="quote-swatches-container">
+            ${quoteSwatchesHTML}
+          </div>
+
+          <!-- Custom User Font Family Selector -->
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block;">Profile & Post Font Theme</label>
+          <select id="edit-font-select" class="input-field" style="margin-bottom: 12px;">
+            ${fontOptionsHTML}
+          </select>
+
+          <!-- Custom Quote Font Family Selector -->
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block;">Quote Motto Font Style</label>
+          <select id="edit-quote-font-select" class="input-field" style="margin-bottom: 16px;">
+            ${quoteFontOptionsHTML}
+          </select>
+
+          <div id="edit-profile-error" class="error-text" style="display: none;"></div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 12px;">
+            <button type="button" id="cancel-edit-modal-btn" class="btn btn-outline">Cancel</button>
+            <button type="submit" id="save-edit-profile-btn" class="btn">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+}
+
+function setupEditProfileModal(profile, container) {
+  const modal = document.getElementById('edit-profile-modal');
+  const openBtn = document.getElementById('edit-profile-btn');
+  const closeBtn = document.getElementById('close-edit-modal-btn');
+  const cancelBtn = document.getElementById('cancel-edit-modal-btn');
+  const form = document.getElementById('edit-profile-form');
+  const pfpInput = document.getElementById('edit-pfp-input');
+  const pfpPreview = document.getElementById('modal-pfp-preview');
+  const errorDiv = document.getElementById('edit-profile-error');
+  const saveBtn = document.getElementById('save-edit-profile-btn');
+
+  let selectedBannerId = profile.bannerPreset || PRESET_BANNERS[0].id;
+  let selectedQuoteId = profile.quotePreset || PRESET_QUOTE_STYLES[0].id;
+  let base64Pfp = profile.profilePicture || '';
+
+  if (openBtn) {
+    openBtn.addEventListener('click', () => {
+      modal.style.display = 'flex';
     });
+  }
 
-    // Quote Font Swatches click selection
-    const quoteFontSwatches = document.querySelectorAll('.quote-font-swatch');
-    quoteFontSwatches.forEach(swatch => {
-      swatch.addEventListener('click', () => {
-        selectedQuoteFontId = swatch.dataset.quoteFontId;
-        const qFontStyle = getQuoteFontFamily(selectedQuoteFontId);
+  const closeModal = () => {
+    modal.style.display = 'none';
+  };
 
-        quoteFontSwatches.forEach(s => {
-          s.style.border = '1px solid var(--border-color)';
-          const span = s.querySelector('span');
-          if (span) span.style.color = 'var(--text-primary)';
-        });
-        swatch.style.border = '2px solid var(--accent-primary)';
-        const activeSpan = swatch.querySelector('span');
-        if (activeSpan) activeSpan.style.color = 'var(--accent-primary)';
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
 
-        if (quoteTextEl) {
-          quoteTextEl.style.fontFamily = qFontStyle;
-        }
-      });
+  // Banner Swatch Click Selection
+  container.querySelectorAll('.banner-swatch').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      container.querySelectorAll('.banner-swatch').forEach(s => s.style.borderColor = 'transparent');
+      swatch.style.borderColor = 'var(--accent-primary)';
+      selectedBannerId = swatch.dataset.id;
     });
+  });
 
-    // Banner Swatches click selection
-    const bannerSwatches = document.querySelectorAll('.banner-swatch');
-    bannerSwatches.forEach(swatch => {
-      swatch.addEventListener('click', () => {
-        selectedBannerGradient = swatch.dataset.gradient;
-        bannerSwatches.forEach(s => {
-          s.style.border = '1px solid rgba(255,255,255,0.2)';
-          s.style.boxShadow = 'none';
-        });
-        swatch.style.border = '3px solid #fff';
-        swatch.style.boxShadow = '0 0 12px var(--accent-primary)';
-
-        if (coverBanner) {
-          coverBanner.style.background = selectedBannerGradient;
-        }
-      });
+  // Quote Swatch Click Selection
+  container.querySelectorAll('.quote-swatch').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      container.querySelectorAll('.quote-swatch').forEach(s => s.style.boxShadow = 'none');
+      swatch.style.boxShadow = '0 0 0 2px var(--accent-primary)';
+      selectedQuoteId = swatch.dataset.id;
     });
+  });
 
-    // Quote Swatches click selection
-    const quoteSwatches = document.querySelectorAll('.quote-swatch');
-    quoteSwatches.forEach(swatch => {
-      swatch.addEventListener('click', () => {
-        selectedQuoteThemeId = swatch.dataset.quoteId;
-        const qStyle = PRESET_QUOTE_STYLES.find(s => s.id === selectedQuoteThemeId);
-
-        quoteSwatches.forEach(s => {
-          const st = PRESET_QUOTE_STYLES.find(x => x.id === s.dataset.quoteId);
-          s.style.border = st ? st.border : '1px solid rgba(255,255,255,0.2)';
-          s.style.boxShadow = 'none';
-        });
-
-        if (qStyle) {
-          swatch.style.border = `3px solid ${qStyle.accent}`;
-          swatch.style.boxShadow = qStyle.shadow;
-
-          if (quoteCard) {
-            quoteCard.style.background = qStyle.bg;
-            quoteCard.style.border = qStyle.border;
-            quoteCard.style.boxShadow = qStyle.shadow;
-            const quoteIcon = quoteCard.querySelector('.material-symbols-outlined');
-            const mottoSpan = quoteCard.querySelector('span[style*="uppercase"]');
-            if (quoteIcon) quoteIcon.style.color = qStyle.accent;
-            if (mottoSpan) mottoSpan.style.color = qStyle.accent;
-          }
-        }
-      });
-    });
-
-    const openModal = () => { modal.style.display = 'flex'; };
-    const closeModal = () => { modal.style.display = 'none'; };
-
-    if (editBtn) editBtn.addEventListener('click', openModal);
-    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
-    if (cancelEditBtn) cancelEditBtn.addEventListener('click', closeModal);
-
-    if (avatarWrapper) avatarWrapper.addEventListener('click', () => fileInput.click());
-    if (changePhotoBtn) changePhotoBtn.addEventListener('click', () => fileInput.click());
-
-    // Tagline counter
-    if (taglineInput && taglineCounter) {
-      taglineCounter.textContent = `${taglineInput.value.length} / 45`;
-      taglineInput.addEventListener('input', () => {
-        taglineCounter.textContent = `${taglineInput.value.length} / 45`;
-      });
-    }
-
-    // Save profile form submission
-    if (editForm) {
-      editForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const name = document.getElementById('edit-name').value.trim();
-        const newUsername = document.getElementById('edit-username').value.trim().replace(/^@+/, '');
-        const tagline = taglineInput.value.trim();
-        const bio = document.getElementById('edit-bio').value.trim();
-
-        if (!validateUsername(newUsername)) {
-          alert('Username must be 3-20 characters long (letters, numbers, underscores, and dots only).');
-          return;
-        }
-
-        if (tagline.length > 45) {
-          alert('Campus motto quote cannot exceed 45 characters.');
-          return;
-        }
-
-        const saveBtn = document.getElementById('save-profile-btn');
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Saving...';
-
-        try {
-          // Check username uniqueness if changed
-          if (newUsername.toLowerCase() !== (userProfile.username || '').toLowerCase()) {
-            const usersRef = ref(db, PATHS.USERS);
-            const q = query(usersRef, orderByChild('username'), equalTo(newUsername));
-            const snap = await get(q);
-            if (snap.exists()) {
-              alert(`The username @${newUsername} is already taken by another student. Please choose a different username.`);
-              saveBtn.disabled = false;
-              saveBtn.textContent = 'Save Changes';
-              return;
-            }
-          }
-
-          await updateUserProfile(userProfile.uid, {
-            name,
-            username: newUsername,
-            tagline,
-            bio,
-            bannerStyle: selectedBannerGradient,
-            quoteThemeId: selectedQuoteThemeId,
-            quoteFontId: selectedQuoteFontId,
-            fontThemeId: selectedFontThemeId
-          });
-          closeModal();
-          renderProfile(container);
-        } catch (err) {
-          console.error(err);
-          alert('Failed to save profile changes.');
-        } finally {
-          saveBtn.disabled = false;
-          saveBtn.textContent = 'Save Changes';
-        }
-      });
-    }
-
-    fileInput.addEventListener('change', async (e) => {
+  // Image upload handling
+  if (pfpInput) {
+    pfpInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
-      if (!file) return;
+      if (file) {
+        try {
+          base64Pfp = await processProfilePicture(file);
+          pfpPreview.innerHTML = `<img src="${base64Pfp}" style="width:100%;height:100%;object-fit:cover;" />`;
+        } catch (err) {
+          alert(err.message || 'Failed to process image');
+        }
+      }
+    });
+  }
+
+  // Form Submit Handler
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorDiv.style.display = 'none';
+
+      const name = document.getElementById('edit-name').value.trim();
+      const username = document.getElementById('edit-username').value.trim();
+      const bio = document.getElementById('edit-bio').value.trim();
+      const tagline = document.getElementById('edit-tagline').value.trim();
+      const fontId = document.getElementById('edit-font-select').value;
+      const quoteFontId = document.getElementById('edit-quote-font-select').value;
+
+      if (!validateUsername(username)) {
+        errorDiv.textContent = "Username must be 3-20 characters long (letters, numbers, underscores, and dots only).";
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
 
       try {
-        if (editBtn) {
-          editBtn.disabled = true;
-          editBtn.textContent = 'Processing PFP...';
-        }
+        await updateUserProfile(profile.uid, {
+          name,
+          username,
+          bio,
+          tagline,
+          bannerPreset: selectedBannerId,
+          quotePreset: selectedQuoteId,
+          fontId: fontId,
+          quoteFontId: quoteFontId,
+          profilePicture: base64Pfp
+        });
 
-        // Process image: Downscale to 480p JPEG <100KB
-        const dataUrl = await processProfilePicture(file);
-
-        // Update in Realtime Database & clear cache
-        await updateUserProfile(userProfile.uid, { profilePicture: dataUrl });
-
-        // Refresh view immediately
+        closeModal();
         renderProfile(container);
       } catch (err) {
         console.error(err);
-        alert(err.message || 'Failed to update profile picture.');
-      } finally {
-        if (editBtn) {
-          editBtn.disabled = false;
-          editBtn.textContent = 'Edit Profile';
-        }
+        errorDiv.textContent = err.message || 'Failed to save profile changes.';
+        errorDiv.style.display = 'block';
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
       }
     });
   }
