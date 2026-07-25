@@ -2,6 +2,7 @@ export const ROUTES = {
   HOME: '#/',
   PROFILE: '#/profile',
   POST_DETAIL: '#/post',
+  ONBOARDING: '#/onboarding',
   PETITIONS: '#/petitions',
   POLLS: '#/polls',
   ANNOUNCEMENTS: '#/announcements',

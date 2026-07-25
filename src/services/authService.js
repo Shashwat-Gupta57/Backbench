@@ -4,12 +4,26 @@ import {
   signInWithEmailAndPassword, 
   signOut,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  fetchSignInMethodsForEmail
 } from 'firebase/auth';
 import { ref, set, get } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { ROLES } from '../constants/roles.js';
 import { deleteCookie } from '../helpers/cookie.js';
+import { invalidateUserCache } from './postService.js';
+
+export function isProfileComplete(profile) {
+  if (!profile) return false;
+  const username = profile.username;
+  const admNo = profile.admissionNumber;
+  const clss = profile.class || profile.userClass;
+
+  if (!username || username.trim() === '') return false;
+  if (!admNo || admNo === 'N/A' || admNo.trim() === '') return false;
+  if (!clss || clss === 'N/A' || clss.trim() === '') return false;
+  return true;
+}
 
 export async function registerUser(data) {
   try {
@@ -38,6 +52,7 @@ export async function registerUser(data) {
     };
     
     await set(ref(db, `${PATHS.USERS}/${user.uid}`), profileData);
+    invalidateUserCache(user.uid);
     return { success: true, user: profileData };
   } catch (error) {
     console.error('Registration error:', error);
@@ -72,14 +87,35 @@ export async function loginWithGoogle() {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
+
+    // Check if user's email was registered via password auth previously
+    if (user.email) {
+      try {
+        const methods = await fetchSignInMethodsForEmail(auth, user.email);
+        if (methods.includes('password') && !user.providerData.some(p => p.providerId === 'google.com')) {
+          await signOut(auth);
+          return {
+            success: false,
+            error: 'An account already exists with this email address using Email & Password. Please log in with your email and password instead.'
+          };
+        }
+      } catch (e) {
+        // Ignore fetch methods error if restricted by project rules
+      }
+    }
     
     const userRef = ref(db, `${PATHS.USERS}/${user.uid}`);
     const snap = await get(userRef);
-    
-    if (!snap.exists()) {
-      const profileData = {
+    let profileData = null;
+
+    if (snap.exists()) {
+      profileData = snap.val();
+    } else {
+      // Create initial profile shell with missing fields flagged for onboarding
+      const cleanUsername = user.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '');
+      profileData = {
         uid: user.uid,
-        username: user.email.split('@')[0] + '_' + Math.floor(Math.random() * 1000),
+        username: cleanUsername,
         name: user.displayName || 'Google User',
         admissionNumber: 'N/A',
         class: 'N/A',
@@ -96,11 +132,19 @@ export async function loginWithGoogle() {
         profilePicture: user.photoURL || ''
       };
       await set(userRef, profileData);
+      invalidateUserCache(user.uid);
     }
     
-    return { success: true, user: result.user };
+    const complete = isProfileComplete(profileData);
+    return { success: true, user, needsOnboarding: !complete };
   } catch (error) {
     console.error('Google Sign-In error:', error);
+    if (error.code === 'auth/account-exists-with-different-credential') {
+      return {
+        success: false,
+        error: 'An account already exists with this email address using Email & Password. Please log in with your email and password instead.'
+      };
+    }
     return { success: false, error: error.message };
   }
 }

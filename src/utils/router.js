@@ -4,12 +4,16 @@ import { renderAuth } from '../auth/auth.js';
 import { renderProfile } from '../profiles/profiles.js';
 import { renderPostDetail } from '../posts/postDetail.js';
 import { renderSearch } from '../search/search.js';
+import { renderOnboarding } from '../auth/onboarding.js';
 import { renderPetitions } from '../petitions/petitions.js';
 import { renderPolls } from '../polls/polls.js';
 import { renderAnnouncements } from '../announcements/announcements.js';
 import { renderEvents } from '../events/events.js';
 import { renderAdmin } from '../admin/admin.js';
 import { renderSettings } from '../settings/settings.js';
+import { auth } from '../firebase/firebase.js';
+import { getUserProfile } from '../services/postService.js';
+import { isProfileComplete } from '../services/authService.js';
 
 let currentView = null;
 let rootElement = null;
@@ -27,18 +31,31 @@ export function initRouter(appElement) {
   }
 }
 
-function handleRoute() {
+async function handleRoute() {
   const hash = window.location.hash;
   const path = hash.split('?')[0]; // simple path parsing
   
   if (rootElement) {
     rootElement.innerHTML = '';
   }
+
+  // Check if authenticated user needs to complete profile details
+  if (auth.currentUser && path !== '#/login' && path !== '#/signup' && path !== ROUTES.ONBOARDING) {
+    const profile = await getUserProfile(auth.currentUser.uid);
+    if (!isProfileComplete(profile)) {
+      window.location.hash = ROUTES.ONBOARDING;
+      renderOnboarding(rootElement);
+      return;
+    }
+  }
   
   switch(path) {
     case '#/login':
     case '#/signup':
       renderAuth(rootElement, path);
+      break;
+    case ROUTES.ONBOARDING:
+      renderOnboarding(rootElement);
       break;
     case ROUTES.HOME:
       renderHome(rootElement);
