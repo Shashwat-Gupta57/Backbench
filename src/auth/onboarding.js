@@ -36,12 +36,12 @@ export async function renderOnboarding(container) {
           <input class="input-field" type="text" id="onboard-name" value="${user.displayName || existingProfile.name || ''}" placeholder="Full Name" required />
 
           <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Choose Username</label>
-          <input class="input-field" type="text" id="onboard-username" value="${existingProfile.username || user.email?.split('@')[0] || ''}" placeholder="Username (e.g. shashwat_gupta)" required />
+          <input class="input-field" type="text" id="onboard-username" value="${existingProfile.username || user.email?.split('@')[0] || ''}" placeholder="Username (e.g. shashwat.gupta)" required />
 
           <div style="display: flex; gap: 12px;">
             <div style="flex: 1;">
               <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">Admission No.</label>
-              <input class="input-field" type="text" id="onboard-admission" value="${existingProfile.admissionNumber && existingProfile.admissionNumber !== 'N/A' ? existingProfile.admissionNumber : ''}" placeholder="e.g. 28452" required />
+              <input class="input-field" type="text" id="onboard-admission" value="${existingProfile.admissionNumber && existingProfile.admissionNumber !== 'N/A' ? existingProfile.admissionNumber : ''}" placeholder="e.g. 10420" required />
             </div>
             
             <div style="flex: 1;">
@@ -78,7 +78,7 @@ export async function renderOnboarding(container) {
     const mobile = document.getElementById('onboard-mobile').value.trim();
 
     if (!validateUsername(username)) {
-      errorDiv.textContent = "Username must be 3-20 characters long (letters, numbers, and underscores only).";
+      errorDiv.textContent = "Username must be 3-20 characters long (letters, numbers, underscores, and dots only).";
       errorDiv.style.display = 'block';
       return;
     }
