@@ -41,6 +41,7 @@ export async function registerUser(data) {
       mobile: mobile,
       email: email,
       bio: '',
+      tagline: '',
       joinedDate: new Date().toISOString(),
       verifiedStudent: false,
       role: ROLES.STUDENT,
@@ -111,8 +112,7 @@ export async function loginWithGoogle() {
     if (snap.exists()) {
       profileData = snap.val();
     } else {
-      // Create initial profile shell with missing fields flagged for onboarding
-      const cleanUsername = user.email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '');
+      const cleanUsername = user.email.split('@')[0].replace(/[^a-zA-Z0-9_.]/g, '');
       profileData = {
         uid: user.uid,
         username: cleanUsername,
@@ -122,6 +122,7 @@ export async function loginWithGoogle() {
         mobile: user.phoneNumber || '',
         email: user.email,
         bio: '',
+        tagline: '',
         joinedDate: new Date().toISOString(),
         verifiedStudent: false,
         role: ROLES.STUDENT,

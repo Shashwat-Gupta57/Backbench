@@ -31,7 +31,7 @@ export function renderAuth(container, path) {
         <form id="auth-form" style="display: flex; flex-direction: column;">
           ${!isLogin ? `
             <input class="input-field" type="text" id="name" placeholder="Full Name" required />
-            <input class="input-field" type="text" id="username" placeholder="Username (e.g. shashwat)" required />
+            <input class="input-field" type="text" id="username" placeholder="Username (e.g. shashwat.gupta)" required />
             <div style="display: flex; gap: 12px;">
               <input class="input-field" type="text" id="admissionNumber" placeholder="Admission No." required />
               <input class="input-field" type="text" id="class" placeholder="Class (e.g. 12A)" required />
@@ -82,7 +82,6 @@ export function renderAuth(container, path) {
   const passwordInput = document.getElementById('password');
   const togglePasswordBtn = document.getElementById('toggle-password-btn');
 
-  // Password Visibility Toggle
   togglePasswordBtn.addEventListener('click', () => {
     const isPassword = passwordInput.type === 'password';
     passwordInput.type = isPassword ? 'text' : 'password';
@@ -96,7 +95,11 @@ export function renderAuth(container, path) {
     googleBtn.textContent = 'Connecting...';
     const res = await loginWithGoogle();
     if (res.success) {
-      window.location.hash = '#/';
+      if (res.needsOnboarding) {
+        window.location.hash = '#/onboarding';
+      } else {
+        window.location.hash = '#/';
+      }
     } else {
       errorDiv.textContent = res.error;
       errorDiv.style.display = 'block';
@@ -134,7 +137,7 @@ export function renderAuth(container, path) {
       const mobile = document.getElementById('mobile').value;
 
       if (!validateUsername(username)) {
-        errorDiv.textContent = "Username must be 3-20 characters long (letters, numbers, and underscores only).";
+        errorDiv.textContent = "Username must be 3-20 characters long (letters, numbers, underscores, and dots only).";
         errorDiv.style.display = 'block';
         submitBtn.disabled = false;
         submitBtn.textContent = 'Create Account';
