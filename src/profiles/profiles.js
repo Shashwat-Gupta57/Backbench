@@ -6,7 +6,7 @@ import { ROUTES } from '../constants/routes.js';
 import { PRESET_BANNERS } from '../constants/banners.js';
 import { PRESET_QUOTE_STYLES, PRESET_QUOTE_FONTS, getQuoteFontFamily } from '../constants/quotes.js';
 import { PRESET_USER_FONTS, getUserFontFamily } from '../constants/fonts.js';
-import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost, isPostResharedByUser, toggleResharePost } from '../services/postService.js';
+import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost, isPostResharedByUser, toggleResharePost, getLikedPostsByUser } from '../services/postService.js';
 import { isFriend, toggleAddFriend, getFriendsCount, getFriendsProfiles } from '../services/friendService.js';
 import { processProfilePicture } from '../helpers/image.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
@@ -345,6 +345,113 @@ export async function renderProfile(container) {
       });
     });
   });
+
+  // Likes Tab: Show posts the profile user has liked
+  let activeProfileTab = 'posts';
+
+  async function loadLikedPosts() {
+    if (!profileFeedContainer) return;
+    profileFeedContainer.innerHTML = renderFeedSkeletons(3);
+
+    const likedPosts = await getLikedPostsByUser(userProfile.uid);
+
+    if (likedPosts.length === 0) {
+      profileFeedContainer.innerHTML = `
+        <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
+          <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">favorite</span>
+          <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">No liked posts yet</h3>
+          <p style="font-size: 14px;">When ${isOwnProfile ? 'you like' : 'this student likes'} a post, it will appear here.</p>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+    const currentUid = auth.currentUser?.uid;
+
+    for (const post of likedPosts) {
+      const author = await getUserProfile(post.authorId);
+      const isLiked = currentUid ? await isPostLikedByUser(post.postId, currentUid) : false;
+      const isReshared = currentUid ? await isPostResharedByUser(post.postId, currentUid) : false;
+      html += createPostCardHTML(post, author, isLiked, isReshared);
+    }
+
+    profileFeedContainer.innerHTML = html;
+
+    // Attach liked posts listeners
+    profileFeedContainer.querySelectorAll('.post-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (!e.target.closest('.action-btn') && !e.target.closest('.btn-ghost') && !e.target.closest('a')) {
+          const postId = card.dataset.postId;
+          if (postId) window.location.hash = `${ROUTES.POST_DETAIL}?id=${postId}`;
+        }
+      });
+    });
+
+    profileFeedContainer.querySelectorAll('.like-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = btn.dataset.postId;
+        btn.disabled = true;
+        try {
+          const result = await toggleLikePost(postId);
+          if (result.liked) {
+            btn.classList.add('liked', 'heart-pop');
+          } else {
+            btn.classList.remove('liked', 'heart-pop');
+          }
+          const countSpan = btn.querySelector('.like-count');
+          if (countSpan) countSpan.textContent = result.likes;
+        } catch (err) {
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  }
+
+  if (tabPosts && tabLikes) {
+    tabPosts.addEventListener('click', () => {
+      if (activeProfileTab === 'posts') return;
+      activeProfileTab = 'posts';
+      tabPosts.classList.add('active');
+      tabLikes.classList.remove('active');
+      // Re-subscribe to user posts
+      subscribeToUserPosts(userProfile.uid, async (posts) => {
+        if (!profileFeedContainer) return;
+        if (activeProfileTab !== 'posts') return;
+
+        if (posts.length === 0) {
+          profileFeedContainer.innerHTML = `
+            <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
+              <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">post_add</span>
+              <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">No posts yet</h3>
+              <p style="font-size: 14px;">When ${isOwnProfile ? 'you post' : 'this student posts'}, their content will appear here.</p>
+            </div>
+          `;
+          return;
+        }
+
+        let html = '';
+        const currentUid = auth.currentUser?.uid;
+        for (const post of posts) {
+          const isLiked = currentUid ? await isPostLikedByUser(post.postId, currentUid) : false;
+          const isReshared = currentUid ? await isPostResharedByUser(post.postId, currentUid) : false;
+          html += createPostCardHTML(post, userProfile, isLiked, isReshared);
+        }
+        profileFeedContainer.innerHTML = html;
+      });
+    });
+
+    tabLikes.addEventListener('click', () => {
+      if (activeProfileTab === 'likes') return;
+      activeProfileTab = 'likes';
+      tabLikes.classList.add('active');
+      tabPosts.classList.remove('active');
+      loadLikedPosts();
+    });
+  }
 
   // Edit Profile Modal Logic
   if (isOwnProfile) {

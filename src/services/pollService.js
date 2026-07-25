@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, onValue, off, runTransaction } from 'firebase/database';
+import { ref, push, set, get, onValue, off, remove, runTransaction } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 
 export async function createPoll(question, options) {
@@ -27,6 +27,9 @@ export async function createPoll(question, options) {
     question: question,
     options: formattedOptions,
     totalVotes: 0,
+    likes: 0,
+    reshares: 0,
+    replyCount: 0,
     timestamp: new Date().toISOString()
   };
 
@@ -87,4 +90,123 @@ export function subscribeToPolls(limit = 20, callback) {
   });
 
   return () => off(pollsRef, 'value', listener);
+}
+
+// ---- Poll Like / Reshare / Reply ----
+
+export async function toggleLikePoll(pollId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+
+  const likeRef = ref(db, `${PATHS.POLL_LIKES}/${pollId}/${user.uid}`);
+  const snap = await get(likeRef);
+  let isLiked = false;
+
+  if (snap.exists()) {
+    await remove(likeRef);
+    isLiked = false;
+  } else {
+    await set(likeRef, true);
+    isLiked = true;
+  }
+
+  const pollRef = ref(db, `${PATHS.POLLS}/${pollId}`);
+  let newLikes = 0;
+  await runTransaction(pollRef, (poll) => {
+    if (poll) {
+      poll.likes = isLiked ? (poll.likes || 0) + 1 : Math.max(0, (poll.likes || 0) - 1);
+      newLikes = poll.likes;
+    }
+    return poll;
+  });
+
+  return { liked: isLiked, likes: newLikes };
+}
+
+export async function isPollLikedByUser(pollId, uid) {
+  if (!uid || !pollId) return false;
+  const snap = await get(ref(db, `${PATHS.POLL_LIKES}/${pollId}/${uid}`));
+  return snap.exists();
+}
+
+export async function toggleResharePoll(pollId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+
+  const reshareRef = ref(db, `${PATHS.POLL_RESHARES}/${pollId}/${user.uid}`);
+  const snap = await get(reshareRef);
+  let isReshared = false;
+
+  if (snap.exists()) {
+    await remove(reshareRef);
+    isReshared = false;
+  } else {
+    await set(reshareRef, new Date().toISOString());
+    isReshared = true;
+  }
+
+  const pollRef = ref(db, `${PATHS.POLLS}/${pollId}`);
+  let newReshares = 0;
+  await runTransaction(pollRef, (poll) => {
+    if (poll) {
+      poll.reshares = isReshared ? (poll.reshares || 0) + 1 : Math.max(0, (poll.reshares || 0) - 1);
+      newReshares = poll.reshares;
+    }
+    return poll;
+  });
+
+  return { reshared: isReshared, reshares: newReshares };
+}
+
+export async function isPollResharedByUser(pollId, uid) {
+  if (!uid || !pollId) return false;
+  const snap = await get(ref(db, `${PATHS.POLL_RESHARES}/${pollId}/${uid}`));
+  return snap.exists();
+}
+
+export async function createPollReply(pollId, content) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+
+  const text = content ? content.trim() : '';
+  if (!text) throw new Error('Reply cannot be empty.');
+
+  const replyRef = push(ref(db, `${PATHS.POLL_REPLIES}/${pollId}`));
+  const replyData = {
+    replyId: replyRef.key,
+    parentPoll: pollId,
+    authorId: user.uid,
+    content: text,
+    timestamp: new Date().toISOString(),
+    likes: 0
+  };
+
+  await set(replyRef, replyData);
+
+  const pollRef = ref(db, `${PATHS.POLLS}/${pollId}`);
+  await runTransaction(pollRef, (poll) => {
+    if (poll) {
+      poll.replyCount = (poll.replyCount || 0) + 1;
+    }
+    return poll;
+  });
+
+  return replyData;
+}
+
+export function subscribeToPollReplies(pollId, callback) {
+  const repliesRef = ref(db, `${PATHS.POLL_REPLIES}/${pollId}`);
+  const listener = onValue(repliesRef, (snapshot) => {
+    const replies = [];
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap) => {
+        const item = childSnap.val();
+        if (item) replies.push(item);
+      });
+    }
+    replies.sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+    callback(replies);
+  });
+
+  return () => off(repliesRef, 'value', listener);
 }

@@ -1,6 +1,6 @@
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser, isPostResharedByUser, toggleResharePost } from '../services/postService.js';
-import { createPoll, subscribeToPolls, getUserVote, voteInPoll } from '../services/pollService.js';
+import { createPoll, subscribeToPolls, getUserVote, voteInPoll, toggleLikePoll, isPollLikedByUser, toggleResharePoll, isPollResharedByUser } from '../services/pollService.js';
 import { getFriendUids } from '../services/friendService.js';
 import { deletePostAsStaff } from '../services/adminService.js';
 import { reportPost } from '../services/reportService.js';
@@ -304,7 +304,9 @@ export function renderHome(container) {
       } else if (item._type === 'poll') {
         const author = await getUserProfile(item.creatorId);
         const userVote = await getUserVote(item.pollId, currentUid);
-        html += createPollCardHTML(item, author, userVote);
+        const pollLiked = await isPollLikedByUser(item.pollId, currentUid);
+        const pollReshared = await isPollResharedByUser(item.pollId, currentUid);
+        html += createPollCardHTML(item, author, userVote, pollLiked, pollReshared);
       }
     }
 
@@ -417,6 +419,65 @@ export function renderHome(container) {
       });
     });
 
+    // Attach Poll Likes
+    feedContainer.querySelectorAll('.poll-like-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const pollId = btn.dataset.pollId;
+        btn.disabled = true;
+        try {
+          const result = await toggleLikePoll(pollId);
+          if (result.liked) {
+            btn.classList.add('liked', 'heart-pop');
+          } else {
+            btn.classList.remove('liked', 'heart-pop');
+          }
+          const countSpan = btn.querySelector('.poll-like-count');
+          if (countSpan) countSpan.textContent = result.likes;
+        } catch (err) {
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
+    // Attach Poll Reshares
+    feedContainer.querySelectorAll('.poll-reshare-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const pollId = btn.dataset.pollId;
+        btn.disabled = true;
+        try {
+          const result = await toggleResharePoll(pollId);
+          if (result.reshared) {
+            btn.classList.add('reshared');
+            btn.style.color = '#00BA7C';
+          } else {
+            btn.classList.remove('reshared');
+            btn.style.color = '';
+          }
+          const countSpan = btn.querySelector('.poll-reshare-count');
+          if (countSpan) countSpan.textContent = result.reshares;
+        } catch (err) {
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
+    // Poll Reply button opens Poll Detail (reuses post detail route with poll prefix)
+    feedContainer.querySelectorAll('.poll-reply-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const pollId = btn.dataset.pollId;
+        if (pollId) {
+          window.location.hash = `#/poll?id=${pollId}`;
+        }
+      });
+    });
+
     // Clicking post card opens Full Post Detail Page
     feedContainer.querySelectorAll('.post-card').forEach(card => {
       card.addEventListener('click', (e) => {
@@ -424,6 +485,18 @@ export function renderHome(container) {
           const postId = card.dataset.postId;
           if (postId) {
             window.location.hash = `${ROUTES.POST_DETAIL}?id=${postId}`;
+          }
+        }
+      });
+    });
+
+    // Clicking poll card opens Poll Detail Page
+    feedContainer.querySelectorAll('.poll-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (!e.target.closest('.action-btn') && !e.target.closest('.btn-ghost') && !e.target.closest('.poll-option-btn') && !e.target.closest('a')) {
+          const pollId = card.dataset.pollId;
+          if (pollId) {
+            window.location.hash = `#/poll?id=${pollId}`;
           }
         }
       });

@@ -257,3 +257,42 @@ export async function isPostResharedByUser(postId, uid) {
   const snap = await get(reshareRef);
   return snap.exists();
 }
+
+export async function getLikedPostsByUser(uid) {
+  if (!uid) return [];
+
+  try {
+    // Scan all postLikes to find posts this user has liked
+    const likesSnap = await get(ref(db, PATHS.POST_LIKES));
+    if (!likesSnap.exists()) return [];
+
+    const likedPostIds = [];
+    likesSnap.forEach((postSnap) => {
+      const postId = postSnap.key;
+      if (postSnap.hasChild(uid)) {
+        likedPostIds.push(postId);
+      }
+    });
+
+    if (likedPostIds.length === 0) return [];
+
+    // Fetch actual post data for each liked post
+    const posts = [];
+    for (const postId of likedPostIds) {
+      const postSnap = await get(ref(db, `${PATHS.POSTS}/${postId}`));
+      if (postSnap.exists()) {
+        const p = postSnap.val();
+        if (p && p.status !== 'AWAITING_MODERATION') {
+          posts.push(p);
+        }
+      }
+    }
+
+    posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+    return posts;
+  } catch (err) {
+    console.error('Error fetching liked posts:', err);
+    return [];
+  }
+}
+

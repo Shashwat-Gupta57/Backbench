@@ -3,7 +3,7 @@ import { escapeHTML } from '../helpers/formatters.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { getUserFontFamily } from '../constants/fonts.js';
 
-export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
+export function createPollCardHTML(poll, author, userVotedOptionIndex = null, isLiked = false, isReshared = false) {
   const name = author?.name ? escapeHTML(author.name) : 'Anonymous Student';
   const username = author?.username ? escapeHTML(author.username) : 'student';
   const totalVotes = poll.totalVotes || 0;
@@ -74,10 +74,32 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null) {
 
           ${optionsHTML}
 
-          <div style="margin-top: 12px; font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 12px;">
+          <div style="margin-top: 10px; font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 12px;">
             <span>${totalVotes} total vote${totalVotes === 1 ? '' : 's'}</span>
             <span>·</span>
             <span>${hasVoted ? 'Final results' : 'Active poll'}</span>
+          </div>
+
+          <!-- Action Buttons (Reply, Reshare, Like, Bookmark) -->
+          <div class="post-actions">
+            <button class="action-btn poll-reply-btn" data-poll-id="${poll.pollId}">
+              <span class="material-symbols-outlined">chat_bubble</span>
+              <span>${poll.replyCount || 0}</span>
+            </button>
+
+            <button class="action-btn poll-reshare-btn ${isReshared ? 'reshared' : ''}" data-poll-id="${poll.pollId}" style="${isReshared ? 'color: #00BA7C;' : ''}">
+              <span class="material-symbols-outlined">repeat</span>
+              <span class="poll-reshare-count">${poll.reshares || 0}</span>
+            </button>
+
+            <button class="action-btn poll-like-btn ${isLiked ? 'liked heart-pop' : ''}" data-poll-id="${poll.pollId}">
+              <span class="material-symbols-outlined">favorite</span>
+              <span class="poll-like-count">${poll.likes || 0}</span>
+            </button>
+
+            <button class="action-btn">
+              <span class="material-symbols-outlined">bookmark</span>
+            </button>
           </div>
         </div>
       </div>
