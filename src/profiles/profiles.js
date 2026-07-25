@@ -38,7 +38,10 @@ export async function renderProfile(container) {
   let targetUsername = null;
 
   if (hash.includes('?u=')) {
-    targetUsername = hash.split('?u=')[1];
+    const rawParam = hash.split('?u=')[1];
+    if (rawParam) {
+      targetUsername = decodeURIComponent(rawParam).trim().replace(/^@+/, '');
+    }
   }
 
   let userProfile = null;
@@ -46,12 +49,24 @@ export async function renderProfile(container) {
   try {
     if (targetUsername) {
       const usersRef = ref(db, PATHS.USERS);
+      // Attempt 1: Exact lookup
       const q = query(usersRef, orderByChild('username'), equalTo(targetUsername));
       const snap = await get(q);
 
       if (snap.exists()) {
         const data = snap.val();
         userProfile = Object.values(data)[0];
+      } else {
+        // Attempt 2: Case-insensitive fallback scan across users node
+        const allSnap = await get(usersRef);
+        if (allSnap.exists()) {
+          allSnap.forEach((childSnap) => {
+            const u = childSnap.val();
+            if (u && u.username && u.username.toLowerCase() === targetUsername.toLowerCase()) {
+              userProfile = u;
+            }
+          });
+        }
       }
     } else {
       userProfile = await getUserProfile(auth.currentUser.uid);
@@ -60,7 +75,7 @@ export async function renderProfile(container) {
     console.error('Error loading profile:', err);
   }
 
-  // Fallback to current user if lookup failed
+  // Fallback to current user if lookup failed and no target parameter was provided
   if (!userProfile && !targetUsername) {
     userProfile = await getUserProfile(auth.currentUser.uid);
   }
@@ -78,7 +93,7 @@ export async function renderProfile(container) {
       <div style="padding: 60px 20px; text-align: center;" class="fade-in">
         <span class="material-symbols-outlined" style="font-size: 48px; color: var(--error-color); margin-bottom: 12px;">person_off</span>
         <h2 style="font-size: 20px; font-weight: 800;">User not found</h2>
-        <p style="color: var(--text-secondary); margin-top: 4px;">The student profile you are looking for does not exist on Backbench.</p>
+        <p style="color: var(--text-secondary); margin-top: 4px;">The student profile "@${escapeHTML(targetUsername || '')}" does not exist on Backbench.</p>
       </div>
     `, ROUTES.PROFILE);
     attachLayoutListeners();
