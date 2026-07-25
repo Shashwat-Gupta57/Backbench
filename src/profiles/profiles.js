@@ -55,7 +55,7 @@ export async function renderProfile(container) {
 
       if (allSnap.exists()) {
         allSnap.forEach((childSnap) => {
-          if (userProfile) return; // Found match
+          if (userProfile) return;
           const u = childSnap.val();
           if (!u) return;
 
@@ -64,7 +64,6 @@ export async function renderProfile(container) {
           const uEmail = (u.email || '').toLowerCase();
           const uFullName = (u.name || '').toLowerCase();
 
-          // Resilient matching across username, uid, email, display name
           if (
             uName === cleanTarget ||
             uUid === targetUsername ||
@@ -369,17 +368,33 @@ function renderEditProfileModal(profile) {
     </div>
   `).join('');
 
-  const fontOptionsHTML = PRESET_USER_FONTS.map(f => `
-    <option value="${f.id}" ${f.id === currentFontId ? 'selected' : ''} style="font-family: ${f.family};">${f.name}</option>
-  `).join('');
+  const fontCardsHTML = PRESET_USER_FONTS.map(f => {
+    const isSel = f.id === currentFontId;
+    return `
+      <div class="font-card-swatch ${isSel ? 'active' : ''}" data-id="${f.id}" style="padding: 10px; border-radius: 10px; background: var(--bg-tertiary); border: 2px solid ${isSel ? 'var(--accent-primary)' : 'transparent'}; cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: border 0.15s ease;" title="${f.name}">
+        <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">${f.name}</span>
+        <span style="font-size: 14px; font-weight: 600; color: var(--text-primary); font-family: ${f.fontFamily}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          Ag Backbench
+        </span>
+      </div>
+    `;
+  }).join('');
 
-  const quoteFontOptionsHTML = PRESET_QUOTE_FONTS.map(f => `
-    <option value="${f.id}" ${f.id === currentQuoteFontId ? 'selected' : ''} style="font-family: ${f.family};">${f.name}</option>
-  `).join('');
+  const quoteFontCardsHTML = PRESET_QUOTE_FONTS.map(f => {
+    const isSel = f.id === currentQuoteFontId;
+    return `
+      <div class="quote-font-card-swatch ${isSel ? 'active' : ''}" data-id="${f.id}" style="padding: 10px; border-radius: 10px; background: var(--bg-tertiary); border: 2px solid ${isSel ? 'var(--accent-primary)' : 'transparent'}; cursor: pointer; display: flex; flex-direction: column; gap: 4px; transition: border 0.15s ease;" title="${f.name}">
+        <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">${f.name}</span>
+        <span style="font-size: 13px; font-style: italic; color: var(--accent-primary); font-family: ${f.fontFamily}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          “Campus Slogan”
+        </span>
+      </div>
+    `;
+  }).join('');
 
   return `
     <div id="edit-profile-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 1000; justify-content: center; align-items: center; padding: 20px;">
-      <div class="card fade-in" style="width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; padding: 24px; border-radius: 24px; box-shadow: 0 12px 40px rgba(0,0,0,0.8);">
+      <div class="card fade-in" style="width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; padding: 24px; border-radius: 24px; box-shadow: 0 12px 40px rgba(0,0,0,0.8);">
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h2 style="font-size: 18px; font-weight: 800;">Edit Student Profile</h2>
@@ -415,7 +430,7 @@ function renderEditProfileModal(profile) {
           <input type="text" id="edit-tagline" class="input-field" value="${escapeHTML(profile.tagline || '')}" placeholder="Your personal slogan..." />
 
           <!-- Cover Banner Gradient Selection (24 Presets) -->
-          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-top: 4px; display: block;">Cover Banner Theme (24 Gradients)</label>
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin-top: 6px; display: block;">Cover Banner Theme (24 Gradients)</label>
           <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 14px;" id="banner-swatches-container">
             ${bannerSwatchesHTML}
           </div>
@@ -426,17 +441,17 @@ function renderEditProfileModal(profile) {
             ${quoteSwatchesHTML}
           </div>
 
-          <!-- Custom User Font Family Selector -->
-          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block;">Profile & Post Font Theme</label>
-          <select id="edit-font-select" class="input-field" style="margin-bottom: 12px;">
-            ${fontOptionsHTML}
-          </select>
+          <!-- Visual Custom User Font Cards Grid -->
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block;">Profile & Post Font Theme (Visual Cards)</label>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px;" id="font-cards-container">
+            ${fontCardsHTML}
+          </div>
 
-          <!-- Custom Quote Font Family Selector -->
-          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block;">Quote Motto Font Style</label>
-          <select id="edit-quote-font-select" class="input-field" style="margin-bottom: 16px;">
-            ${quoteFontOptionsHTML}
-          </select>
+          <!-- Visual Custom Quote Font Cards Grid -->
+          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); display: block;">Quote Motto Font Style (Visual Cards)</label>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;" id="quote-font-cards-container">
+            ${quoteFontCardsHTML}
+          </div>
 
           <div id="edit-profile-error" class="error-text" style="display: none;"></div>
 
@@ -463,6 +478,8 @@ function setupEditProfileModal(profile, container) {
 
   let selectedBannerId = profile.bannerPreset || PRESET_BANNERS[0].id;
   let selectedQuoteId = profile.quotePreset || PRESET_QUOTE_STYLES[0].id;
+  let selectedFontId = profile.fontId || PRESET_USER_FONTS[0].id;
+  let selectedQuoteFontId = profile.quoteFontId || PRESET_QUOTE_FONTS[0].id;
   let base64Pfp = profile.profilePicture || '';
 
   if (openBtn) {
@@ -496,6 +513,24 @@ function setupEditProfileModal(profile, container) {
     });
   });
 
+  // Font Card Click Selection
+  container.querySelectorAll('.font-card-swatch').forEach(card => {
+    card.addEventListener('click', () => {
+      container.querySelectorAll('.font-card-swatch').forEach(c => c.style.borderColor = 'transparent');
+      card.style.borderColor = 'var(--accent-primary)';
+      selectedFontId = card.dataset.id;
+    });
+  });
+
+  // Quote Font Card Click Selection
+  container.querySelectorAll('.quote-font-card-swatch').forEach(card => {
+    card.addEventListener('click', () => {
+      container.querySelectorAll('.quote-font-card-swatch').forEach(c => c.style.borderColor = 'transparent');
+      card.style.borderColor = 'var(--accent-primary)';
+      selectedQuoteFontId = card.dataset.id;
+    });
+  });
+
   // Image upload handling
   if (pfpInput) {
     pfpInput.addEventListener('change', async (e) => {
@@ -521,8 +556,6 @@ function setupEditProfileModal(profile, container) {
       const username = document.getElementById('edit-username').value.trim();
       const bio = document.getElementById('edit-bio').value.trim();
       const tagline = document.getElementById('edit-tagline').value.trim();
-      const fontId = document.getElementById('edit-font-select').value;
-      const quoteFontId = document.getElementById('edit-quote-font-select').value;
 
       if (!validateUsername(username)) {
         errorDiv.textContent = "Username must be 3-20 characters long (letters, numbers, underscores, and dots only).";
@@ -534,15 +567,15 @@ function setupEditProfileModal(profile, container) {
       saveBtn.textContent = 'Saving...';
 
       try {
-        await updateUserProfile(profile.uid, {
+        await updateUserProfile(auth.currentUser.uid, {
           name,
           username,
           bio,
           tagline,
           bannerPreset: selectedBannerId,
           quotePreset: selectedQuoteId,
-          fontId: fontId,
-          quoteFontId: quoteFontId,
+          fontId: selectedFontId,
+          quoteFontId: selectedQuoteFontId,
           profilePicture: base64Pfp
         });
 
