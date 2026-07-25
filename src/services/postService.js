@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, update, query, orderByChild, equalTo, limitToLast, onValue, off, remove, runTransaction } from 'firebase/database';
+import { ref, push, set, get, update, onValue, off, remove, runTransaction } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { extractHashtags } from '../helpers/formatters.js';
 
@@ -29,24 +29,23 @@ export async function createPost(content) {
 }
 
 export function subscribeToFeed(limit, callback) {
-  const postsQuery = query(
-    ref(db, PATHS.POSTS),
-    orderByChild('timestamp'),
-    limitToLast(limit)
-  );
+  const postsRef = ref(db, PATHS.POSTS);
 
-  const listener = onValue(postsQuery, (snapshot) => {
+  const listener = onValue(postsRef, (snapshot) => {
     const posts = [];
-    snapshot.forEach((childSnap) => {
-      const p = childSnap.val();
-      if (p.status !== 'AWAITING_MODERATION') {
-        posts.push(p);
-      }
-    });
-    callback(posts.reverse());
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap) => {
+        const p = childSnap.val();
+        if (p && p.status !== 'AWAITING_MODERATION') {
+          posts.push(p);
+        }
+      });
+    }
+    posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+    callback(posts.slice(0, limit));
   });
 
-  return () => off(postsQuery, 'value', listener);
+  return () => off(postsRef, 'value', listener);
 }
 
 export function subscribeToUserPosts(uid, callback) {
@@ -55,25 +54,26 @@ export function subscribeToUserPosts(uid, callback) {
     return () => {};
   }
 
-  const postsQuery = query(
-    ref(db, PATHS.POSTS),
-    orderByChild('authorId'),
-    equalTo(uid)
-  );
+  const postsRef = ref(db, PATHS.POSTS);
 
-  const listener = onValue(postsQuery, (snapshot) => {
+  const listener = onValue(postsRef, (snapshot) => {
     const posts = [];
-    snapshot.forEach((childSnap) => {
-      posts.push(childSnap.val());
-    });
-    posts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap) => {
+        const p = childSnap.val();
+        if (p && p.authorId === uid) {
+          posts.push(p);
+        }
+      });
+    }
+    posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
     callback(posts);
   }, (err) => {
     console.error('Error fetching user posts:', err);
     callback([]);
   });
 
-  return () => off(postsQuery, 'value', listener);
+  return () => off(postsRef, 'value', listener);
 }
 
 export async function getTrendingHashtags(limit = 5) {
@@ -84,7 +84,7 @@ export async function getTrendingHashtags(limit = 5) {
     const counts = {};
     snap.forEach((childSnap) => {
       const p = childSnap.val();
-      if (p.status !== 'AWAITING_MODERATION') {
+      if (p && p.status !== 'AWAITING_MODERATION') {
         let tags = p.hashtags;
         if (!tags && p.content) {
           tags = extractHashtags(p.content);
@@ -118,7 +118,7 @@ export async function getRelatedPosts(currentPostId, currentTags = [], limit = 4
     const related = [];
     snap.forEach((childSnap) => {
       const p = childSnap.val();
-      if (p.postId !== currentPostId && p.status !== 'AWAITING_MODERATION') {
+      if (p && p.postId !== currentPostId && p.status !== 'AWAITING_MODERATION') {
         let tags = p.hashtags;
         if (!tags && p.content) tags = extractHashtags(p.content);
 
@@ -133,7 +133,7 @@ export async function getRelatedPosts(currentPostId, currentTags = [], limit = 4
       }
     });
 
-    related.sort((a, b) => b.score - a.score || new Date(b.timestamp) - new Date(a.timestamp));
+    related.sort((a, b) => b.score - a.score || new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
     return related.slice(0, limit);
   } catch (err) {
     console.error('Error getting related posts:', err);
@@ -145,6 +145,7 @@ export async function getRelatedPosts(currentPostId, currentTags = [], limit = 4
 const userCache = new Map();
 
 export async function getUserProfile(uid) {
+  if (!uid) return null;
   if (userCache.has(uid)) {
     return userCache.get(uid);
   }
@@ -162,7 +163,7 @@ export async function getUserProfile(uid) {
 }
 
 export function invalidateUserCache(uid) {
-  userCache.delete(uid);
+  if (uid) userCache.delete(uid);
 }
 
 export async function updateUserProfile(uid, data) {

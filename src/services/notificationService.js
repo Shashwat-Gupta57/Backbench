@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, remove, update, query, orderByChild, onValue, off } from 'firebase/database';
+import { ref, push, set, get, remove, update, onValue, off } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 
 export async function sendNotification(targetUid, notificationData) {
@@ -25,24 +25,24 @@ export function subscribeToUserNotifications(uid, callback) {
     return () => {};
   }
 
-  const notifQuery = query(
-    ref(db, `notifications/${uid}`),
-    orderByChild('timestamp')
-  );
+  const notifRef = ref(db, `notifications/${uid}`);
 
-  const listener = onValue(notifQuery, (snapshot) => {
+  const listener = onValue(notifRef, (snapshot) => {
     const list = [];
-    snapshot.forEach((childSnap) => {
-      list.push(childSnap.val());
-    });
-    list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap) => {
+        const item = childSnap.val();
+        if (item) list.push(item);
+      });
+    }
+    list.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
     callback(list);
   }, (err) => {
     console.error('Error fetching notifications:', err);
     callback([]);
   });
 
-  return () => off(notifQuery, 'value', listener);
+  return () => off(notifRef, 'value', listener);
 }
 
 export async function markNotificationAsRead(uid, notificationId) {

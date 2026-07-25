@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, remove, query, orderByChild, limitToLast, onValue, off, runTransaction } from 'firebase/database';
+import { ref, push, set, get, remove, onValue, off, runTransaction } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { getUserProfile } from './postService.js';
 
@@ -38,22 +38,21 @@ export async function createEvent(eventData) {
 }
 
 export function subscribeToEvents(callback) {
-  const eventsQuery = query(
-    ref(db, PATHS.EVENTS),
-    orderByChild('timestamp'),
-    limitToLast(30)
-  );
+  const eventsRef = ref(db, PATHS.EVENTS);
 
-  const listener = onValue(eventsQuery, (snapshot) => {
+  const listener = onValue(eventsRef, (snapshot) => {
     const events = [];
-    snapshot.forEach((childSnap) => {
-      events.push(childSnap.val());
-    });
-    events.sort((a, b) => new Date(a.date + ' ' + a.time) - new Date(b.date + ' ' + b.time));
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap) => {
+        const item = childSnap.val();
+        if (item) events.push(item);
+      });
+    }
+    events.sort((a, b) => new Date((a.date || '') + ' ' + (a.time || '')) - new Date((b.date || '') + ' ' + (b.time || '')));
     callback(events);
   });
 
-  return () => off(eventsQuery, 'value', listener);
+  return () => off(eventsRef, 'value', listener);
 }
 
 export async function getEventById(eventId) {

@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, query, orderByChild, onValue, off, remove, runTransaction } from 'firebase/database';
+import { ref, push, set, get, onValue, off, remove, runTransaction } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { LIMITS } from '../constants/limits.js';
 
@@ -49,21 +49,21 @@ export async function createReply(postId, content) {
 }
 
 export function subscribeToReplies(postId, callback) {
-  const repliesQuery = query(
-    ref(db, `${PATHS.REPLIES}/${postId}`),
-    orderByChild('timestamp')
-  );
+  const repliesRef = ref(db, `${PATHS.REPLIES}/${postId}`);
 
-  const listener = onValue(repliesQuery, (snapshot) => {
+  const listener = onValue(repliesRef, (snapshot) => {
     const replies = [];
-    snapshot.forEach((childSnap) => {
-      replies.push(childSnap.val());
-    });
-    // Most recent replies at the bottom or top depending on convention (Twitter shows oldest first under thread)
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap) => {
+        const item = childSnap.val();
+        if (item) replies.push(item);
+      });
+    }
+    replies.sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
     callback(replies);
   });
 
-  return () => off(repliesQuery, 'value', listener);
+  return () => off(repliesRef, 'value', listener);
 }
 
 export async function toggleLikeReply(replyId) {

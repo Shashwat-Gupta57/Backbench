@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, query, orderByChild, limitToLast, onValue, off, runTransaction } from 'firebase/database';
+import { ref, push, set, get, onValue, off, runTransaction } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { getUserProfile } from './postService.js';
 
@@ -36,21 +36,21 @@ export async function createPetition(data) {
 }
 
 export function subscribeToPetitions(limit = 20, callback) {
-  const petitionsQuery = query(
-    ref(db, PATHS.PETITIONS),
-    orderByChild('timestamp'),
-    limitToLast(limit)
-  );
+  const petitionsRef = ref(db, PATHS.PETITIONS);
 
-  const listener = onValue(petitionsQuery, (snapshot) => {
+  const listener = onValue(petitionsRef, (snapshot) => {
     const petitions = [];
-    snapshot.forEach((childSnap) => {
-      petitions.push(childSnap.val());
-    });
-    callback(petitions.reverse());
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap) => {
+        const item = childSnap.val();
+        if (item) petitions.push(item);
+      });
+    }
+    petitions.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+    callback(petitions.slice(0, limit));
   });
 
-  return () => off(petitionsQuery, 'value', listener);
+  return () => off(petitionsRef, 'value', listener);
 }
 
 export async function getPetitionById(petitionId) {
@@ -125,7 +125,7 @@ export async function getPetitionSignatories(petitionId) {
     if (snap.exists()) {
       const votes = snap.val();
       const signatories = Object.values(votes);
-      signatories.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      signatories.sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
       return signatories;
     }
   } catch (err) {

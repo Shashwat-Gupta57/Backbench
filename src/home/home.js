@@ -255,7 +255,9 @@ export function renderHome(container) {
   const updateCombinedFeed = async () => {
     if (!feedContainer) return;
 
-    const currentUid = auth.currentUser.uid;
+    const currentUid = auth.currentUser?.uid;
+    if (!currentUid) return;
+
     let friendUids = [];
 
     if (activeTabMode === 'friends') {
