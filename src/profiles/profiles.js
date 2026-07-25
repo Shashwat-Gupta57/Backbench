@@ -4,6 +4,7 @@ import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { ROUTES } from '../constants/routes.js';
 import { PRESET_BANNERS } from '../constants/banners.js';
+import { PRESET_QUOTE_STYLES } from '../constants/quotes.js';
 import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost } from '../services/postService.js';
 import { processProfilePicture } from '../helpers/image.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
@@ -84,6 +85,9 @@ export async function renderProfile(container) {
   const isSelf = userProfile.uid === auth.currentUser.uid;
   const verified = userProfile.verifiedStudent || userProfile.role === 'staff' || userProfile.role === 'admin';
   const currentBannerGradient = userProfile.bannerStyle || PRESET_BANNERS[0].gradient;
+  
+  // Resolve Quote Theme
+  const currentQuoteTheme = PRESET_QUOTE_STYLES.find(s => s.id === userProfile.quoteThemeId) || PRESET_QUOTE_STYLES[0];
 
   const avatarDisplayHTML = renderUserAvatar(
     userProfile, 
@@ -100,6 +104,20 @@ export async function renderProfile(container) {
         title="${b.name}"
         style="height: 40px; border-radius: 10px; background: ${b.gradient}; cursor: pointer; border: ${isSelected ? '3px solid #fff' : '1px solid rgba(255,255,255,0.2)'}; box-shadow: ${isSelected ? '0 0 12px var(--accent-primary)' : 'none'}; transition: all 0.2s ease;"
       ></div>
+    `;
+  }).join('');
+
+  const quoteSwatchesHTML = PRESET_QUOTE_STYLES.map(qs => {
+    const isSelected = qs.id === currentQuoteTheme.id;
+    return `
+      <div 
+        class="quote-swatch ${isSelected ? 'selected' : ''}" 
+        data-quote-id="${qs.id}"
+        title="${qs.name}"
+        style="height: 36px; border-radius: 8px; background: ${qs.bg}; border: ${isSelected ? '3px solid ' + qs.accent : qs.border}; cursor: pointer; box-shadow: ${isSelected ? qs.shadow : 'none'}; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center;"
+      >
+        <span style="font-size: 11px; font-weight: 700; color: ${qs.accent};">${qs.name}</span>
+      </div>
     `;
   }).join('');
 
@@ -152,14 +170,14 @@ export async function renderProfile(container) {
         <span style="color: var(--text-secondary); font-size: 15px;">@${escapeHTML(userProfile.username)}</span>
       </div>
 
-      <!-- Modern 2026 Glassmorphic Personal Tagline Quote Card -->
+      <!-- Modern Customized Personal Tagline Quote Card -->
       ${userProfile.tagline ? `
-        <div class="tagline-quote-card" style="margin-top: 14px; padding: 14px 18px; background: linear-gradient(135deg, rgba(29, 155, 240, 0.12) 0%, rgba(22, 24, 28, 0.85) 100%); border: 1px solid rgba(29, 155, 240, 0.25); border-radius: 16px; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(29, 155, 240, 0.08);">
-          <div style="position: absolute; right: -8px; bottom: -24px; font-size: 96px; color: rgba(29, 155, 240, 0.06); font-family: Georgia, serif; font-weight: 800; pointer-events: none; user-select: none; line-height: 1;">”</div>
+        <div id="profile-quote-card" class="tagline-quote-card" style="margin-top: 14px; padding: 14px 18px; background: ${currentQuoteTheme.bg}; border: ${currentQuoteTheme.border}; border-radius: 16px; position: relative; overflow: hidden; box-shadow: ${currentQuoteTheme.shadow}; transition: all 0.3s ease;">
+          <div style="position: absolute; right: -8px; bottom: -24px; font-size: 96px; color: ${currentQuoteTheme.accent}; opacity: 0.08; font-family: Georgia, serif; font-weight: 800; pointer-events: none; user-select: none; line-height: 1;">”</div>
           <div style="display: flex; align-items: flex-start; gap: 10px; position: relative; z-index: 1;">
-            <span class="material-symbols-outlined" style="font-size: 22px; color: var(--accent-primary); flex-shrink: 0; margin-top: 1px;">format_quote</span>
+            <span class="material-symbols-outlined" style="font-size: 22px; color: ${currentQuoteTheme.accent}; flex-shrink: 0; margin-top: 1px;">format_quote</span>
             <div style="display: flex; flex-direction: column;">
-              <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; color: var(--accent-primary); text-transform: uppercase; margin-bottom: 2px;">Campus Motto</span>
+              <span style="font-size: 11px; font-weight: 800; letter-spacing: 0.8px; color: ${currentQuoteTheme.accent}; text-transform: uppercase; margin-bottom: 2px;">Campus Motto</span>
               <span style="font-size: 15px; font-style: italic; font-weight: 600; color: var(--text-primary); line-height: 1.4; letter-spacing: -0.2px;">
                 “${escapeHTML(userProfile.tagline)}”
               </span>
@@ -218,6 +236,11 @@ export async function renderProfile(container) {
           <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Choose Cover Banner Theme</label>
           <div id="banner-swatches-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px;">
             ${bannerSwatchesHTML}
+          </div>
+
+          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; display: block;">Quote Card Background Theme</label>
+          <div id="quote-swatches-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
+            ${quoteSwatchesHTML}
           </div>
 
           <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: block;">Full Name</label>
@@ -332,24 +355,55 @@ export async function renderProfile(container) {
     const taglineInput = document.getElementById('edit-tagline');
     const taglineCounter = document.getElementById('tagline-counter');
     const coverBanner = document.getElementById('profile-cover-banner');
+    const quoteCard = document.getElementById('profile-quote-card');
 
     let selectedBannerGradient = currentBannerGradient;
+    let selectedQuoteThemeId = currentQuoteTheme.id;
 
-    // Swatches click selection
-    const swatches = document.querySelectorAll('.banner-swatch');
-    swatches.forEach(swatch => {
+    // Banner Swatches click selection
+    const bannerSwatches = document.querySelectorAll('.banner-swatch');
+    bannerSwatches.forEach(swatch => {
       swatch.addEventListener('click', () => {
         selectedBannerGradient = swatch.dataset.gradient;
-        swatches.forEach(s => {
+        bannerSwatches.forEach(s => {
           s.style.border = '1px solid rgba(255,255,255,0.2)';
           s.style.boxShadow = 'none';
         });
         swatch.style.border = '3px solid #fff';
         swatch.style.boxShadow = '0 0 12px var(--accent-primary)';
 
-        // Live preview cover banner
         if (coverBanner) {
           coverBanner.style.background = selectedBannerGradient;
+        }
+      });
+    });
+
+    // Quote Swatches click selection
+    const quoteSwatches = document.querySelectorAll('.quote-swatch');
+    quoteSwatches.forEach(swatch => {
+      swatch.addEventListener('click', () => {
+        selectedQuoteThemeId = swatch.dataset.quoteId;
+        const qStyle = PRESET_QUOTE_STYLES.find(s => s.id === selectedQuoteThemeId);
+
+        quoteSwatches.forEach(s => {
+          const st = PRESET_QUOTE_STYLES.find(x => x.id === s.dataset.quoteId);
+          s.style.border = st ? st.border : '1px solid rgba(255,255,255,0.2)';
+          s.style.boxShadow = 'none';
+        });
+
+        if (qStyle) {
+          swatch.style.border = `3px solid ${qStyle.accent}`;
+          swatch.style.boxShadow = qStyle.shadow;
+
+          if (quoteCard) {
+            quoteCard.style.background = qStyle.bg;
+            quoteCard.style.border = qStyle.border;
+            quoteCard.style.boxShadow = qStyle.shadow;
+            const quoteIcon = quoteCard.querySelector('.material-symbols-outlined');
+            const mottoSpan = quoteCard.querySelector('span[style*="uppercase"]');
+            if (quoteIcon) quoteIcon.style.color = qStyle.accent;
+            if (mottoSpan) mottoSpan.style.color = qStyle.accent;
+          }
         }
       });
     });
@@ -394,7 +448,8 @@ export async function renderProfile(container) {
             name,
             tagline,
             bio,
-            bannerStyle: selectedBannerGradient
+            bannerStyle: selectedBannerGradient,
+            quoteThemeId: selectedQuoteThemeId
           });
           closeModal();
           renderProfile(container);
