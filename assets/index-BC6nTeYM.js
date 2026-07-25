@@ -552,7 +552,7 @@ Please state reason for reporting this post:`,`Inappropriate content`);if(t&&t.t
       </div>
     </header>
     ${Ug(2)}
-  `,e.PROFILE);let n=window.location.hash,r=null,i=``;n.includes(`?u=`)&&(i=n.split(`?u=`)[1]||``,i&&(r=decodeURIComponent(i).trim().replace(/^[@\-\s]+/,``)));let a=null;try{if(r){let e=R(W,K.USERS),t=await B(Eu(e,Cu(`username`),Tu(r)));if(t.exists()){let e=t.val();a=Object.values(e)[0]}else{let t=await B(e);if(t.exists()){let e=r.toLowerCase().replace(/^[@\-\s]+/,``);t.forEach(t=>{let n=t.val();if(!n)return;let o=(n.username||``).toLowerCase().replace(/^[@\-\s]+/,``),s=n.uid||``,c=(n.email||``).toLowerCase(),l=(n.name||``).toLowerCase();(o===e||s===r||s===i||c===e||o&&e&&(o.includes(e)||e.includes(o))||l&&e&&l.includes(e))&&(a=n)})}}}else a=await Y(G.currentUser.uid)}catch(e){console.error(`Error loading profile:`,e)}if(!a&&!r&&(a=await Y(G.currentUser.uid)),!a){t.innerHTML=Z(`
+  `,e.PROFILE);let n=window.location.hash,r=null,i=``;n.includes(`?u=`)&&(i=n.split(`?u=`)[1]||``,i&&(r=decodeURIComponent(i).trim().replace(/^[@\-\s]+/,``)));let a=null;try{if(r){let e=r.toLowerCase().replace(/^[@\-\s]+/,``),t=await B(R(W,K.USERS));t.exists()&&t.forEach(t=>{if(a)return;let n=t.val();if(!n)return;let o=(n.username||``).toLowerCase().replace(/^[@\-\s]+/,``),s=n.uid||``,c=(n.email||``).toLowerCase(),l=(n.name||``).toLowerCase();(o===e||s===r||s===i||c===e||o&&e&&(o.includes(e)||e.includes(o))||l&&e&&l.includes(e))&&(a=n)})}else a=await Y(G.currentUser.uid)}catch(e){console.error(`Error loading profile:`,e)}if(!a&&!r&&(a=await Y(G.currentUser.uid)),!a){t.innerHTML=Z(`
       <header class="sticky-header">
         <div style="display: flex; align-items: center; gap: 16px;">
           <button class="btn-ghost" onclick="window.history.back()">
@@ -611,7 +611,7 @@ Please state reason for reporting this post:`,`Inappropriate content`);if(t&&t.t
             <span class="brand-badge" style="font-size: 11px; background: rgba(0, 186, 124, 0.2); color: #00BA7C; border-color: #00BA7C; display: inline-flex; align-items: center; gap: 2px;">
               <span class="material-symbols-outlined" style="font-size: 13px;">school</span> Faculty
             </span>
-          `:a.verifiedStudent||a.role===`staff`||userRole===`admin`?`
+          `:a.verifiedStudent||a.role===`staff`||a.role===`admin`?`
             <span class="material-symbols-outlined verified-icon" style="font-size: 20px;">verified</span>
           `:``}
         </h2>
