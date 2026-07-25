@@ -11,6 +11,7 @@ import { isFriend, toggleAddFriend, getFriendsCount, getFriendsProfiles } from '
 import { processProfilePicture } from '../helpers/image.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { escapeHTML } from '../helpers/formatters.js';
+import { validateUsername } from '../helpers/validation.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 import { createPostCardHTML } from '../components/PostCard.js';
 
@@ -288,6 +289,9 @@ export async function renderProfile(container) {
 
           <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: block;">Full Name</label>
           <input type="text" id="edit-name" class="input-field" value="${escapeHTML(userProfile.name)}" required />
+
+          <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: block;">Username (@handle)</label>
+          <input type="text" id="edit-username" class="input-field" value="${escapeHTML(userProfile.username)}" required />
 
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
             <label style="font-size: 13px; font-weight: 700; color: var(--text-secondary);">Campus Motto / Personal Quote</label>
@@ -604,8 +608,14 @@ export async function renderProfile(container) {
       editForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('edit-name').value.trim();
+        const newUsername = document.getElementById('edit-username').value.trim().replace(/^@+/, '');
         const tagline = taglineInput.value.trim();
         const bio = document.getElementById('edit-bio').value.trim();
+
+        if (!validateUsername(newUsername)) {
+          alert('Username must be 3-20 characters long (letters, numbers, underscores, and dots only).');
+          return;
+        }
 
         if (tagline.length > 45) {
           alert('Campus motto quote cannot exceed 45 characters.');
@@ -617,8 +627,22 @@ export async function renderProfile(container) {
         saveBtn.textContent = 'Saving...';
 
         try {
+          // Check username uniqueness if changed
+          if (newUsername.toLowerCase() !== (userProfile.username || '').toLowerCase()) {
+            const usersRef = ref(db, PATHS.USERS);
+            const q = query(usersRef, orderByChild('username'), equalTo(newUsername));
+            const snap = await get(q);
+            if (snap.exists()) {
+              alert(`The username @${newUsername} is already taken by another student. Please choose a different username.`);
+              saveBtn.disabled = false;
+              saveBtn.textContent = 'Save Changes';
+              return;
+            }
+          }
+
           await updateUserProfile(userProfile.uid, {
             name,
+            username: newUsername,
             tagline,
             bio,
             bannerStyle: selectedBannerGradient,
