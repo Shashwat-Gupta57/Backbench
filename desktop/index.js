@@ -7,7 +7,7 @@ const TARGET_URL = 'https://backbench.ddns.net';
 
 let mainWindow;
 let tray = null;
-let lastPostTimestamp = null;
+let lastTimestamps = { post: 0, poll: 0, petition: 0 };
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -79,6 +79,9 @@ ipcMain.handle('sign-in-with-google', async () => {
 });
 
 app.whenReady().then(() => {
+  // Set App User Model ID so Windows 10/11 Notifications show up natively!
+  app.setAppUserModelId('org.flexstudios.backbench');
+
   // Set autostart
   app.setLoginItemSettings({
     openAtLogin: true,
@@ -137,12 +140,14 @@ async function pollForUpdates(isInitial = false) {
           const itemTime = new Date(latestItem.timestamp).getTime();
           
           if (isInitial) {
-            lastPostTimestamp = Math.max(lastPostTimestamp || 0, itemTime);
+            lastTimestamps[ep.name] = Math.max(lastTimestamps[ep.name] || 0, itemTime);
           } else {
-            if (lastPostTimestamp !== null && itemTime > lastPostTimestamp) {
-              lastPostTimestamp = itemTime;
+            if (lastTimestamps[ep.name] > 0 && itemTime > lastTimestamps[ep.name]) {
+              lastTimestamps[ep.name] = itemTime;
               newContentFound = true;
               latestType = ep.name;
+            } else if (lastTimestamps[ep.name] === 0) {
+               lastTimestamps[ep.name] = itemTime;
             }
           }
         }
