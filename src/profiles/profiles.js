@@ -6,7 +6,10 @@ import { ROUTES } from '../constants/routes.js';
 import { PRESET_BANNERS } from '../constants/banners.js';
 import { PRESET_QUOTE_STYLES, PRESET_QUOTE_FONTS, getQuoteFontFamily } from '../constants/quotes.js';
 import { PRESET_USER_FONTS, getUserFontFamily } from '../constants/fonts.js';
-import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost, isPostResharedByUser, toggleResharePost, getLikedPostsByUser } from '../services/postService.js';
+import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost, isPostResharedByUser, toggleResharePost, getLikedPostsByUser, deleteOwnPost } from '../services/postService.js';
+import { deletePostAsStaff } from '../services/adminService.js';
+import { reportPost } from '../services/reportService.js';
+import { showContextMenu } from '../components/ContextMenu.js';
 import { isFriend, toggleAddFriend, getFriendsCount, getFriendsProfiles } from '../services/friendService.js';
 import { processProfilePicture } from '../helpers/image.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
@@ -344,6 +347,58 @@ export async function renderProfile(container) {
         }
       });
     });
+
+    profileFeedContainer.querySelectorAll('.post-options-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = btn.dataset.postId;
+        const authorId = btn.dataset.authorId;
+        const currentUid = auth.currentUser?.uid;
+        const currentUserProfile = currentUid ? await getUserProfile(currentUid) : null;
+        const isStaff = currentUserProfile?.role === 'staff' || currentUserProfile?.role === 'admin';
+
+        showContextMenu(btn, {
+          itemId: postId,
+          authorId: authorId,
+          currentUid: currentUid,
+          isStaff: isStaff,
+          itemType: 'post',
+          onDelete: async (id) => {
+            try {
+              if (currentUid === authorId) {
+                await deleteOwnPost(id);
+              } else if (isStaff) {
+                await deletePostAsStaff(id);
+              }
+              const card = btn.closest('.post-card');
+              if (card) {
+                card.style.opacity = '0.3';
+                card.style.pointerEvents = 'none';
+              }
+            } catch (err) {
+              alert(err.message || 'Failed to delete post.');
+            }
+          },
+          onReport: async (id, reason) => {
+            try {
+              const res = await reportPost(id, reason);
+              if (res.autoTakenDown) {
+                alert('Thank you. This post has accumulated 2 community reports and has been automatically taken down for Staff review.');
+                const card = btn.closest('.post-card');
+                if (card) {
+                  card.style.opacity = '0.2';
+                  card.style.pointerEvents = 'none';
+                }
+              } else {
+                alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
+              }
+            } catch (err) {
+              alert(err.message || 'Failed to submit report.');
+            }
+          }
+        });
+      });
+    });
   });
 
   // Likes Tab: Show posts the profile user has liked
@@ -407,6 +462,58 @@ export async function renderProfile(container) {
         } finally {
           btn.disabled = false;
         }
+      });
+    });
+
+    profileFeedContainer.querySelectorAll('.post-options-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = btn.dataset.postId;
+        const authorId = btn.dataset.authorId;
+        const currentUid = auth.currentUser?.uid;
+        const currentUserProfile = currentUid ? await getUserProfile(currentUid) : null;
+        const isStaff = currentUserProfile?.role === 'staff' || currentUserProfile?.role === 'admin';
+
+        showContextMenu(btn, {
+          itemId: postId,
+          authorId: authorId,
+          currentUid: currentUid,
+          isStaff: isStaff,
+          itemType: 'post',
+          onDelete: async (id) => {
+            try {
+              if (currentUid === authorId) {
+                await deleteOwnPost(id);
+              } else if (isStaff) {
+                await deletePostAsStaff(id);
+              }
+              const card = btn.closest('.post-card');
+              if (card) {
+                card.style.opacity = '0.3';
+                card.style.pointerEvents = 'none';
+              }
+            } catch (err) {
+              alert(err.message || 'Failed to delete post.');
+            }
+          },
+          onReport: async (id, reason) => {
+            try {
+              const res = await reportPost(id, reason);
+              if (res.autoTakenDown) {
+                alert('Thank you. This post has accumulated 2 community reports and has been automatically taken down for Staff review.');
+                const card = btn.closest('.post-card');
+                if (card) {
+                  card.style.opacity = '0.2';
+                  card.style.pointerEvents = 'none';
+                }
+              } else {
+                alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
+              }
+            } catch (err) {
+              alert(err.message || 'Failed to submit report.');
+            }
+          }
+        });
       });
     });
   }

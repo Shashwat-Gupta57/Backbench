@@ -1,6 +1,9 @@
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { getPostById, createReply, subscribeToReplies } from '../services/replyService.js';
-import { getUserProfile, toggleLikePost, getRelatedPosts } from '../services/postService.js';
+import { getUserProfile, toggleLikePost, getRelatedPosts, deleteOwnPost } from '../services/postService.js';
+import { deletePostAsStaff } from '../services/adminService.js';
+import { reportPost } from '../services/reportService.js';
+import { showContextMenu } from '../components/ContextMenu.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 import { formatTimeAgo } from '../helpers/time.js';
 import { escapeHTML, renderFormattedContent } from '../helpers/formatters.js';
@@ -97,7 +100,7 @@ export async function renderPostDetail(container) {
           </div>
         </div>
 
-        <button class="btn-ghost" title="Options">
+        <button class="btn-ghost" id="post-detail-options-btn" title="Options">
           <span class="material-symbols-outlined" style="font-size: 20px;">more_horiz</span>
         </button>
       </div>
@@ -197,6 +200,49 @@ export async function renderPostDetail(container) {
   const repliesContainer = document.getElementById('replies-feed-container');
   const likeBtn = document.getElementById('post-detail-like-btn');
   const likesStat = document.getElementById('post-likes-stat');
+
+  const optionsBtn = document.getElementById('post-detail-options-btn');
+  if (optionsBtn) {
+    optionsBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const currentUid = auth.currentUser?.uid;
+      const currentUserProfile = currentUid ? await getUserProfile(currentUid) : null;
+      const isStaff = currentUserProfile?.role === 'staff' || currentUserProfile?.role === 'admin';
+
+      showContextMenu(optionsBtn, {
+        itemId: post.postId,
+        authorId: post.authorId,
+        currentUid: currentUid,
+        isStaff: isStaff,
+        itemType: 'post',
+        onDelete: async (id) => {
+          try {
+            if (currentUid === post.authorId) {
+              await deleteOwnPost(id);
+            } else if (isStaff) {
+              await deletePostAsStaff(id);
+            }
+            window.history.back();
+          } catch (err) {
+            alert(err.message || 'Failed to delete post.');
+          }
+        },
+        onReport: async (id, reason) => {
+          try {
+            const res = await reportPost(id, reason);
+            if (res.autoTakenDown) {
+              alert('Thank you. This post has accumulated 2 community reports and has been automatically taken down for Staff review.');
+              window.history.back();
+            } else {
+              alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
+            }
+          } catch (err) {
+            alert(err.message || 'Failed to submit report.');
+          }
+        }
+      });
+    });
+  }
 
   if (likeBtn) {
     likeBtn.addEventListener('click', async () => {

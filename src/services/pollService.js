@@ -210,3 +210,43 @@ export function subscribeToPollReplies(pollId, callback) {
 
   return () => off(repliesRef, 'value', listener);
 }
+
+export async function deleteOwnPoll(pollId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+
+  const pollSnap = await get(ref(db, `${PATHS.POLLS}/${pollId}`));
+  if (!pollSnap.exists()) throw new Error('Poll not found');
+
+  const poll = pollSnap.val();
+  if (poll.creatorId !== user.uid) {
+    throw new Error('Unauthorized: You can only delete your own polls.');
+  }
+
+  await remove(ref(db, `${PATHS.POLLS}/${pollId}`));
+  await remove(ref(db, `${PATHS.POLL_VOTES}/${pollId}`));
+  await remove(ref(db, `${PATHS.POLL_LIKES}/${pollId}`));
+  await remove(ref(db, `${PATHS.POLL_RESHARES}/${pollId}`));
+  await remove(ref(db, `${PATHS.POLL_REPLIES}/${pollId}`));
+  return true;
+}
+
+export async function deletePollAsStaff(pollId) {
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) throw new Error('Not authenticated');
+
+  const staffSnap = await get(ref(db, `${PATHS.USERS}/${currentUid}`));
+  const staffUser = staffSnap.exists() ? staffSnap.val() : null;
+
+  if (!staffUser || (staffUser.role !== 'staff' && staffUser.role !== 'admin')) {
+    throw new Error('Unauthorized: Staff power required to put down polls.');
+  }
+
+  await remove(ref(db, `${PATHS.POLLS}/${pollId}`));
+  await remove(ref(db, `${PATHS.POLL_VOTES}/${pollId}`));
+  await remove(ref(db, `${PATHS.POLL_LIKES}/${pollId}`));
+  await remove(ref(db, `${PATHS.POLL_RESHARES}/${pollId}`));
+  await remove(ref(db, `${PATHS.POLL_REPLIES}/${pollId}`));
+  return true;
+}
+

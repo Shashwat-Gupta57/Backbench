@@ -1,12 +1,13 @@
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
-import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser, isPostResharedByUser, toggleResharePost } from '../services/postService.js';
-import { createPoll, subscribeToPolls, getUserVote, voteInPoll, toggleLikePoll, isPollLikedByUser, toggleResharePoll, isPollResharedByUser } from '../services/pollService.js';
+import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser, isPostResharedByUser, toggleResharePost, deleteOwnPost } from '../services/postService.js';
+import { createPoll, subscribeToPolls, getUserVote, voteInPoll, toggleLikePoll, isPollLikedByUser, toggleResharePoll, isPollResharedByUser, deleteOwnPoll, deletePollAsStaff } from '../services/pollService.js';
 import { getFriendUids } from '../services/friendService.js';
 import { deletePostAsStaff } from '../services/adminService.js';
 import { reportPost } from '../services/reportService.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 import { createPostCardHTML } from '../components/PostCard.js';
 import { createPollCardHTML } from '../components/PollCard.js';
+import { showContextMenu } from '../components/ContextMenu.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { LIMITS } from '../constants/limits.js';
 import { ROUTES } from '../constants/routes.js';
@@ -362,43 +363,98 @@ export function renderHome(container) {
       });
     });
 
-    // Attach Post Options Context Menu (Staff Takedown Powers OR Community Reporting)
-    feedContainer.querySelectorAll('.post-card').forEach(card => {
-      const optionsBtn = card.querySelector('.btn-ghost[title="Options"]');
-      if (optionsBtn) {
-        optionsBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const postId = card.dataset.postId;
+    // Attach Post Options Context Menu
+    feedContainer.querySelectorAll('.post-options-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = btn.dataset.postId;
+        const authorId = btn.dataset.authorId;
+        const userProfile = await getUserProfile(currentUid);
+        const isStaff = userProfile?.role === 'staff' || userProfile?.role === 'admin';
 
-          if (isStaffOrAdmin) {
-            if (confirm('🛡️ Staff Moderation Action:\nDo you want to put down (delete) this post from Backbench?')) {
-              try {
-                await deletePostAsStaff(postId);
+        showContextMenu(btn, {
+          itemId: postId,
+          authorId: authorId,
+          currentUid: currentUid,
+          isStaff: isStaff,
+          itemType: 'post',
+          onDelete: async (id) => {
+            try {
+              if (currentUid === authorId) {
+                await deleteOwnPost(id);
+              } else if (isStaff) {
+                await deletePostAsStaff(id);
+              }
+              const card = btn.closest('.post-card');
+              if (card) {
                 card.style.opacity = '0.3';
                 card.style.pointerEvents = 'none';
-              } catch (err) {
-                alert(err.message || 'Failed to delete post.');
               }
+            } catch (err) {
+              alert(err.message || 'Failed to delete post.');
             }
-          } else {
-            const reason = prompt('🚩 Report Post to SJC Moderation\nPlease state reason for reporting this post:', 'Inappropriate content');
-            if (reason && reason.trim()) {
-              try {
-                const res = await reportPost(postId, reason.trim());
-                if (res.autoTakenDown) {
-                  alert('Thank you. This post has accumulated 2 community reports and has been automatically taken down for Staff review.');
+          },
+          onReport: async (id, reason) => {
+            try {
+              const res = await reportPost(id, reason);
+              if (res.autoTakenDown) {
+                alert('Thank you. This post has accumulated 2 community reports and has been automatically taken down for Staff review.');
+                const card = btn.closest('.post-card');
+                if (card) {
                   card.style.opacity = '0.2';
                   card.style.pointerEvents = 'none';
-                } else {
-                  alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
                 }
-              } catch (err) {
-                alert(err.message || 'Failed to submit report.');
+              } else {
+                alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
               }
+            } catch (err) {
+              alert(err.message || 'Failed to submit report.');
             }
           }
         });
-      }
+      });
+    });
+
+    // Attach Poll Options Context Menu
+    feedContainer.querySelectorAll('.poll-options-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const pollId = btn.dataset.pollId;
+        const creatorId = btn.dataset.creatorId;
+        const userProfile = await getUserProfile(currentUid);
+        const isStaff = userProfile?.role === 'staff' || userProfile?.role === 'admin';
+
+        showContextMenu(btn, {
+          itemId: pollId,
+          authorId: creatorId,
+          currentUid: currentUid,
+          isStaff: isStaff,
+          itemType: 'poll',
+          onDelete: async (id) => {
+            try {
+              if (currentUid === creatorId) {
+                await deleteOwnPoll(id);
+              } else if (isStaff) {
+                await deletePollAsStaff(id);
+              }
+              const card = btn.closest('.poll-card');
+              if (card) {
+                card.style.opacity = '0.3';
+                card.style.pointerEvents = 'none';
+              }
+            } catch (err) {
+              alert(err.message || 'Failed to delete poll.');
+            }
+          },
+          onReport: async (id, reason) => {
+            try {
+              alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
+            } catch (err) {
+              alert(err.message || 'Failed to submit report.');
+            }
+          }
+        });
+      });
     });
 
     // Attach Poll Voting for Polls on Home Feed

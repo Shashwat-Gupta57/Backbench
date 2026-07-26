@@ -296,3 +296,23 @@ export async function getLikedPostsByUser(uid) {
   }
 }
 
+export async function deleteOwnPost(postId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+
+  const postSnap = await get(ref(db, `${PATHS.POSTS}/${postId}`));
+  if (!postSnap.exists()) throw new Error('Post not found');
+
+  const post = postSnap.val();
+  if (post.authorId !== user.uid) {
+    throw new Error('Unauthorized: You can only delete your own posts.');
+  }
+
+  await remove(ref(db, `${PATHS.POSTS}/${postId}`));
+  await remove(ref(db, `${PATHS.REPLIES}/${postId}`));
+  await remove(ref(db, `${PATHS.POST_LIKES}/${postId}`));
+  await remove(ref(db, `${PATHS.POST_RESHARES}/${postId}`));
+  return true;
+}
+
+

@@ -54,7 +54,7 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null, is
   }
 
   return `
-    <article class="card fade-in poll-card" data-poll-id="${poll.pollId}" style="margin-bottom: 16px; border-radius: var(--border-radius);">
+    <article class="card fade-in poll-card" data-poll-id="${poll.pollId}" data-creator-id="${poll.creatorId}" style="margin-bottom: 16px; border-radius: var(--border-radius);">
       <div style="display: flex; gap: 12px; align-items: flex-start;">
         ${avatarHTML}
         <div style="flex: 1; min-width: 0;">
@@ -65,7 +65,12 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null, is
               <span class="post-dot">·</span>
               <span class="post-time">${formatTimeAgo(poll.timestamp)}</span>
             </div>
-            <span class="brand-badge" style="font-size: 11px;">CAMPUS POLL</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="brand-badge" style="font-size: 11px;">CAMPUS POLL</span>
+              <button class="btn-ghost poll-options-btn" style="padding: 4px;" title="Options" data-poll-id="${poll.pollId}" data-creator-id="${poll.creatorId}">
+                <span class="material-symbols-outlined" style="font-size: 18px;">more_horiz</span>
+              </button>
+            </div>
           </div>
 
           <div style="font-size: 16px; font-weight: 700; color: var(--text-primary); margin-top: 6px; line-height: 1.4; font-family: ${fontStyle};">

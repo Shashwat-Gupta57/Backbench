@@ -13,7 +13,7 @@ export function createPostCardHTML(post, author, isLiked = false, isReshared = f
   const avatarHTML = renderUserAvatar(author, 44, 'border: 1px solid var(--border-color);');
 
   return `
-    <article class="post-card fade-in" data-post-id="${post.postId}">
+    <article class="post-card fade-in" data-post-id="${post.postId}" data-author-id="${post.authorId}">
       ${avatarHTML}
       <div style="flex: 1; min-width: 0;">
         <div class="post-header">
@@ -30,7 +30,7 @@ export function createPostCardHTML(post, author, isLiked = false, isReshared = f
             <span class="post-dot">·</span>
             <span class="post-time">${formatTimeAgo(post.timestamp)}</span>
           </div>
-          <button class="btn-ghost" style="padding: 4px;" title="Options">
+          <button class="btn-ghost post-options-btn" style="padding: 4px;" title="Options" data-post-id="${post.postId}" data-author-id="${post.authorId}">
             <span class="material-symbols-outlined" style="font-size: 18px;">more_horiz</span>
           </button>
         </div>
