@@ -36,7 +36,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAYnd63Dwmhq0F-AWlWo1nTmoYX9TPO9DM",
@@ -49,32 +49,48 @@
     const provider = new GoogleAuthProvider();
 
     async function authenticate() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const callback = urlParams.get('callback');
-      if (!callback) {
-        document.querySelector('.container').innerHTML = "<h2>Error</h2><p>No callback provided.</p>";
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential) {
+            const idToken = credential.idToken;
+            const accessToken = credential.accessToken;
+            const callback = sessionStorage.getItem('authCallback');
+            
+            if (callback) {
+              const targetUrl = new URL(callback);
+              targetUrl.searchParams.set('idToken', idToken || '');
+              targetUrl.searchParams.set('accessToken', accessToken || '');
+              
+              const finalUrl = targetUrl.toString();
+              
+              document.querySelector('.container').innerHTML = `
+                <div style="font-size: 48px; margin-bottom: 20px;">✅</div>
+                <h2>Authentication Successful!</h2>
+                <p style="margin-bottom: 24px; color: #888;">If you are not automatically redirected, please tap the button below.</p>
+                <a href="${finalUrl}" style="display: inline-block; padding: 14px 28px; background: #1D9BF0; color: #fff; text-decoration: none; border-radius: 999px; font-weight: 700; font-size: 16px;">Return to Backbench</a>
+              `;
+              
+              // Attempt automatic redirect
+              window.location.href = finalUrl;
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        document.querySelector('.container').innerHTML = \`<h2>Auth Failed</h2><p>\${error.message}</p>\`;
         return;
       }
 
-      try {
-        const result = await signInWithPopup(auth, provider);
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        
-        if (credential) {
-          const idToken = credential.idToken;
-          const accessToken = credential.accessToken;
-          
-          // Redirect back to the native app with the tokens
-          const targetUrl = new URL(callback);
-          targetUrl.searchParams.set('idToken', idToken || '');
-          targetUrl.searchParams.set('accessToken', accessToken || '');
-          
-          window.location.href = targetUrl.toString();
-        } else {
-          throw new Error("No credential returned from Google.");
-        }
-      } catch (error) {
-        document.querySelector('.container').innerHTML = `<h2>Auth Failed</h2><p>${error.message}</p>`;
+      // If not returning from redirect, start it.
+      const urlParams = new URLSearchParams(window.location.search);
+      const callback = urlParams.get('callback');
+      if (callback) {
+        sessionStorage.setItem('authCallback', callback);
+        await signInWithRedirect(auth, provider);
+      } else {
+        document.querySelector('.container').innerHTML = "<h2>Error</h2><p>No callback provided.</p>";
       }
     }
 
