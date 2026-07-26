@@ -7,14 +7,17 @@ import { reportPost } from '../services/reportService.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 import { createPostCardHTML } from '../components/PostCard.js';
 import { createPollCardHTML } from '../components/PollCard.js';
+import { createPetitionCardHTML } from '../components/PetitionCard.js';
 import { showContextMenu } from '../components/ContextMenu.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { LIMITS } from '../constants/limits.js';
 import { ROUTES } from '../constants/routes.js';
 import { auth } from '../firebase/firebase.js';
+import { subscribeToPetitions, hasUserSignedPetition, signPetition } from '../services/petitionService.js';
 
 let feedUnsubscribe = null;
 let pollsUnsubscribe = null;
+let petitionsUnsubscribe = null;
 
 export function renderHome(container) {
   if (!auth.currentUser) {
@@ -249,9 +252,10 @@ export function renderHome(container) {
     }
   });
 
-  // Realtime Combined Timeline Feed (Posts + Polls)
+  // Realtime Combined Timeline Feed (Posts + Polls + Petitions)
   let latestPosts = [];
   let latestPolls = [];
+  let latestPetitions = [];
 
   const updateCombinedFeed = async () => {
     if (!feedContainer) return;
@@ -276,9 +280,14 @@ export function renderHome(container) {
       ? latestPolls.filter(p => friendUids.includes(p.creatorId))
       : latestPolls;
 
+    const filteredPetitions = activeTabMode === 'friends'
+      ? latestPetitions.filter(p => friendUids.includes(p.creatorId))
+      : latestPetitions;
+
     const combined = [
       ...filteredPosts.map(p => ({ ...p, _type: 'post' })),
-      ...filteredPolls.map(p => ({ ...p, _type: 'poll' }))
+      ...filteredPolls.map(p => ({ ...p, _type: 'poll' })),
+      ...filteredPetitions.map(p => ({ ...p, _type: 'petition' }))
     ];
 
     combined.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -308,6 +317,10 @@ export function renderHome(container) {
         const pollLiked = await isPollLikedByUser(item.pollId, currentUid);
         const pollReshared = await isPollResharedByUser(item.pollId, currentUid);
         html += createPollCardHTML(item, author, userVote, pollLiked, pollReshared);
+      } else if (item._type === 'petition') {
+        const author = await getUserProfile(item.creatorId);
+        const isSigned = await hasUserSignedPetition(item.petitionId, currentUid);
+        html += createPetitionCardHTML(item, author, isSigned);
       }
     }
 
@@ -569,10 +582,43 @@ export function renderHome(container) {
         }
       });
     });
+
+    // Attach Petition Sign buttons
+    feedContainer.querySelectorAll('.sign-petition-feed-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const petitionId = btn.dataset.petitionId;
+        btn.disabled = true;
+        btn.textContent = 'Signing...';
+        try {
+          await signPetition(petitionId);
+          btn.textContent = '✓ Signed';
+        } catch (err) {
+          alert(err.message || 'Failed to sign petition.');
+          btn.disabled = false;
+          btn.textContent = '✍️ Sign';
+        }
+      });
+    });
+
+    // Copy Petition Frame Link
+    feedContainer.querySelectorAll('.copy-petition-frame-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const petitionId = btn.dataset.petitionId;
+        const frameLink = `${window.location.origin}${window.location.pathname}#/petition-frame?id=${petitionId}`;
+        navigator.clipboard.writeText(frameLink).then(() => {
+          const originalHTML = btn.innerHTML;
+          btn.textContent = '✓ Copied!';
+          setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+        });
+      });
+    });
   };
 
   if (feedUnsubscribe) feedUnsubscribe();
   if (pollsUnsubscribe) pollsUnsubscribe();
+  if (petitionsUnsubscribe) petitionsUnsubscribe();
 
   feedUnsubscribe = subscribeToFeed(LIMITS.FEED_PAGINATION_INITIAL, (posts) => {
     latestPosts = posts;
@@ -581,6 +627,11 @@ export function renderHome(container) {
 
   pollsUnsubscribe = subscribeToPolls(20, (polls) => {
     latestPolls = polls;
+    updateCombinedFeed();
+  });
+
+  petitionsUnsubscribe = subscribeToPetitions(20, (petitions) => {
+    latestPetitions = petitions;
     updateCombinedFeed();
   });
 }

@@ -200,39 +200,7 @@ export async function renderPetitionFrame(container) {
           `}
         </div>
 
-        <!-- Verified Signatures Table Roster -->
-        <div>
-          <h3 style="font-size: 16px; font-weight: 900; font-family: serif; color: #111827; margin-bottom: 14px; border-bottom: 2px solid #D8CBBC; padding-bottom: 8px;">
-            ROLL OF VERIFIED SIGNATORIES (${signatories.length})
-          </h3>
 
-          ${signatories.length === 0 ? `
-            <div style="padding: 24px; text-align: center; color: #6B7280; font-style: italic;">
-              No signatures recorded on paper yet. Be the first student to sign!
-            </div>
-          ` : `
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
-              <thead>
-                <tr style="border-bottom: 2px solid #D8CBBC; color: #4B5563; font-weight: 800; text-transform: uppercase; font-size: 11px;">
-                  <th style="padding: 8px;">No.</th>
-                  <th style="padding: 8px;">Signatory Name</th>
-                  <th style="padding: 8px;">Class / Department</th>
-                  <th style="padding: 8px;">Timestamp</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${signatories.map((sig, idx) => `
-                  <tr style="border-bottom: 1px solid #E5E7EB;">
-                    <td style="padding: 10px 8px; font-weight: 800; color: #6B7280;">${idx + 1}</td>
-                    <td style="padding: 10px 8px; font-weight: 800; color: #111827;">${escapeHTML(sig.name)} <span style="font-weight: 400; color: #6B7280;">(@${escapeHTML(sig.username)})</span></td>
-                    <td style="padding: 10px 8px; color: #4B5563;">${escapeHTML(sig.class || 'SJC Student')}</td>
-                    <td style="padding: 10px 8px; color: #6B7280; font-size: 12px;">${new Date(sig.timestamp).toLocaleString()}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          `}
-        </div>
 
         <!-- Document Footer Stamp -->
         <div style="margin-top: 40px; border-top: 1px dashed #C5B396; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #8A7352;">

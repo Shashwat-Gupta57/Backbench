@@ -210,14 +210,14 @@ export async function renderPostDetail(container) {
       const isStaff = currentUserProfile?.role === 'staff' || currentUserProfile?.role === 'admin';
 
       showContextMenu(optionsBtn, {
-        itemId: post.postId,
+        itemId: postId,
         authorId: post.authorId,
-        currentUid: currentUid,
+        currentUid: auth.currentUser?.uid,
         isStaff: isStaff,
         itemType: 'post',
         onDelete: async (id) => {
           try {
-            if (currentUid === post.authorId) {
+            if (auth.currentUser?.uid === post.authorId) {
               await deleteOwnPost(id);
             } else if (isStaff) {
               await deletePostAsStaff(id);
@@ -244,11 +244,16 @@ export async function renderPostDetail(container) {
     });
   }
 
+  const isLikedInitially = await import('../services/postService.js').then(m => m.isPostLikedByUser(postId, auth.currentUser?.uid));
+  if (likeBtn && isLikedInitially) {
+    likeBtn.style.color = 'var(--error-color)';
+  }
+
   if (likeBtn) {
     likeBtn.addEventListener('click', async () => {
       likeBtn.disabled = true;
       try {
-        const res = await toggleLikePost(post.postId);
+        const res = await toggleLikePost(postId);
         if (res.liked) {
           likeBtn.style.color = 'var(--error-color)';
         } else {
@@ -288,7 +293,7 @@ export async function renderPostDetail(container) {
       submitReplyBtn.textContent = 'Replying...';
 
       try {
-        await createReply(post.postId, text);
+        await createReply(postId, text);
         replyInput.value = '';
         replyInput.dispatchEvent(new Event('input'));
       } catch (err) {

@@ -166,45 +166,7 @@ export async function renderPetitionDetail(container) {
           </div>
         </div>
 
-        <!-- Signatures Roster / Roll of Honor -->
-        <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px;">
-          <h3 style="font-size: 16px; font-weight: 800; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
-            <span style="display: flex; align-items: center; gap: 8px;">
-              <span class="material-symbols-outlined" style="color: var(--accent-primary);">verified</span>
-              Verified Signatures Roster (${signatories.length})
-            </span>
-            <span style="font-size: 12px; font-weight: 500; color: var(--text-secondary);">Digital Signatures Log</span>
-          </h3>
 
-          <div id="signatories-list-container">
-            ${signatories.length === 0 ? `
-              <div style="padding: 30px; text-align: center; color: var(--text-secondary); font-size: 14px;">
-                No signatures recorded yet. Be the first student to sign this petition!
-              </div>
-            ` : `
-              <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
-                <thead>
-                  <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-secondary); font-size: 12px; text-transform: uppercase;">
-                    <th style="padding: 10px 8px;">#</th>
-                    <th style="padding: 10px 8px;">Student Name</th>
-                    <th style="padding: 10px 8px;">Class</th>
-                    <th style="padding: 10px 8px;">Date & Time Signed</th>
-                  </tr>
-                </thead>
-                <tbody id="signatories-tbody">
-                  ${signatories.map((sig, idx) => `
-                    <tr style="border-bottom: 1px solid var(--border-subtle);">
-                      <td style="padding: 12px 8px; font-weight: 700; color: var(--text-secondary);">${idx + 1}</td>
-                      <td style="padding: 12px 8px; font-weight: 700; color: var(--text-primary);">${escapeHTML(sig.name)} <span style="font-weight: 400; color: var(--text-secondary); font-size: 12px;">(@${escapeHTML(sig.username)})</span></td>
-                      <td style="padding: 12px 8px; color: var(--text-secondary);">${escapeHTML(sig.class || 'N/A')}</td>
-                      <td style="padding: 12px 8px; color: var(--text-secondary); font-size: 13px;">${new Date(sig.timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            `}
-          </div>
-        </div>
       </div>
     </div>
   `;

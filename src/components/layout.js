@@ -25,17 +25,7 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
           <!-- Backbench Brand Header -->
           <a href="${ROUTES.HOME}" class="brand-header" style="text-decoration: none;">
             <div class="brand-logo">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 4.5C4 3.67157 4.67157 3 5.5 3H14C17.0376 3 19.5 5.46243 19.5 8.5C19.5 10.4571 18.4776 12.1751 16.9453 13.1362C18.7758 14.0734 20 15.9821 20 18.1667C20 21.3883 17.3883 24 14.1667 24H5.5C4.67157 24 4 23.3284 4 22.5V4.5Z" fill="url(#brandGrad)" />
-                <path d="M8 6.5H13.5C14.6046 6.5 15.5 7.39543 15.5 8.5C15.5 9.60457 14.6046 10.5 13.5 10.5H8V6.5Z" fill="#FFFFFF" />
-                <path d="M8 14.5H14C15.3807 14.5 16.5 15.6193 16.5 17C16.5 18.3807 15.3807 19.5 14 19.5H8V14.5Z" fill="#FFFFFF" opacity="0.9" />
-                <defs>
-                  <linearGradient id="brandGrad" x1="4" y1="3" x2="20" y2="24" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#1D9BF0"/>
-                    <stop offset="1" stop-color="#004477"/>
-                  </linearGradient>
-                </defs>
-              </svg>
+              <img src="/favicon.png" style="width: 28px; height: 28px; border-radius: 6px; object-fit: cover;" alt="Logo" />
             </div>
             <div class="brand-text-container" style="display: flex; flex-direction: column;">
               <span class="brand-title" style="font-size: 19px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.5px; line-height: 1.1;">Backbench</span>

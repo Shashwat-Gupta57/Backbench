@@ -10,9 +10,7 @@ export function renderAuth(container, path) {
         
         <!-- Brand Badge -->
         <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 24px;">
-          <div style="width: 52px; height: 52px; background: linear-gradient(135deg, #1D9BF0, #0077B5); border-radius: 16px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 28px; box-shadow: 0 6px 20px rgba(29, 155, 240, 0.35); margin-bottom: 12px;">
-            B
-          </div>
+          <img src="/favicon.png" style="width: 52px; height: 52px; border-radius: 16px; box-shadow: 0 6px 20px rgba(29, 155, 240, 0.35); margin-bottom: 12px; object-fit: cover;" alt="Backbench Logo" />
           <h1 style="font-size: 24px; font-weight: 800; letter-spacing: -0.5px; text-align: center;">
             ${isLogin ? 'Welcome back to Backbench' : 'Create your Backbench Account'}
           </h1>

@@ -5,6 +5,7 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithCredential,
   fetchSignInMethodsForEmail,
   updatePassword
 } from 'firebase/auth';
@@ -181,8 +182,29 @@ const googleProvider = new GoogleAuthProvider();
 
 export async function loginWithGoogle() {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
+    let user;
+    if (window.electronAPI && window.electronAPI.signInWithGoogle) {
+      const tokens = await window.electronAPI.signInWithGoogle();
+      const credential = GoogleAuthProvider.credential(tokens.idToken, tokens.accessToken);
+      const result = await signInWithCredential(auth, credential);
+      user = result.user;
+    } else if (window.AndroidInterface) {
+      window.AndroidInterface.signInWithGoogle();
+      
+      // Wait for the Android layer to inject the tokens globally
+      const tokens = await new Promise((resolve, reject) => {
+        window.onAndroidGoogleAuth = (idToken, accessToken) => {
+          if (idToken) resolve({ idToken, accessToken });
+          else reject(new Error("Android Google Auth Failed"));
+        };
+      });
+      const credential = GoogleAuthProvider.credential(tokens.idToken, tokens.accessToken);
+      const result = await signInWithCredential(auth, credential);
+      user = result.user;
+    } else {
+      const result = await signInWithPopup(auth, googleProvider);
+      user = result.user;
+    }
 
     // Check if user's email was registered via password auth previously
     if (user.email) {
