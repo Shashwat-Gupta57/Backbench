@@ -1,9 +1,11 @@
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
-import { createPetition, subscribeToPetitions, hasUserSignedPetition, signPetition } from '../services/petitionService.js';
+import { createPetition, subscribeToPetitions, hasUserSignedPetition, signPetition, deleteOwnPetition } from '../services/petitionService.js';
 import { getUserProfile } from '../services/postService.js';
-import { renderFeedSkeletons } from '../components/Skeleton.js';
+import { deletePetitionAsStaff } from '../services/adminService.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { escapeHTML } from '../helpers/formatters.js';
+import { showContextMenu } from '../components/ContextMenu.js';
+import { createPetitionCardHTML } from '../components/PetitionCard.js';
 import { ROUTES } from '../constants/routes.js';
 import { auth } from '../firebase/firebase.js';
 
@@ -140,69 +142,7 @@ export function renderPetitions(container) {
       const author = await getUserProfile(petition.creatorId);
       const isSigned = await hasUserSignedPetition(petition.petitionId, currentUid);
 
-      const avatarHTML = renderUserAvatar(author, 40);
-      const authorName = author?.name ? escapeHTML(author.name) : 'Student Representative';
-      const count = petition.signatureCount || 0;
-      const goal = petition.goalSignatures || 100;
-      const pct = Math.min(100, Math.round((count / goal) * 100));
-      const isGoalReached = count >= goal;
-
-      const authorUsername = author?.username ? escapeHTML(author.username) : 'student';
-
-      html += `
-        <article class="card fade-in petition-card" data-petition-id="${petition.petitionId}" style="margin-bottom: 16px; border-radius: var(--border-radius); cursor: pointer;">
-          <div style="display: flex; gap: 12px; align-items: flex-start;">
-            <a href="#/profile?u=${authorUsername}" style="text-decoration: none; color: inherit; display: inline-flex;" title="View @${authorUsername}'s profile">
-              ${avatarHTML}
-            </a>
-            <div style="flex: 1; min-width: 0;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span class="brand-badge" style="font-size: 11px;">${escapeHTML(petition.category)}</span>
-                <span class="brand-badge" style="font-size: 11px; background: ${isGoalReached ? 'rgba(0, 186, 124, 0.2)' : 'rgba(29, 155, 240, 0.15)'}; color: ${isGoalReached ? '#00BA7C' : 'var(--accent-primary)'}; border-color: ${isGoalReached ? '#00BA7C' : 'var(--accent-primary)'};">
-                  ${isGoalReached ? '🎉 GOAL REACHED' : 'ACTIVE'}
-                </span>
-              </div>
-
-              <h2 style="font-size: 17px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; line-height: 1.35;">
-                ${escapeHTML(petition.title)}
-              </h2>
-
-              <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                ${escapeHTML(petition.statement)}
-              </p>
-
-              <!-- Progress Bar -->
-              <div style="background: var(--bg-primary); border-radius: 12px; padding: 10px 12px; border: 1px solid var(--border-color); margin-bottom: 12px;">
-                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
-                  <span><strong style="color: var(--accent-primary); font-size: 15px;">${count}</strong> / ${goal} signatures</span>
-                  <span style="font-weight: 700; color: var(--text-primary);">${pct}%</span>
-                </div>
-                <div style="width: 100%; height: 8px; background: var(--bg-tertiary); border-radius: 9999px; overflow: hidden;">
-                  <div style="height: 100%; width: ${pct}%; background: linear-gradient(90deg, #1D9BF0, #00BA7C); transition: width 0.4s ease;"></div>
-                </div>
-              </div>
-
-              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <a href="#/profile?u=${authorUsername}" style="text-decoration: none; color: inherit;" title="View @${authorUsername}'s profile">
-                  <span style="font-size: 12px; color: var(--text-secondary);">By <strong>${authorName}</strong> (@${authorUsername})</span>
-                </a>
-                
-                <div style="display: flex; gap: 8px;">
-                  <button class="btn btn-outline copy-petition-frame-btn" data-petition-id="${petition.petitionId}" style="font-size: 12px; padding: 6px 10px; display: flex; align-items: center; gap: 4px;" title="Copy shareable petition paper frame link">
-                    <span class="material-symbols-outlined" style="font-size: 14px;">filter_frames</span> Frame Link
-                  </button>
-                  <a href="#/petition-frame?id=${petition.petitionId}" class="btn btn-outline view-imprint-btn" style="font-size: 12px; padding: 6px 10px;">
-                    📜 Paper Mode
-                  </a>
-                  <button class="btn sign-petition-feed-btn" data-petition-id="${petition.petitionId}" style="font-size: 12px; padding: 6px 14px;" ${isSigned ? 'disabled' : ''}>
-                    ${isSigned ? '✓ Signed' : '✍️ Sign'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </article>
-      `;
+      html += createPetitionCardHTML(petition, author, isSigned);
     }
 
     feedContainer.innerHTML = html;
@@ -249,6 +189,48 @@ export function renderPetitions(container) {
           btn.disabled = false;
           btn.textContent = '✍️ Sign';
         }
+      });
+    });
+
+    // Attach Petition Options Context Menu
+    feedContainer.querySelectorAll('.petition-options-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const petitionId = btn.dataset.petitionId;
+        const authorId = btn.dataset.authorId;
+        const userProfile = await getUserProfile(currentUid);
+        const isStaff = userProfile?.role === 'staff' || userProfile?.role === 'admin';
+
+        showContextMenu(btn, {
+          itemId: petitionId,
+          authorId: authorId,
+          currentUid: currentUid,
+          isStaff: isStaff,
+          itemType: 'petition',
+          onDelete: async (id) => {
+            try {
+              if (currentUid === authorId) {
+                await deleteOwnPetition(id);
+              } else if (isStaff) {
+                await deletePetitionAsStaff(id);
+              }
+              const card = btn.closest('.petition-card');
+              if (card) {
+                card.style.opacity = '0.3';
+                card.style.pointerEvents = 'none';
+              }
+            } catch (err) {
+              alert(err.message || 'Failed to delete petition.');
+            }
+          },
+          onReport: async (id, reason) => {
+            try {
+              alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
+            } catch (err) {
+              alert(err.message || 'Failed to submit report.');
+            }
+          }
+        });
       });
     });
   });

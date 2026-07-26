@@ -18,10 +18,15 @@ export function createPetitionCardHTML(petition, author, isSigned) {
         </a>
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span class="brand-badge" style="font-size: 11px;">${escapeHTML(petition.category)}</span>
-            <span class="brand-badge" style="font-size: 11px; background: ${isGoalReached ? 'rgba(0, 186, 124, 0.2)' : 'rgba(29, 155, 240, 0.15)'}; color: ${isGoalReached ? '#00BA7C' : 'var(--accent-primary)'}; border-color: ${isGoalReached ? '#00BA7C' : 'var(--accent-primary)'};">
-              ${isGoalReached ? '🎉 GOAL REACHED' : 'ACTIVE'}
-            </span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <span class="brand-badge" style="font-size: 11px;">${escapeHTML(petition.category)}</span>
+              <span class="brand-badge" style="font-size: 11px; background: ${isGoalReached ? 'rgba(0, 186, 124, 0.2)' : 'rgba(29, 155, 240, 0.15)'}; color: ${isGoalReached ? '#00BA7C' : 'var(--accent-primary)'}; border-color: ${isGoalReached ? '#00BA7C' : 'var(--accent-primary)'};">
+                ${isGoalReached ? '🎉 GOAL REACHED' : 'ACTIVE'}
+              </span>
+            </div>
+            <button class="btn-ghost petition-options-btn" style="padding: 4px;" title="Options" data-petition-id="${petition.petitionId}" data-author-id="${petition.creatorId}">
+              <span class="material-symbols-outlined" style="font-size: 18px;">more_horiz</span>
+            </button>
           </div>
 
           <h2 style="font-size: 17px; font-weight: 800; color: var(--text-primary); margin-bottom: 6px; line-height: 1.35;">

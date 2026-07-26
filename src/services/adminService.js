@@ -129,3 +129,19 @@ export async function deleteReplyAsStaff(postId, replyId) {
   await remove(ref(db, `${PATHS.REPLIES}/${postId}/${replyId}`));
   return true;
 }
+
+export async function deletePetitionAsStaff(petitionId) {
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) throw new Error('Not authenticated');
+
+  const staffSnap = await get(ref(db, `${PATHS.USERS}/${currentUid}`));
+  const staffUser = staffSnap.exists() ? staffSnap.val() : null;
+
+  if (!staffUser || (staffUser.role !== ROLES.STAFF && staffUser.role !== ROLES.ADMIN)) {
+    throw new Error('Unauthorized: Staff power required to put down petitions.');
+  }
+
+  await remove(ref(db, `${PATHS.PETITIONS}/${petitionId}`));
+  await remove(ref(db, `${PATHS.PETITION_VOTES}/${petitionId}`));
+  return true;
+}

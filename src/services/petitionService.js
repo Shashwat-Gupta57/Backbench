@@ -133,3 +133,21 @@ export async function getPetitionSignatories(petitionId) {
   }
   return [];
 }
+
+export async function deleteOwnPetition(petitionId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+
+  const petitionRef = ref(db, `${PATHS.PETITIONS}/${petitionId}`);
+  const snap = await get(petitionRef);
+
+  if (snap.exists()) {
+    const data = snap.val();
+    if (data.creatorId !== user.uid) {
+      throw new Error('Unauthorized: You can only delete your own petitions.');
+    }
+    
+    await set(petitionRef, null);
+    await set(ref(db, `${PATHS.PETITION_VOTES}/${petitionId}`), null);
+  }
+}

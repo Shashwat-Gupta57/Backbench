@@ -2,7 +2,7 @@ import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser, isPostResharedByUser, toggleResharePost, deleteOwnPost } from '../services/postService.js';
 import { createPoll, subscribeToPolls, getUserVote, voteInPoll, toggleLikePoll, isPollLikedByUser, toggleResharePoll, isPollResharedByUser, deleteOwnPoll, deletePollAsStaff } from '../services/pollService.js';
 import { getFriendUids } from '../services/friendService.js';
-import { deletePostAsStaff } from '../services/adminService.js';
+import { deletePostAsStaff, deletePetitionAsStaff } from '../services/adminService.js';
 import { reportPost } from '../services/reportService.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
 import { createPostCardHTML } from '../components/PostCard.js';
@@ -13,7 +13,7 @@ import { renderUserAvatar } from '../helpers/avatar.js';
 import { LIMITS } from '../constants/limits.js';
 import { ROUTES } from '../constants/routes.js';
 import { auth } from '../firebase/firebase.js';
-import { subscribeToPetitions, hasUserSignedPetition, signPetition } from '../services/petitionService.js';
+import { subscribeToPetitions, hasUserSignedPetition, signPetition, deleteOwnPetition } from '../services/petitionService.js';
 
 let feedUnsubscribe = null;
 let pollsUnsubscribe = null;
@@ -457,6 +457,48 @@ export function renderHome(container) {
               }
             } catch (err) {
               alert(err.message || 'Failed to delete poll.');
+            }
+          },
+          onReport: async (id, reason) => {
+            try {
+              alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
+            } catch (err) {
+              alert(err.message || 'Failed to submit report.');
+            }
+          }
+        });
+      });
+    });
+
+    // Attach Petition Options Context Menu
+    feedContainer.querySelectorAll('.petition-options-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const petitionId = btn.dataset.petitionId;
+        const authorId = btn.dataset.authorId;
+        const userProfile = await getUserProfile(currentUid);
+        const isStaff = userProfile?.role === 'staff' || userProfile?.role === 'admin';
+
+        showContextMenu(btn, {
+          itemId: petitionId,
+          authorId: authorId,
+          currentUid: currentUid,
+          isStaff: isStaff,
+          itemType: 'petition',
+          onDelete: async (id) => {
+            try {
+              if (currentUid === authorId) {
+                await deleteOwnPetition(id);
+              } else if (isStaff) {
+                await deletePetitionAsStaff(id);
+              }
+              const card = btn.closest('.petition-card');
+              if (card) {
+                card.style.opacity = '0.3';
+                card.style.pointerEvents = 'none';
+              }
+            } catch (err) {
+              alert(err.message || 'Failed to delete petition.');
             }
           },
           onReport: async (id, reason) => {

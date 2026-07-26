@@ -98,9 +98,7 @@ export async function renderPetitionDetail(container) {
       <div class="imprint-seal-header" style="border: 2px solid var(--border-color); border-radius: 20px; padding: 24px; background: linear-gradient(135deg, rgba(29, 155, 240, 0.08) 0%, rgba(22, 24, 28, 0.95) 100%); margin-bottom: 24px; position: relative;">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #1D9BF0, #004477); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 26px; box-shadow: 0 4px 16px rgba(29, 155, 240, 0.3);">
-              B
-            </div>
+            <img src="/favicon.png" style="width: 48px; height: 48px; border-radius: 14px; box-shadow: 0 4px 16px rgba(29, 155, 240, 0.3); object-fit: cover;" alt="Logo" />
             <div>
               <span style="font-size: 11px; font-weight: 800; letter-spacing: 1px; color: var(--accent-primary); text-transform: uppercase;">ST. JOSEPH'S COLLEGE</span>
               <h2 style="font-size: 18px; font-weight: 800; color: var(--text-primary); margin-top: 1px;">STUDENT CHARTER & PETITION IMPRINT</h2>
