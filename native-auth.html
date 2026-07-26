@@ -112,29 +112,53 @@
       window.location.href = finalUrl;
     }
 
-    // 2. Safely check redirect results with a timeout to prevent infinite hang
+    // 2. Safely check redirect results. getRedirectResult() can be slow or transiently
+    // return null right after the redirect-back page load (Firebase reads pending-redirect
+    // state from IndexedDB, which can race with page init), so retry a few times before
+    // concluding there's genuinely no pending redirect. Only coming back from Google should
+    // ever hit this path, since we only navigate away via signInWithRedirect below.
     async function checkRedirect() {
-      try {
-        // Wait max 3.5 seconds for getRedirectResult
-        const result = await Promise.race([
-          getRedirectResult(auth),
-          new Promise((resolve) => setTimeout(() => resolve(null), 3500))
-        ]);
+      const cameFromRedirect = !!getCallbackUrl() && sessionStorage.getItem('bb_awaiting_redirect') === '1';
 
-        if (result) {
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          if (credential) {
-            renderSuccess(credential.idToken, credential.accessToken);
-            return;
+      const attempts = cameFromRedirect ? 6 : 1;
+      const delayMs = 700;
+
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const result = await getRedirectResult(auth);
+          if (result) {
+            const credential = GoogleAuthProvider.credentialFromResult(result);
+            if (credential) {
+              sessionStorage.removeItem('bb_awaiting_redirect');
+              renderSuccess(credential.idToken, credential.accessToken);
+              return;
+            }
           }
+        } catch (err) {
+          console.error("Redirect check failed:", err);
+          sessionStorage.removeItem('bb_awaiting_redirect');
+          statusEl.textContent = "Sign-in failed: " + (err.message || err.code || "unknown error");
+          statusEl.style.color = "#ff4444";
+          btn.disabled = false;
+          return;
         }
-      } catch (err) {
-        console.error("Redirect check failed:", err);
+        if (i < attempts - 1) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
       }
-      
+
+      if (cameFromRedirect) {
+        // We returned from Google but never got a usable result after retrying -
+        // don't silently loop back to the button, tell the user plainly.
+        sessionStorage.removeItem('bb_awaiting_redirect');
+        statusEl.textContent = "Couldn't complete sign-in. Please try again.";
+        statusEl.style.color = "#ff4444";
+      } else {
+        statusEl.textContent = "";
+      }
+
       // No result found, enable the button for the user
       btn.disabled = false;
-      statusEl.textContent = "";
     }
 
     // 3. Handle explicit button click (Popup first, fallback to redirect)
@@ -159,6 +183,7 @@
         console.warn("Popup auth failed or blocked, trying redirect fallback:", err);
         statusEl.textContent = "Redirecting to Google...";
         // If popup was blocked or failed, gracefully fallback to redirect
+        sessionStorage.setItem('bb_awaiting_redirect', '1');
         await signInWithRedirect(auth, provider);
       }
     });
