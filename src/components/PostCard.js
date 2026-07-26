@@ -14,11 +14,15 @@ export function createPostCardHTML(post, author, isLiked = false, isReshared = f
 
   return `
     <article class="post-card fade-in" data-post-id="${post.postId}" data-author-id="${post.authorId}">
-      ${avatarHTML}
+      <a href="#/profile?u=${username}" style="text-decoration: none; color: inherit; display: inline-flex;" title="View @${username}'s profile">
+        ${avatarHTML}
+      </a>
       <div style="flex: 1; min-width: 0;">
         <div class="post-header">
           <div class="author-meta">
-            <span class="author-name" style="font-family: ${fontStyle};">${name}</span>
+            <a href="#/profile?u=${username}" style="text-decoration: none; color: inherit;" title="View @${username}'s profile">
+              <span class="author-name" style="font-family: ${fontStyle};">${name}</span>
+            </a>
             ${isTeacher ? `
               <span class="brand-badge" style="font-size: 10px; background: rgba(0, 186, 124, 0.2); color: #00BA7C; border-color: #00BA7C; display: inline-flex; align-items: center; gap: 2px;">
                 <span class="material-symbols-outlined" style="font-size: 12px;">school</span> Faculty
@@ -26,7 +30,9 @@ export function createPostCardHTML(post, author, isLiked = false, isReshared = f
             ` : verified ? `
               <span class="material-symbols-outlined verified-icon" title="Verified Member">verified</span>
             ` : ''}
-            <span class="author-handle">@${username}</span>
+            <a href="#/profile?u=${username}" style="text-decoration: none; color: inherit;" title="View @${username}'s profile">
+              <span class="author-handle">@${username}</span>
+            </a>
             <span class="post-dot">·</span>
             <span class="post-time">${formatTimeAgo(post.timestamp)}</span>
           </div>

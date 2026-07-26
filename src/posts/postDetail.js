@@ -83,7 +83,7 @@ export async function renderPostDetail(container) {
     <article class="fade-in" style="padding: 16px; border-bottom: 1px solid var(--border-color);">
       <!-- Author Meta -->
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
+        <a href="#/profile?u=${username}" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;" title="View @${username}'s profile">
           ${authorAvatarHTML}
           <div style="display: flex; flex-direction: column;">
             <span style="font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 4px; font-family: ${authorFont};">
@@ -98,7 +98,7 @@ export async function renderPostDetail(container) {
             </span>
             <span style="color: var(--text-secondary); font-size: 14px;">@${username}</span>
           </div>
-        </div>
+        </a>
 
         <button class="btn-ghost" id="post-detail-options-btn" title="Options">
           <span class="material-symbols-outlined" style="font-size: 20px;">more_horiz</span>

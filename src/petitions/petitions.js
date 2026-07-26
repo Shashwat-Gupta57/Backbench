@@ -147,10 +147,14 @@ export function renderPetitions(container) {
       const pct = Math.min(100, Math.round((count / goal) * 100));
       const isGoalReached = count >= goal;
 
+      const authorUsername = author?.username ? escapeHTML(author.username) : 'student';
+
       html += `
         <article class="card fade-in petition-card" data-petition-id="${petition.petitionId}" style="margin-bottom: 16px; border-radius: var(--border-radius); cursor: pointer;">
           <div style="display: flex; gap: 12px; align-items: flex-start;">
-            ${avatarHTML}
+            <a href="#/profile?u=${authorUsername}" style="text-decoration: none; color: inherit; display: inline-flex;" title="View @${authorUsername}'s profile">
+              ${avatarHTML}
+            </a>
             <div style="flex: 1; min-width: 0;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <span class="brand-badge" style="font-size: 11px;">${escapeHTML(petition.category)}</span>
@@ -179,7 +183,9 @@ export function renderPetitions(container) {
               </div>
 
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <span style="font-size: 12px; color: var(--text-secondary);">By ${authorName}</span>
+                <a href="#/profile?u=${authorUsername}" style="text-decoration: none; color: inherit;" title="View @${authorUsername}'s profile">
+                  <span style="font-size: 12px; color: var(--text-secondary);">By <strong>${authorName}</strong> (@${authorUsername})</span>
+                </a>
                 
                 <div style="display: flex; gap: 8px;">
                   <button class="btn btn-outline copy-petition-frame-btn" data-petition-id="${petition.petitionId}" style="font-size: 12px; padding: 6px 10px; display: flex; align-items: center; gap: 4px;" title="Copy shareable petition paper frame link">
@@ -204,7 +210,7 @@ export function renderPetitions(container) {
     // Attach card click handlers (navigates to petition imprint document)
     feedContainer.querySelectorAll('.petition-card').forEach(card => {
       card.addEventListener('click', (e) => {
-        if (!e.target.closest('.sign-petition-feed-btn') && !e.target.closest('.view-imprint-btn') && !e.target.closest('.copy-petition-frame-btn')) {
+        if (!e.target.closest('.sign-petition-feed-btn') && !e.target.closest('.view-imprint-btn') && !e.target.closest('.copy-petition-frame-btn') && !e.target.closest('a')) {
           const petitionId = card.dataset.petitionId;
           window.location.hash = `#/petition-frame?id=${petitionId}`;
         }

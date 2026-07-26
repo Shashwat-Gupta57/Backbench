@@ -56,12 +56,18 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null, is
   return `
     <article class="card fade-in poll-card" data-poll-id="${poll.pollId}" data-creator-id="${poll.creatorId}" style="margin-bottom: 16px; border-radius: var(--border-radius);">
       <div style="display: flex; gap: 12px; align-items: flex-start;">
-        ${avatarHTML}
+        <a href="#/profile?u=${username}" style="text-decoration: none; color: inherit; display: inline-flex;" title="View @${username}'s profile">
+          ${avatarHTML}
+        </a>
         <div style="flex: 1; min-width: 0;">
           <div class="post-header">
             <div class="author-meta">
-              <span class="author-name" style="font-family: ${fontStyle};">${name}</span>
-              <span class="author-handle">@${username}</span>
+              <a href="#/profile?u=${username}" style="text-decoration: none; color: inherit;" title="View @${username}'s profile">
+                <span class="author-name" style="font-family: ${fontStyle};">${name}</span>
+              </a>
+              <a href="#/profile?u=${username}" style="text-decoration: none; color: inherit;" title="View @${username}'s profile">
+                <span class="author-handle">@${username}</span>
+              </a>
               <span class="post-dot">·</span>
               <span class="post-time">${formatTimeAgo(poll.timestamp)}</span>
             </div>
