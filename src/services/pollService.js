@@ -250,3 +250,17 @@ export async function deletePollAsStaff(pollId) {
   return true;
 }
 
+export async function getPollById(pollId) {
+  if (!pollId) return null;
+  try {
+    const snap = await get(ref(db, `${PATHS.POLLS}/${pollId}`));
+    if (snap.exists()) {
+      return snap.val();
+    }
+  } catch (err) {
+    console.error('Error fetching poll by ID:', err);
+  }
+  return null;
+}
+
+

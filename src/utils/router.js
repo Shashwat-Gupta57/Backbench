@@ -12,6 +12,7 @@ import { renderPetitionDetail } from '../petitions/petitionDetail.js';
 import { renderPetitionFrame } from '../petitions/petitionFrame.js';
 import { renderProfileFrame } from '../profiles/profileFrame.js';
 import { renderPolls } from '../polls/polls.js';
+import { renderPollDetail } from '../polls/pollDetail.js';
 import { renderAnnouncements } from '../announcements/announcements.js';
 import { renderEvents } from '../events/events.js';
 import { renderEventDetail } from '../events/eventDetail.js';
@@ -95,6 +96,9 @@ async function handleRoute() {
       break;
     case ROUTES.POLLS:
       renderPolls(rootElement);
+      break;
+    case '#/poll':
+      renderPollDetail(rootElement);
       break;
     case ROUTES.ANNOUNCEMENTS:
       renderAnnouncements(rootElement);
