@@ -19,18 +19,53 @@ function initApp() {
 
   // Set up auth state listener
   onAuthStateChanged(auth, async (user) => {
+    console.log('[BB-C1] onAuthStateChanged fired, user=', user ? user.uid : null);
     if (user) {
       try {
         const token = await user.getIdToken();
+        console.log('[BB-C2] getIdToken() resolved, length=', token ? token.length : 0);
+        const refreshToken = user.refreshToken || (user.stsTokenManager && user.stsTokenManager.refreshToken);
+        console.log('[BB-C3] refreshToken resolved, present=', !!refreshToken, 'length=', refreshToken ? refreshToken.length : 0);
+
         // Persist token & uid in browser cookies (30 days)
         setCookie('backbench_token', token, 30);
         setCookie('backbench_uid', user.uid, 30);
+        console.log('[BB-C4] cookies set (backbench_token, backbench_uid)');
+
+        // Bridge Auth to Native Background Services
+        console.log('[BB-C5] window.AndroidInterface present=', !!window.AndroidInterface, 'window.electronAPI present=', !!window.electronAPI);
+        if (refreshToken) {
+          if (window.AndroidInterface && typeof window.AndroidInterface.saveAuthToken === 'function') {
+            console.log('[BB-C6] calling AndroidInterface.saveAuthToken()');
+            window.AndroidInterface.saveAuthToken(refreshToken);
+            console.log('[BB-C7] AndroidInterface.saveAuthToken() call returned');
+          } else {
+            console.warn('[BB-C6-SKIP] AndroidInterface.saveAuthToken not available - not running in the Android WebView, or bridge not attached yet');
+          }
+          if (window.electronAPI && typeof window.electronAPI.saveAuthToken === 'function') {
+            console.log('[BB-C8] calling electronAPI.saveAuthToken()');
+            window.electronAPI.saveAuthToken(refreshToken);
+          }
+        } else {
+          console.warn('[BB-C3-FAIL] refreshToken is falsy - cannot bridge auth to native background services at all');
+        }
+        if (window.AndroidInterface && typeof window.AndroidInterface.saveUserId === 'function') {
+          console.log('[BB-C9] calling AndroidInterface.saveUserId()', user.uid);
+          window.AndroidInterface.saveUserId(user.uid);
+          console.log('[BB-C10] AndroidInterface.saveUserId() call returned');
+        } else {
+          console.warn('[BB-C9-SKIP] AndroidInterface.saveUserId not available');
+        }
       } catch (err) {
-        console.error('Error retrieving ID token:', err);
+        console.error('[BB-C-ERR] Error retrieving ID token:', err);
       }
     } else {
+      console.log('[BB-C11] user is null (signed out) - clearing cookies and native uid');
       deleteCookie('backbench_token');
       deleteCookie('backbench_uid');
+      if (window.AndroidInterface && typeof window.AndroidInterface.clearUserId === 'function') {
+        window.AndroidInterface.clearUserId();
+      }
     }
 
     if (!isAuthInitialized) {
