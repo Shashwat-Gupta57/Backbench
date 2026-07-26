@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Notification, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Notification, ipcMain, shell, Tray, Menu } = require('electron');
 const path = require('path');
 const http = require('http');
 
@@ -6,6 +6,7 @@ const FIREBASE_DB_URL = 'https://backbench-ef95e-default-rtdb.asia-southeast1.fi
 const TARGET_URL = 'https://backbench.ddns.net';
 
 let mainWindow;
+let tray = null;
 let lastPostTimestamp = null;
 
 function createWindow() {
@@ -25,6 +26,15 @@ function createWindow() {
   mainWindow.setMenuBarVisibility(false);
 
   mainWindow.loadURL(TARGET_URL);
+
+  // Prevent app from quitting when window is closed, hide to tray instead
+  mainWindow.on('close', (event) => {
+    if (!app.isQuiting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+    return false;
+  });
 }
 
 ipcMain.handle('sign-in-with-google', async () => {
@@ -69,10 +79,27 @@ ipcMain.handle('sign-in-with-google', async () => {
 });
 
 app.whenReady().then(() => {
+  // Set autostart
+  app.setLoginItemSettings({
+    openAtLogin: true,
+    openAsHidden: true
+  });
+
   createWindow();
   
-  // Set up background polling every 1 minute (60000 ms)
-  setInterval(pollForUpdates, 60000);
+  // Set up Tray
+  const iconPath = path.join(__dirname, '../icon.png');
+  tray = new Tray(iconPath);
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Open Backbench', click: () => mainWindow.show() },
+    { label: 'Quit', click: () => { app.isQuiting = true; app.quit(); } }
+  ]);
+  tray.setToolTip('Backbench');
+  tray.setContextMenu(contextMenu);
+  tray.on('click', () => mainWindow.show());
+  
+  // Set up background polling every 45 seconds (45000 ms)
+  setInterval(pollForUpdates, 45000);
   
   // Do an initial poll to set the baseline timestamp
   pollForUpdates(true);
@@ -85,9 +112,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  // Don't quit, wait for explicit tray quit
 });
 
 async function pollForUpdates(isInitial = false) {

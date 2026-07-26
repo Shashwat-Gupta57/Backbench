@@ -23,11 +23,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import org.flexstudios.backbench.ui.theme.BackbenchTheme
 import java.util.concurrent.TimeUnit
 
@@ -46,7 +41,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         askNotificationPermission()
-        scheduleBackgroundWork()
+        startPollingService()
 
         setContent {
             BackbenchTheme {
@@ -88,20 +83,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun scheduleBackgroundWork() {
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .build()
-
-        val pollRequest = PeriodicWorkRequestBuilder<FirebasePollWorker>(15, TimeUnit.MINUTES)
-            .setConstraints(constraints)
-            .build()
-
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "FirebasePollWork",
-            ExistingPeriodicWorkPolicy.KEEP,
-            pollRequest
-        )
+    private fun startPollingService() {
+        val serviceIntent = Intent(this, FirebasePollingService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
     }
 
     private fun askNotificationPermission() {
