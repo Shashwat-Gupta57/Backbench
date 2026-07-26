@@ -278,11 +278,15 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
     />
   `}var Vg=[{id:`default`,name:`Inter Modern`,fontFamily:`'Inter', sans-serif`},{id:`handwritten`,name:`Handwritten Script`,fontFamily:`'Caveat', cursive, sans-serif`},{id:`monospace`,name:`Cyber Monospace`,fontFamily:`'Fira Code', monospace`},{id:`serif`,name:`Classic Serif`,fontFamily:`'Playfair Display', serif`},{id:`futuristic`,name:`Futuristic Outfit`,fontFamily:`'Outfit', sans-serif`}];function Hg(e){let t=`default`;typeof e==`string`?t=e:e&&e.fontThemeId&&(t=e.fontThemeId);let n=Vg.find(e=>e.id===t);return n?n.fontFamily:Vg[0].fontFamily}function Ug(e,t,n=!1,r=!1){let i=t?.name?q(t.name):`Anonymous Student`,a=t?.username?q(t.username):`student`,o=t?.isTeacher||t?.role===`teacher`,s=t?.verifiedStudent||t?.role===`staff`||t?.role===`admin`||o,c=Hg(t),l=Bg(t,44,`border: 1px solid var(--border-color);`);return`
     <article class="post-card fade-in" data-post-id="${e.postId}" data-author-id="${e.authorId}">
-      ${l}
+      <a href="#/profile?u=${a}" style="text-decoration: none; color: inherit; display: inline-flex;" title="View @${a}'s profile">
+        ${l}
+      </a>
       <div style="flex: 1; min-width: 0;">
         <div class="post-header">
           <div class="author-meta">
-            <span class="author-name" style="font-family: ${c};">${i}</span>
+            <a href="#/profile?u=${a}" style="text-decoration: none; color: inherit;" title="View @${a}'s profile">
+              <span class="author-name" style="font-family: ${c};">${i}</span>
+            </a>
             ${o?`
               <span class="brand-badge" style="font-size: 10px; background: rgba(0, 186, 124, 0.2); color: #00BA7C; border-color: #00BA7C; display: inline-flex; align-items: center; gap: 2px;">
                 <span class="material-symbols-outlined" style="font-size: 12px;">school</span> Faculty
@@ -290,7 +294,9 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
             `:s?`
               <span class="material-symbols-outlined verified-icon" title="Verified Member">verified</span>
             `:``}
-            <span class="author-handle">@${a}</span>
+            <a href="#/profile?u=${a}" style="text-decoration: none; color: inherit;" title="View @${a}'s profile">
+              <span class="author-handle">@${a}</span>
+            </a>
             <span class="post-dot">·</span>
             <span class="post-time">${Rg(e.timestamp)}</span>
           </div>
@@ -353,12 +359,18 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
     `,`
     <article class="card fade-in poll-card" data-poll-id="${e.pollId}" data-creator-id="${e.creatorId}" style="margin-bottom: 16px; border-radius: var(--border-radius);">
       <div style="display: flex; gap: 12px; align-items: flex-start;">
-        ${u}
+        <a href="#/profile?u=${o}" style="text-decoration: none; color: inherit; display: inline-flex;" title="View @${o}'s profile">
+          ${u}
+        </a>
         <div style="flex: 1; min-width: 0;">
           <div class="post-header">
             <div class="author-meta">
-              <span class="author-name" style="font-family: ${l};">${a}</span>
-              <span class="author-handle">@${o}</span>
+              <a href="#/profile?u=${o}" style="text-decoration: none; color: inherit;" title="View @${o}'s profile">
+                <span class="author-name" style="font-family: ${l};">${a}</span>
+              </a>
+              <a href="#/profile?u=${o}" style="text-decoration: none; color: inherit;" title="View @${o}'s profile">
+                <span class="author-handle">@${o}</span>
+              </a>
               <span class="post-dot">·</span>
               <span class="post-time">${Rg(e.timestamp)}</span>
             </div>
@@ -992,7 +1004,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
     <article class="fade-in" style="padding: 16px; border-bottom: 1px solid var(--border-color);">
       <!-- Author Meta -->
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
+        <a href="#/profile?u=${u}" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;" title="View @${u}'s profile">
           ${c}
           <div style="display: flex; flex-direction: column;">
             <span style="font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 4px; font-family: ${p};">
@@ -1007,7 +1019,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
             </span>
             <span style="color: var(--text-secondary); font-size: 14px;">@${u}</span>
           </div>
-        </div>
+        </a>
 
         <button class="btn-ghost" id="post-detail-options-btn" title="Options">
           <span class="material-symbols-outlined" style="font-size: 20px;">more_horiz</span>
@@ -1296,10 +1308,12 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
           <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">No active petitions</h3>
           <p style="font-size: 14px;">Launch the first campus petition above to champion student causes!</p>
         </div>
-      `;return}let t=W.currentUser.uid,n=``;for(let r of e){let e=await J(r.creatorId),i=await C_(r.petitionId,t),a=Bg(e,40),o=e?.name?q(e.name):`Student Representative`,s=r.signatureCount||0,c=r.goalSignatures||100,l=Math.min(100,Math.round(s/c*100)),u=s>=c;n+=`
+      `;return}let t=W.currentUser.uid,n=``;for(let r of e){let e=await J(r.creatorId),i=await C_(r.petitionId,t),a=Bg(e,40),o=e?.name?q(e.name):`Student Representative`,s=r.signatureCount||0,c=r.goalSignatures||100,l=Math.min(100,Math.round(s/c*100)),u=s>=c,d=e?.username?q(e.username):`student`;n+=`
         <article class="card fade-in petition-card" data-petition-id="${r.petitionId}" style="margin-bottom: 16px; border-radius: var(--border-radius); cursor: pointer;">
           <div style="display: flex; gap: 12px; align-items: flex-start;">
-            ${a}
+            <a href="#/profile?u=${d}" style="text-decoration: none; color: inherit; display: inline-flex;" title="View @${d}'s profile">
+              ${a}
+            </a>
             <div style="flex: 1; min-width: 0;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <span class="brand-badge" style="font-size: 11px;">${q(r.category)}</span>
@@ -1328,7 +1342,9 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
               </div>
 
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                <span style="font-size: 12px; color: var(--text-secondary);">By ${o}</span>
+                <a href="#/profile?u=${d}" style="text-decoration: none; color: inherit;" title="View @${d}'s profile">
+                  <span style="font-size: 12px; color: var(--text-secondary);">By <strong>${o}</strong> (@${d})</span>
+                </a>
                 
                 <div style="display: flex; gap: 8px;">
                   <button class="btn btn-outline copy-petition-frame-btn" data-petition-id="${r.petitionId}" style="font-size: 12px; padding: 6px 10px; display: flex; align-items: center; gap: 4px;" title="Copy shareable petition paper frame link">
@@ -1345,7 +1361,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
             </div>
           </div>
         </article>
-      `}a.innerHTML=n,a.querySelectorAll(`.petition-card`).forEach(e=>{e.addEventListener(`click`,t=>{if(!t.target.closest(`.sign-petition-feed-btn`)&&!t.target.closest(`.view-imprint-btn`)&&!t.target.closest(`.copy-petition-frame-btn`)){let t=e.dataset.petitionId;window.location.hash=`#/petition-frame?id=${t}`}})}),a.querySelectorAll(`.copy-petition-frame-btn`).forEach(e=>{e.addEventListener(`click`,t=>{t.stopPropagation();let n=e.dataset.petitionId,r=`${window.location.origin}${window.location.pathname}#/petition-frame?id=${n}`;navigator.clipboard.writeText(r).then(()=>{let t=e.innerHTML;e.textContent=`✓ Copied!`,setTimeout(()=>{e.innerHTML=t},2e3)})})}),a.querySelectorAll(`.sign-petition-feed-btn`).forEach(e=>{e.addEventListener(`click`,async t=>{t.stopPropagation();let n=e.dataset.petitionId;e.disabled=!0,e.textContent=`Signing...`;try{await w_(n),e.textContent=`✓ Signed`}catch(t){alert(t.message||`Failed to sign petition.`),e.disabled=!1,e.textContent=`✍️ Sign`}})})})}async function O_(t){if(!W.currentUser){window.location.hash=`#/login`;return}t.innerHTML=X(`
+      `}a.innerHTML=n,a.querySelectorAll(`.petition-card`).forEach(e=>{e.addEventListener(`click`,t=>{if(!t.target.closest(`.sign-petition-feed-btn`)&&!t.target.closest(`.view-imprint-btn`)&&!t.target.closest(`.copy-petition-frame-btn`)&&!t.target.closest(`a`)){let t=e.dataset.petitionId;window.location.hash=`#/petition-frame?id=${t}`}})}),a.querySelectorAll(`.copy-petition-frame-btn`).forEach(e=>{e.addEventListener(`click`,t=>{t.stopPropagation();let n=e.dataset.petitionId,r=`${window.location.origin}${window.location.pathname}#/petition-frame?id=${n}`;navigator.clipboard.writeText(r).then(()=>{let t=e.innerHTML;e.textContent=`✓ Copied!`,setTimeout(()=>{e.innerHTML=t},2e3)})})}),a.querySelectorAll(`.sign-petition-feed-btn`).forEach(e=>{e.addEventListener(`click`,async t=>{t.stopPropagation();let n=e.dataset.petitionId;e.disabled=!0,e.textContent=`Signing...`;try{await w_(n),e.textContent=`✓ Signed`}catch(t){alert(t.message||`Failed to sign petition.`),e.disabled=!1,e.textContent=`✍️ Sign`}})})})}async function O_(t){if(!W.currentUser){window.location.hash=`#/login`;return}t.innerHTML=X(`
     <header class="sticky-header">
       <div style="display: flex; align-items: center; gap: 16px;">
         <button class="btn-ghost" onclick="window.history.back()" title="Back">
