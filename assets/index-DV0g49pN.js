@@ -1844,9 +1844,15 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
             + Add Option (Max 13)
           </button>
 
-          <button type="button" id="submit-poll-btn" class="btn">
-            Publish Poll
-          </button>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer;">
+              <input type="checkbox" id="dedicated-poll-anonymous-checkbox" style="width: 14px; height: 14px; accent-color: var(--accent-primary); cursor: pointer;" />
+              Anonymous
+            </label>
+            <button type="button" id="submit-poll-btn" class="btn">
+              Publish Poll
+            </button>
+          </div>
         </div>
 
         <div id="poll-error" class="error-text" style="display: none; margin-top: 12px; margin-bottom: 0;"></div>
@@ -1857,7 +1863,7 @@ FIREBASE: `))}restoreState_(){this.tryAuth(),this.tryAppCheck();for(let e of thi
     <div id="polls-feed-container" style="padding: 16px;">
       ${Q(3)}
     </div>
-  `,n.POLLS),Z();let t=document.getElementById(`poll-question`),r=document.getElementById(`poll-options-inputs`),i=document.getElementById(`add-option-btn`),a=document.getElementById(`submit-poll-btn`),o=document.getElementById(`poll-error`),s=document.getElementById(`polls-feed-container`);i.addEventListener(`click`,()=>{let e=r.querySelectorAll(`.poll-opt-input`);if(e.length<13){let t=e.length+1,n=document.createElement(`input`);n.type=`text`,n.className=`input-field poll-opt-input fade-in`,n.placeholder=`Option ${t}`,n.style.marginBottom=`0`,r.appendChild(n),e.length+1===13&&(i.style.display=`none`)}}),a.addEventListener(`click`,async()=>{o.style.display=`none`;let e=t.value.trim(),n=r.querySelectorAll(`.poll-opt-input`),s=Array.from(n).map(e=>e.value.trim());a.disabled=!0,a.textContent=`Publishing...`;try{await Og(e,s),t.value=``,r.innerHTML=`
+  `,n.POLLS),Z();let t=document.getElementById(`poll-question`),r=document.getElementById(`poll-options-inputs`),i=document.getElementById(`add-option-btn`),a=document.getElementById(`submit-poll-btn`),o=document.getElementById(`poll-error`),s=document.getElementById(`polls-feed-container`);i.addEventListener(`click`,()=>{let e=r.querySelectorAll(`.poll-opt-input`);if(e.length<13){let t=e.length+1,n=document.createElement(`input`);n.type=`text`,n.className=`input-field poll-opt-input fade-in`,n.placeholder=`Option ${t}`,n.style.marginBottom=`0`,r.appendChild(n),e.length+1===13&&(i.style.display=`none`)}}),a.addEventListener(`click`,async()=>{o.style.display=`none`;let e=t.value.trim(),n=r.querySelectorAll(`.poll-opt-input`),s=Array.from(n).map(e=>e.value.trim()),c=document.getElementById(`dedicated-poll-anonymous-checkbox`).checked;a.disabled=!0,a.textContent=`Publishing...`;try{await Og(e,s,c),t.value=``,document.getElementById(`dedicated-poll-anonymous-checkbox`).checked=!1,r.innerHTML=`
         <input type="text" class="input-field poll-opt-input" placeholder="Option 1" style="margin-bottom: 0;" />
         <input type="text" class="input-field poll-opt-input" placeholder="Option 2" style="margin-bottom: 0;" />
       `,i.style.display=`inline-block`}catch(e){o.textContent=e.message,o.style.display=`block`}finally{a.disabled=!1,a.textContent=`Publish Poll`}}),av&&av(),av=jg(20,async e=>{if(e.length===0){s.innerHTML=`
