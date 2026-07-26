@@ -6,6 +6,26 @@ import { setCookie, deleteCookie, getCookie } from './helpers/cookie.js';
 
 let isAuthInitialized = false;
 
+// addJavascriptInterface() is only guaranteed visible to JS after onPageFinished;
+// on session-restore, onAuthStateChanged can fire before Android has attached the
+// bridge, so retry briefly instead of silently dropping the call.
+function callAndroidBridge(methodName, ...args) {
+  const attempt = (retriesLeft) => {
+    const bridge = window.AndroidInterface;
+    if (bridge && typeof bridge[methodName] === 'function') {
+      console.log(`[BB-BRIDGE] calling AndroidInterface.${methodName}() (retriesLeft=${retriesLeft})`);
+      bridge[methodName](...args);
+      return;
+    }
+    if (retriesLeft <= 0) {
+      console.warn(`[BB-BRIDGE-GIVEUP] AndroidInterface.${methodName} never became available`);
+      return;
+    }
+    setTimeout(() => attempt(retriesLeft - 1), 300);
+  };
+  attempt(10); // up to ~3s of retrying
+}
+
 function initApp() {
   const appElement = document.querySelector('#app');
 
@@ -35,13 +55,7 @@ function initApp() {
         // Bridge Auth to Native Background Services
         console.log('[BB-C5] window.AndroidInterface present=', !!window.AndroidInterface, 'window.electronAPI present=', !!window.electronAPI);
         if (refreshToken) {
-          if (window.AndroidInterface && typeof window.AndroidInterface.saveAuthToken === 'function') {
-            console.log('[BB-C6] calling AndroidInterface.saveAuthToken()');
-            window.AndroidInterface.saveAuthToken(refreshToken);
-            console.log('[BB-C7] AndroidInterface.saveAuthToken() call returned');
-          } else {
-            console.warn('[BB-C6-SKIP] AndroidInterface.saveAuthToken not available - not running in the Android WebView, or bridge not attached yet');
-          }
+          callAndroidBridge('saveAuthToken', refreshToken);
           if (window.electronAPI && typeof window.electronAPI.saveAuthToken === 'function') {
             console.log('[BB-C8] calling electronAPI.saveAuthToken()');
             window.electronAPI.saveAuthToken(refreshToken);
@@ -49,13 +63,7 @@ function initApp() {
         } else {
           console.warn('[BB-C3-FAIL] refreshToken is falsy - cannot bridge auth to native background services at all');
         }
-        if (window.AndroidInterface && typeof window.AndroidInterface.saveUserId === 'function') {
-          console.log('[BB-C9] calling AndroidInterface.saveUserId()', user.uid);
-          window.AndroidInterface.saveUserId(user.uid);
-          console.log('[BB-C10] AndroidInterface.saveUserId() call returned');
-        } else {
-          console.warn('[BB-C9-SKIP] AndroidInterface.saveUserId not available');
-        }
+        callAndroidBridge('saveUserId', user.uid);
       } catch (err) {
         console.error('[BB-C-ERR] Error retrieving ID token:', err);
       }
