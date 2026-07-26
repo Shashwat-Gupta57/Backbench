@@ -9,6 +9,8 @@ import { renderSearch } from '../search/search.js';
 import { renderOnboarding } from '../auth/onboarding.js';
 import { renderPetitions } from '../petitions/petitions.js';
 import { renderPetitionDetail } from '../petitions/petitionDetail.js';
+import { renderPetitionFrame } from '../petitions/petitionFrame.js';
+import { renderProfileFrame } from '../profiles/profileFrame.js';
 import { renderPolls } from '../polls/polls.js';
 import { renderAnnouncements } from '../announcements/announcements.js';
 import { renderEvents } from '../events/events.js';
@@ -84,6 +86,12 @@ async function handleRoute() {
       break;
     case '#/petition':
       renderPetitionDetail(rootElement);
+      break;
+    case ROUTES.PETITION_FRAME:
+      renderPetitionFrame(rootElement);
+      break;
+    case ROUTES.PROFILE_FRAME:
+      renderProfileFrame(rootElement);
       break;
     case ROUTES.POLLS:
       renderPolls(rootElement);

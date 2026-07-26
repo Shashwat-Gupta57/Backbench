@@ -74,10 +74,20 @@ export async function renderPetitionDetail(container) {
           <h1 class="header-title">Petition Imprint Document</h1>
         </div>
 
-        <button id="print-petition-btn" class="btn btn-outline" style="font-size: 13px; padding: 6px 14px; display: flex; align-items: center; gap: 6px;">
-          <span class="material-symbols-outlined" style="font-size: 18px;">print</span>
-          Export PDF / Print
-        </button>
+        <div style="display: flex; gap: 8px;">
+          <button id="copy-detail-frame-link-btn" class="btn btn-outline" style="font-size: 13px; padding: 6px 14px; display: flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">content_copy</span>
+            Copy Frame Link
+          </button>
+          <a href="#/petition-frame?id=${petition.petitionId}" class="btn btn-outline" style="font-size: 13px; padding: 6px 14px; display: flex; align-items: center; gap: 6px; text-decoration: none;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">filter_frames</span>
+            Paper Frame Mode
+          </a>
+          <button id="print-petition-btn" class="btn btn-outline" style="font-size: 13px; padding: 6px 14px; display: flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">print</span>
+            Export PDF / Print
+          </button>
+        </div>
       </div>
     </header>
 
@@ -203,9 +213,22 @@ export async function renderPetitionDetail(container) {
   attachLayoutListeners();
 
   const printBtn = document.getElementById('print-petition-btn');
+  const copyFrameBtn = document.getElementById('copy-detail-frame-link-btn');
   const signBtn = document.getElementById('sign-petition-btn');
   const countDisplay = document.getElementById('signature-count-display');
   const progressFill = document.getElementById('signature-progress-fill');
+
+  if (copyFrameBtn) {
+    copyFrameBtn.addEventListener('click', () => {
+      const frameLink = `${window.location.origin}${window.location.pathname}#/petition-frame?id=${petition.petitionId}`;
+      navigator.clipboard.writeText(frameLink).then(() => {
+        copyFrameBtn.textContent = '✓ Frame Link Copied!';
+        setTimeout(() => {
+          copyFrameBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">content_copy</span> Copy Frame Link';
+        }, 2000);
+      });
+    });
+  }
 
   if (printBtn) {
     printBtn.addEventListener('click', () => {

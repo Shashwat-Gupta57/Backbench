@@ -165,7 +165,10 @@ export async function renderProfile(container) {
           ${pfpHTML}
         </div>
 
-        <div>
+        <div style="display: flex; gap: 8px;">
+          <button id="copy-profile-frame-btn" class="btn btn-outline" style="font-weight: 700; font-size: 13px; padding: 6px 12px; display: flex; align-items: center; gap: 4px;" title="Copy digital student ID frame link">
+            <span class="material-symbols-outlined" style="font-size: 16px;">filter_frames</span> Frame Link
+          </button>
           ${isOwnProfile ? `
             <button id="edit-profile-btn" class="btn btn-outline" style="font-weight: 700;">Edit Profile</button>
           ` : `
@@ -263,6 +266,21 @@ export async function renderProfile(container) {
   const postCountHeader = document.getElementById('profile-post-count-header');
   const tabPosts = document.getElementById('profile-tab-posts');
   const tabLikes = document.getElementById('profile-tab-likes');
+
+  // Handle Copy Profile Frame Link Action
+  const copyFrameBtn = document.getElementById('copy-profile-frame-btn');
+  if (copyFrameBtn) {
+    copyFrameBtn.addEventListener('click', () => {
+      const frameLink = `${window.location.origin}${window.location.pathname}#/profile-frame?u=${encodeURIComponent(userProfile.username || 'student')}`;
+      navigator.clipboard.writeText(frameLink).then(() => {
+        const origHtml = copyFrameBtn.innerHTML;
+        copyFrameBtn.textContent = '✓ Frame Link Copied!';
+        setTimeout(() => {
+          copyFrameBtn.innerHTML = origHtml;
+        }, 2000);
+      });
+    });
+  }
 
   // Handle Friend Toggle Action
   const friendBtn = document.getElementById('profile-friend-btn');

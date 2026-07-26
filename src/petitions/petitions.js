@@ -178,12 +178,15 @@ export function renderPetitions(container) {
                 </div>
               </div>
 
-              <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <span style="font-size: 12px; color: var(--text-secondary);">By ${authorName}</span>
                 
                 <div style="display: flex; gap: 8px;">
-                  <a href="#/petition?id=${petition.petitionId}" class="btn btn-outline view-imprint-btn" style="font-size: 12px; padding: 6px 12px;">
-                    Official Imprint
+                  <button class="btn btn-outline copy-petition-frame-btn" data-petition-id="${petition.petitionId}" style="font-size: 12px; padding: 6px 10px; display: flex; align-items: center; gap: 4px;" title="Copy shareable petition paper frame link">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">filter_frames</span> Frame Link
+                  </button>
+                  <a href="#/petition-frame?id=${petition.petitionId}" class="btn btn-outline view-imprint-btn" style="font-size: 12px; padding: 6px 10px;">
+                    📜 Paper Mode
                   </a>
                   <button class="btn sign-petition-feed-btn" data-petition-id="${petition.petitionId}" style="font-size: 12px; padding: 6px 14px;" ${isSigned ? 'disabled' : ''}>
                     ${isSigned ? '✓ Signed' : '✍️ Sign'}
@@ -201,10 +204,26 @@ export function renderPetitions(container) {
     // Attach card click handlers (navigates to petition imprint document)
     feedContainer.querySelectorAll('.petition-card').forEach(card => {
       card.addEventListener('click', (e) => {
-        if (!e.target.closest('.sign-petition-feed-btn') && !e.target.closest('.view-imprint-btn')) {
+        if (!e.target.closest('.sign-petition-feed-btn') && !e.target.closest('.view-imprint-btn') && !e.target.closest('.copy-petition-frame-btn')) {
           const petitionId = card.dataset.petitionId;
-          window.location.hash = `#/petition?id=${petitionId}`;
+          window.location.hash = `#/petition-frame?id=${petitionId}`;
         }
+      });
+    });
+
+    // Attach Copy Frame Link button handlers
+    feedContainer.querySelectorAll('.copy-petition-frame-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const petitionId = btn.dataset.petitionId;
+        const frameLink = `${window.location.origin}${window.location.pathname}#/petition-frame?id=${petitionId}`;
+        navigator.clipboard.writeText(frameLink).then(() => {
+          const origText = btn.innerHTML;
+          btn.textContent = '✓ Copied!';
+          setTimeout(() => {
+            btn.innerHTML = origText;
+          }, 2000);
+        });
       });
     });
 
