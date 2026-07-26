@@ -31,21 +31,29 @@ export async function createPost(content) {
 export function subscribeToFeed(limit, callback) {
   const postsRef = ref(db, PATHS.POSTS);
 
-  const listener = onValue(postsRef, (snapshot) => {
-    const posts = [];
-    if (snapshot.exists()) {
-      snapshot.forEach((childSnap) => {
-        const p = childSnap.val();
-        if (p && p.status !== 'AWAITING_MODERATION') {
-          posts.push(p);
-        }
-      });
+  const fetchFeed = async () => {
+    try {
+      const snapshot = await get(postsRef);
+      const posts = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((childSnap) => {
+          const p = childSnap.val();
+          if (p && p.status !== 'AWAITING_MODERATION') {
+            posts.push(p);
+          }
+        });
+      }
+      posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+      callback(posts.slice(0, limit));
+    } catch (err) {
+      console.error('Error fetching feed:', err);
     }
-    posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-    callback(posts.slice(0, limit));
-  });
+  };
 
-  return () => off(postsRef, 'value', listener);
+  fetchFeed(); // Initial fetch
+  const intervalId = setInterval(fetchFeed, 10000); // 10s auto-refresh
+
+  return () => clearInterval(intervalId);
 }
 
 export function subscribeToUserPosts(uid, callback) {
@@ -56,24 +64,30 @@ export function subscribeToUserPosts(uid, callback) {
 
   const postsRef = ref(db, PATHS.POSTS);
 
-  const listener = onValue(postsRef, (snapshot) => {
-    const posts = [];
-    if (snapshot.exists()) {
-      snapshot.forEach((childSnap) => {
-        const p = childSnap.val();
-        if (p && p.authorId === uid) {
-          posts.push(p);
-        }
-      });
+  const fetchUserPosts = async () => {
+    try {
+      const snapshot = await get(postsRef);
+      const posts = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((childSnap) => {
+          const p = childSnap.val();
+          if (p && p.authorId === uid) {
+            posts.push(p);
+          }
+        });
+      }
+      posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+      callback(posts);
+    } catch (err) {
+      console.error('Error fetching user posts:', err);
+      callback([]);
     }
-    posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-    callback(posts);
-  }, (err) => {
-    console.error('Error fetching user posts:', err);
-    callback([]);
-  });
+  };
 
-  return () => off(postsRef, 'value', listener);
+  fetchUserPosts();
+  const intervalId = setInterval(fetchUserPosts, 10000);
+
+  return () => clearInterval(intervalId);
 }
 
 export async function getTrendingHashtags(limit = 5) {

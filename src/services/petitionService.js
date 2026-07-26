@@ -38,19 +38,27 @@ export async function createPetition(data) {
 export function subscribeToPetitions(limit = 20, callback) {
   const petitionsRef = ref(db, PATHS.PETITIONS);
 
-  const listener = onValue(petitionsRef, (snapshot) => {
-    const petitions = [];
-    if (snapshot.exists()) {
-      snapshot.forEach((childSnap) => {
-        const item = childSnap.val();
-        if (item) petitions.push(item);
-      });
+  const fetchPetitions = async () => {
+    try {
+      const snapshot = await get(petitionsRef);
+      const petitions = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((childSnap) => {
+          const item = childSnap.val();
+          if (item) petitions.push(item);
+        });
+      }
+      petitions.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+      callback(petitions.slice(0, limit));
+    } catch (err) {
+      console.error('Error fetching petitions:', err);
     }
-    petitions.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-    callback(petitions.slice(0, limit));
-  });
+  };
 
-  return () => off(petitionsRef, 'value', listener);
+  fetchPetitions();
+  const intervalId = setInterval(fetchPetitions, 10000);
+
+  return () => clearInterval(intervalId);
 }
 
 export async function getPetitionById(petitionId) {

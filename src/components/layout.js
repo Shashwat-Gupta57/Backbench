@@ -199,15 +199,15 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
         <a href="#/notifications" class="mobile-nav-item ${isRoute('#/notifications') ? 'active' : ''}">
           <span class="material-symbols-outlined">notifications</span>
         </a>
-        <a href="#/friends" class="mobile-nav-item ${isRoute('#/friends') ? 'active' : ''}">
-          <span class="material-symbols-outlined">group</span>
-        </a>
         <a href="#/search" class="mobile-nav-item ${isRoute('#/search') ? 'active' : ''}">
           <span class="material-symbols-outlined">search</span>
         </a>
         <a href="${ROUTES.PROFILE}" class="mobile-nav-item ${isRoute(ROUTES.PROFILE) ? 'active' : ''}">
           <span class="material-symbols-outlined">person</span>
         </a>
+        <button id="mobile-sidebar-toggle" class="mobile-nav-item btn-ghost" style="border:none; background:transparent;">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
       </nav>
 
       <!-- Mobile Floating Action Button -->
@@ -468,6 +468,21 @@ export function attachLayoutListeners() {
       if (!e.target.closest('.search-box')) {
         dropdown.style.display = 'none';
       }
+      
+      // Close sidebar if clicking outside of it when active
+      if (document.body.classList.contains('mobile-sidebar-active')) {
+        if (!e.target.closest('.sidebar-container') && !e.target.closest('#mobile-sidebar-toggle')) {
+          document.body.classList.remove('mobile-sidebar-active');
+        }
+      }
+    });
+  }
+
+  // Mobile Sidebar Toggle
+  const mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle');
+  if (mobileSidebarToggle) {
+    mobileSidebarToggle.addEventListener('click', () => {
+      document.body.classList.toggle('mobile-sidebar-active');
     });
   }
 }

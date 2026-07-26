@@ -77,19 +77,27 @@ export async function voteInPoll(pollId, optionIndex) {
 export function subscribeToPolls(limit = 20, callback) {
   const pollsRef = ref(db, PATHS.POLLS);
 
-  const listener = onValue(pollsRef, (snapshot) => {
-    const polls = [];
-    if (snapshot.exists()) {
-      snapshot.forEach((childSnap) => {
-        const p = childSnap.val();
-        if (p) polls.push(p);
-      });
+  const fetchPolls = async () => {
+    try {
+      const snapshot = await get(pollsRef);
+      const polls = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((childSnap) => {
+          const p = childSnap.val();
+          if (p) polls.push(p);
+        });
+      }
+      polls.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+      callback(polls.slice(0, limit));
+    } catch (err) {
+      console.error('Error fetching polls:', err);
     }
-    polls.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-    callback(polls.slice(0, limit));
-  });
+  };
 
-  return () => off(pollsRef, 'value', listener);
+  fetchPolls();
+  const intervalId = setInterval(fetchPolls, 10000);
+
+  return () => clearInterval(intervalId);
 }
 
 // ---- Poll Like / Reshare / Reply ----
