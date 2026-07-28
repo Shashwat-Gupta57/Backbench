@@ -13,7 +13,10 @@
       }
     },
     "posts": {
-      ".indexOn": ["timestamp", "authorId"],
+      ".indexOn": [
+        "timestamp",
+        "authorId"
+      ],
       "$postId": {
         ".write": "auth != null",
         "authorId": {
@@ -31,7 +34,9 @@
       }
     },
     "replies": {
-      ".indexOn": ["timestamp"],
+      ".indexOn": [
+        "timestamp"
+      ],
       "_global_last_reply": {
         ".write": "auth != null"
       },
@@ -45,7 +50,9 @@
       }
     },
     "polls": {
-      ".indexOn": ["timestamp"],
+      ".indexOn": [
+        "timestamp"
+      ],
       "$pollId": {
         ".write": "auth != null",
         "creatorId": {
@@ -63,7 +70,9 @@
       }
     },
     "petitions": {
-      ".indexOn": ["timestamp"],
+      ".indexOn": [
+        "timestamp"
+      ],
       "$petitionId": {
         ".write": "auth != null",
         "creatorId": {
@@ -81,12 +90,16 @@
       }
     },
     "announcements": {
-      ".indexOn": ["timestamp"],
+      ".indexOn": [
+        "timestamp"
+      ],
       ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher'"
     },
     "notifications": {
       "$uid": {
-        ".indexOn": ["timestamp"],
+        ".indexOn": [
+          "timestamp"
+        ],
         "$notifId": {
           ".write": "auth != null",
           ".validate": "newData.hasChildren(['senderId', 'type', 'timestamp']) && (newData.child('senderId').val() === auth.uid || $uid === auth.uid)"
@@ -107,6 +120,48 @@
       "$uid": {
         ".write": "$uid === auth.uid"
       }
+    },
+    "postLikes": {
+      ".write": "auth != null"
+    },
+    "postReshares": {
+      ".write": "auth != null"
+    },
+    "replyLikes": {
+      ".write": "auth != null"
+    },
+    "petitionVotes": {
+      ".write": "auth != null"
+    },
+    "pollVotes": {
+      ".write": "auth != null"
+    },
+    "pollLikes": {
+      ".write": "auth != null"
+    },
+    "pollReshares": {
+      ".write": "auth != null"
+    },
+    "pollReplies": {
+      ".write": "auth != null"
+    },
+    "savedPosts": {
+      ".write": "auth != null"
+    },
+    "savedReplies": {
+      ".write": "auth != null"
+    },
+    "events": {
+      ".write": "auth != null"
+    },
+    "postReports": {
+      ".write": "auth != null"
+    },
+    "replyReports": {
+      ".write": "auth != null"
+    },
+    "userReports": {
+      ".write": "auth != null"
     }
   }
 }

@@ -250,7 +250,8 @@ export async function renderPollDetail(container) {
   // Submit poll reply
   submitReplyBtn.addEventListener('click', async () => {
     const text = replyInput.value.trim();
-    const words = text ? text.split(/\\s+/) : [];\n    if (words.length > 0 && words.length <= LIMITS.REPLY_MAX_WORDS) {
+    const words = text ? text.split(/\s+/) : [];
+    if (words.length > 0 && words.length <= LIMITS.REPLY_MAX_WORDS) {
       submitReplyBtn.disabled = true;
       submitReplyBtn.textContent = 'Replying...';
 
