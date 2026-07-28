@@ -2778,11 +2778,11 @@ import{C as e,S as t,T as n,_ as r,a as i,b as a,c as o,d as s,f as c,g as l,h a
       Messages disappear 3 days after they're sent.
     </div>
 
-    <div id="dm-messages-container" style="display: flex; flex-direction: column; gap: 10px; padding: 16px; min-height: 300px;">
+    <div id="dm-messages-container" style="display: flex; flex-direction: column; gap: 10px; padding: 16px; flex: 1; overflow-y: auto;">
       ${K(2)}
     </div>
 
-    <div class="dm-composer" style="display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--border-color); position: sticky; bottom: 0; background: var(--bg-primary);">
+    <div class="dm-composer" style="display: flex; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--border-color); background: var(--bg-primary); flex-shrink: 0;">
       <input type="text" id="dm-input" class="input-field" placeholder="Message @${I(i?.username||`student`)}..." maxlength="${z.DM_MAX_CHARS}" style="margin-bottom: 0; flex: 1;" />
       <button id="dm-send-btn" class="btn" disabled>
         <span class="material-symbols-outlined" style="font-size: 18px;">send</span>
