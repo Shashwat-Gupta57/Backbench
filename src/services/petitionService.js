@@ -7,7 +7,7 @@ export async function createPetition(data) {
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
 
-  const { title, statement, category, targetRecipient, goalSignatures } = data;
+  const { title, statement, category, targetRecipient, goalSignatures, isAnonymous } = data;
 
   if (!title || title.trim().length === 0) {
     throw new Error('Petition title is required.');
@@ -27,6 +27,7 @@ export async function createPetition(data) {
     targetRecipient: targetRecipient?.trim() || "St. Joseph's College Administration",
     goalSignatures: parseInt(goalSignatures) || 100,
     signatureCount: 0,
+    isAnonymous: isAnonymous || false,
     timestamp: new Date().toISOString(),
     status: 'ACTIVE'
   };
@@ -35,30 +36,24 @@ export async function createPetition(data) {
   return petitionData;
 }
 
-export function subscribeToPetitions(limit = 20, callback) {
+export function subscribeToPetitions(limitCount = 20, callback) {
   const petitionsRef = ref(db, PATHS.PETITIONS);
 
-  const fetchPetitions = async () => {
-    try {
-      const snapshot = await get(petitionsRef);
-      const petitions = [];
-      if (snapshot.exists()) {
-        snapshot.forEach((childSnap) => {
-          const item = childSnap.val();
-          if (item) petitions.push(item);
-        });
-      }
-      petitions.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-      callback(petitions.slice(0, limit));
-    } catch (err) {
-      console.error('Error fetching petitions:', err);
+  const listener = onValue(petitionsRef, (snapshot) => {
+    const petitions = [];
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap) => {
+        const item = childSnap.val();
+        if (item) petitions.push(item);
+      });
     }
-  };
+    petitions.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+    callback(petitions.slice(0, limitCount));
+  }, (error) => {
+    console.error('Error fetching petitions:', error);
+  });
 
-  fetchPetitions();
-  const intervalId = setInterval(fetchPetitions, 10000);
-
-  return () => clearInterval(intervalId);
+  return () => off(petitionsRef, 'value', listener);
 }
 
 export async function getPetitionById(petitionId) {

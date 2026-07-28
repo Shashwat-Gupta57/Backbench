@@ -104,22 +104,39 @@ export function renderNotifications(container) {
     notifs.forEach(n => {
       const isUnread = !n.read;
       const isModeration = n.type === 'MODERATION';
+      const isFriendRequest = n.type === 'FRIEND_REQUEST';
+      let icon = 'notifications';
+      let iconColor = 'var(--accent-primary)';
+      let badgeText = 'NOTIFICATION';
+      let badgeStyle = '';
+      
+      if (isModeration) {
+        icon = 'warning';
+        iconColor = 'var(--error-color)';
+        badgeText = 'MODERATION ALERT';
+        badgeStyle = 'background: rgba(244, 33, 46, 0.2); color: var(--error-color); border-color: var(--error-color);';
+      } else if (isFriendRequest) {
+        icon = 'person_add';
+        iconColor = 'var(--success-color)';
+        badgeText = 'NEW FRIEND';
+        badgeStyle = 'background: rgba(0, 186, 124, 0.2); color: var(--success-color); border-color: var(--success-color);';
+      }
 
       html += `
         <div class="card fade-in notif-item" data-notif-id="${n.notificationId}" data-post-id="${n.postId || ''}" style="padding: 16px; border-radius: 16px; margin-bottom: 12px; border: ${isUnread ? '2px solid var(--accent-primary)' : '1px solid var(--border-color)'}; background: ${isUnread ? 'rgba(29, 155, 240, 0.05)' : 'var(--bg-secondary)'}; cursor: pointer; transition: all 0.2s ease;">
           <div style="display: flex; gap: 12px; align-items: flex-start;">
-            <div style="width: 38px; height: 38px; border-radius: 50%; background: ${isModeration ? 'rgba(244, 33, 46, 0.15)' : 'var(--bg-tertiary)'}; display: flex; align-items: center; justify-content: center; color: ${isModeration ? 'var(--error-color)' : 'var(--accent-primary)'}; flex-shrink: 0;">
+            <div style="width: 38px; height: 38px; border-radius: 50%; background: ${isModeration ? 'rgba(244, 33, 46, 0.15)' : (isFriendRequest ? 'rgba(0, 186, 124, 0.15)' : 'var(--bg-tertiary)')}; display: flex; align-items: center; justify-content: center; color: ${iconColor}; flex-shrink: 0;">
               <span class="material-symbols-outlined" style="font-size: 20px;">
-                ${isModeration ? 'warning' : 'notifications'}
+                ${icon}
               </span>
             </div>
 
             <div style="flex: 1; min-width: 0;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <span class="brand-badge" style="font-size: 10px; ${isModeration ? 'background: rgba(244, 33, 46, 0.2); color: var(--error-color); border-color: var(--error-color);' : ''}">
-                  ${isModeration ? 'MODERATION ALERT' : 'NOTIFICATION'}
+                <span class="brand-badge" style="font-size: 10px; ${badgeStyle}">
+                  ${badgeText}
                 </span>
-                <span style="font-size: 12px; color: var(--text-secondary);">${formatTimeAgo(n.timestamp)}</span>
+                <span class="time-ago" data-timestamp="${n.timestamp}" style="font-size: 12px; color: var(--text-secondary);">${formatTimeAgo(n.timestamp)}</span>
               </div>
 
               <div style="font-size: 14px; line-height: 1.4; color: var(--text-primary); font-weight: ${isUnread ? '700' : '400'};">

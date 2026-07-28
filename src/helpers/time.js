@@ -15,3 +15,13 @@ export function formatTimeAgo(timestamp) {
   if (seconds < 10) return "just now";
   return Math.floor(seconds) + " seconds ago";
 }
+
+// Automatically tick any timestamps in the DOM
+setInterval(() => {
+  document.querySelectorAll('.time-ago[data-timestamp]').forEach(el => {
+    const ts = el.getAttribute('data-timestamp');
+    if (ts) {
+      el.textContent = formatTimeAgo(ts);
+    }
+  });
+}, 60000);

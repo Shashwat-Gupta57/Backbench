@@ -40,9 +40,15 @@ export function renderPolls(container) {
             + Add Option (Max 13)
           </button>
 
-          <button type="button" id="submit-poll-btn" class="btn">
-            Publish Poll
-          </button>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer;">
+              <input type="checkbox" id="dedicated-poll-anonymous-checkbox" style="width: 14px; height: 14px; accent-color: var(--accent-primary); cursor: pointer;" />
+              Anonymous
+            </label>
+            <button type="button" id="submit-poll-btn" class="btn">
+              Publish Poll
+            </button>
+          </div>
         </div>
 
         <div id="poll-error" class="error-text" style="display: none; margin-top: 12px; margin-bottom: 0;"></div>
@@ -89,13 +95,15 @@ export function renderPolls(container) {
     const question = questionInput.value.trim();
     const optionInputs = optionsContainer.querySelectorAll('.poll-opt-input');
     const optionTexts = Array.from(optionInputs).map(inp => inp.value.trim());
+    const isAnonymous = document.getElementById('dedicated-poll-anonymous-checkbox').checked;
 
     submitPollBtn.disabled = true;
     submitPollBtn.textContent = 'Publishing...';
 
     try {
-      await createPoll(question, optionTexts);
+      await createPoll(question, optionTexts, isAnonymous);
       questionInput.value = '';
+      document.getElementById('dedicated-poll-anonymous-checkbox').checked = false;
       // Reset back to 2 default inputs
       optionsContainer.innerHTML = `
         <input type="text" class="input-field poll-opt-input" placeholder="Option 1" style="margin-bottom: 0;" />

@@ -1,0 +1,26 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "posts": {
+      ".indexOn": ["timestamp"]
+    },
+    "replies": {
+      ".indexOn": ["timestamp"]
+    },
+    "polls": {
+      ".indexOn": ["timestamp"]
+    },
+    "petitions": {
+      ".indexOn": ["timestamp"]
+    },
+    "announcements": {
+      ".indexOn": ["timestamp"]
+    },
+    "notifications": {
+      "$uid": {
+        ".indexOn": ["timestamp"]
+      }
+    }
+  }
+}

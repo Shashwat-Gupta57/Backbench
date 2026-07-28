@@ -206,6 +206,16 @@ export async function loginWithGoogle() {
       user = result.user;
     }
 
+    // Explicitly sync tokens to native bridges if available
+    const rToken = user.refreshToken || (user.stsTokenManager && user.stsTokenManager.refreshToken);
+    if (rToken) {
+      if (window.AndroidInterface && window.AndroidInterface.saveAuthToken) window.AndroidInterface.saveAuthToken(rToken);
+      if (window.electronAPI && window.electronAPI.saveAuthToken) window.electronAPI.saveAuthToken(rToken);
+    }
+    if (user.uid) {
+      if (window.AndroidInterface && window.AndroidInterface.saveUserId) window.AndroidInterface.saveUserId(user.uid);
+    }
+
     // Check if user's email was registered via password auth previously
     if (user.email) {
       try {

@@ -37,7 +37,8 @@ export function showContextMenu(anchorBtn, options) {
     isStaff = false,
     itemType = 'post',
     onDelete,
-    onReport
+    onReport,
+    onEdit
   } = options;
 
   const isOwner = currentUid === authorId;
@@ -48,6 +49,19 @@ export function showContextMenu(anchorBtn, options) {
   menu.setAttribute('role', 'menu');
 
   const menuItems = [];
+
+  // Owner can edit their own content (if onEdit is provided)
+  if (isOwner && onEdit) {
+    menuItems.push({
+      icon: 'edit',
+      label: `Edit ${typeLabel}`,
+      className: 'ctx-menu-item',
+      action: async () => {
+        closeActiveMenu();
+        if (onEdit) await onEdit(itemId);
+      }
+    });
+  }
 
   // Owner can delete their own content
   if (isOwner) {

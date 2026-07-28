@@ -451,9 +451,12 @@
   /* Make sidebar contents visible again */
   body.mobile-sidebar-active .brand-text, 
   body.mobile-sidebar-active .brand-badge, 
-  body.mobile-sidebar-active .brand-text-container, 
   body.mobile-sidebar-active .sidebar-label, 
-  body.mobile-sidebar-active .sidebar-post-text, 
+  body.mobile-sidebar-active .sidebar-post-text {
+    display: inline;
+  }
+
+  body.mobile-sidebar-active .brand-text-container, 
   body.mobile-sidebar-active .user-mini-info {
     display: flex;
   }
@@ -480,4 +483,25 @@
 @keyframes slideInLeft {
   from { transform: translateX(-100%); }
   to { transform: translateX(0); }
+}
+
+.edit-profile-modal-content {
+  width: 100%;
+  max-width: 540px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  border-radius: 24px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.8);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .edit-profile-modal-content {
+    max-height: 100%;
+    height: 100%;
+    border-radius: 0;
+    padding: 16px;
+  }
 }

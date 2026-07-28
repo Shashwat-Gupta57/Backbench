@@ -8,8 +8,27 @@ import { showContextMenu } from '../components/ContextMenu.js';
 import { createPetitionCardHTML } from '../components/PetitionCard.js';
 import { ROUTES } from '../constants/routes.js';
 import { auth } from '../firebase/firebase.js';
+import { renderFeedSkeletons } from '../components/Skeleton.js';
 
 let petitionsUnsubscribe = null;
+
+/** Smoothly animate a card out and remove from DOM */
+function smoothRemoveCard(cardEl) {
+  if (!cardEl) return;
+  const wrapper = cardEl.closest('.feed-item-wrapper') || cardEl;
+  wrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease, max-height 0.4s ease 0.1s, margin 0.4s ease 0.1s, padding 0.4s ease 0.1s';
+  wrapper.style.overflow = 'hidden';
+  wrapper.style.maxHeight = wrapper.offsetHeight + 'px';
+  wrapper.offsetHeight;
+  wrapper.style.opacity = '0';
+  wrapper.style.transform = 'scale(0.95)';
+  wrapper.style.maxHeight = '0px';
+  wrapper.style.marginTop = '0px';
+  wrapper.style.marginBottom = '0px';
+  wrapper.style.paddingTop = '0px';
+  wrapper.style.paddingBottom = '0px';
+  setTimeout(() => wrapper.remove(), 450);
+}
 
 export function renderPetitions(container) {
   if (!auth.currentUser) {
@@ -67,7 +86,11 @@ export function renderPetitions(container) {
 
           <div id="petition-error" class="error-text" style="display: none; margin-bottom: 8px;"></div>
 
-          <div style="display: flex; justify-content: flex-end;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer;">
+              <input type="checkbox" id="petition-anonymous-checkbox" style="width: 14px; height: 14px; accent-color: var(--accent-primary); cursor: pointer;" />
+              Post anonymously
+            </label>
             <button type="submit" id="submit-petition-btn" class="btn" style="font-weight: 700;">
               Launch Petition
             </button>
@@ -100,17 +123,19 @@ export function renderPetitions(container) {
     const goalSignatures = document.getElementById('petition-goal').value;
     const targetRecipient = document.getElementById('petition-recipient').value.trim();
     const statement = document.getElementById('petition-statement').value.trim();
+    const isAnonymous = document.getElementById('petition-anonymous-checkbox').checked;
 
     submitBtn.disabled = true;
     submitBtn.textContent = 'Publishing...';
 
     try {
       await createPetition({
-        title, category, goalSignatures, targetRecipient, statement
+        title, category, goalSignatures, targetRecipient, statement, isAnonymous
       });
 
       form.reset();
       document.getElementById('petition-recipient').value = "St. Joseph's College Administration";
+      document.getElementById('petition-anonymous-checkbox').checked = false;
     } catch (err) {
       errorDiv.textContent = err.message || 'Failed to create petition.';
       errorDiv.style.display = 'block';
@@ -138,14 +163,26 @@ export function renderPetitions(container) {
     const currentUid = auth.currentUser.uid;
     let html = '';
 
-    for (const petition of petitions) {
-      const author = await getUserProfile(petition.creatorId);
-      const isSigned = await hasUserSignedPetition(petition.petitionId, currentUid);
+    try {
+      for (const petition of petitions) {
+        const author = await getUserProfile(petition.creatorId);
+        const isSigned = await hasUserSignedPetition(petition.petitionId, currentUid);
 
-      html += createPetitionCardHTML(petition, author, isSigned);
+        html += createPetitionCardHTML(petition, author, isSigned);
+      }
+
+      feedContainer.innerHTML = html;
+    } catch (err) {
+      console.error('Error rendering petitions feed:', err);
+      feedContainer.innerHTML = `
+        <div style="padding: 40px 20px; text-align: center; color: var(--error-color);">
+          <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px;">error_outline</span>
+          <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">Failed to load petitions</h3>
+          <p style="font-size: 14px; color: var(--text-secondary);">${escapeHTML(err.message)}</p>
+        </div>
+      `;
+      return;
     }
-
-    feedContainer.innerHTML = html;
 
     // Attach card click handlers (navigates to petition imprint document)
     feedContainer.querySelectorAll('.petition-card').forEach(card => {
@@ -214,11 +251,7 @@ export function renderPetitions(container) {
               } else if (isStaff) {
                 await deletePetitionAsStaff(id);
               }
-              const card = btn.closest('.petition-card');
-              if (card) {
-                card.style.opacity = '0.3';
-                card.style.pointerEvents = 'none';
-              }
+              smoothRemoveCard(btn.closest('.petition-card'));
             } catch (err) {
               alert(err.message || 'Failed to delete petition.');
             }

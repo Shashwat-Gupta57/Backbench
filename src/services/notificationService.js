@@ -9,8 +9,9 @@ export async function sendNotification(targetUid, notificationData) {
   const newNotif = {
     notificationId: notifRef.key,
     text: notificationData.text,
-    type: notificationData.type || 'SYSTEM', // 'SYSTEM' | 'REPORT' | 'MODERATION'
+    type: notificationData.type || 'SYSTEM', // 'SYSTEM' | 'REPORT' | 'MODERATION' | 'FRIEND_REQUEST'
     postId: notificationData.postId || null,
+    senderId: notificationData.senderId || null,
     read: false,
     timestamp: new Date().toISOString()
   };

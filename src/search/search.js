@@ -1,5 +1,6 @@
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
-import { searchCampusUsers, toggleAddFriend, isFriend } from '../services/searchService.js';
+import { searchCampusUsers } from '../services/searchService.js';
+import { toggleAddFriend, isFriend } from '../services/friendService.js';
 import { escapeHTML } from '../helpers/formatters.js';
 
 export function renderSearch(container) {

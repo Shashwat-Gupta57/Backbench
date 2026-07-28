@@ -10,6 +10,8 @@ export function getUserFontFamily(userOrFontId) {
   let fontId = 'default';
   if (typeof userOrFontId === 'string') {
     fontId = userOrFontId;
+  } else if (userOrFontId && userOrFontId.fontId) {
+    fontId = userOrFontId.fontId;
   } else if (userOrFontId && userOrFontId.fontThemeId) {
     fontId = userOrFontId.fontThemeId;
   }

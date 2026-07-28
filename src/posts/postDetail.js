@@ -1,5 +1,5 @@
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
-import { getPostById, createReply, subscribeToReplies } from '../services/replyService.js';
+import { getPostById, subscribeToReplies, createReply, isReplySaved, toggleSavedReply } from '../services/replyService.js';
 import { getUserProfile, toggleLikePost, getRelatedPosts, deleteOwnPost } from '../services/postService.js';
 import { deletePostAsStaff } from '../services/adminService.js';
 import { reportPost } from '../services/reportService.js';
@@ -20,6 +20,8 @@ export async function renderPostDetail(container) {
     window.location.hash = '#/login';
     return;
   }
+
+  const currentUid = auth.currentUser.uid;
 
   // Skeleton view during initial load
   container.innerHTML = createLayout(`
@@ -57,16 +59,76 @@ export async function renderPostDetail(container) {
   const currentUser = auth.currentUser;
   const currentAvatarHTML = renderUserAvatar(currentUser.photoURL || '', 40);
 
-  const authorAvatarHTML = renderUserAvatar(author, 48, 'border: 1px solid var(--border-color);');
-  const name = author?.name ? escapeHTML(author.name) : 'Anonymous Student';
-  const username = author?.username ? escapeHTML(author.username) : 'student';
-  const isTeacher = author?.isTeacher || author?.role === 'teacher';
-  const verified = author?.verifiedStudent || author?.role === 'staff' || author?.role === 'admin' || isTeacher;
-  const authorFont = getUserFontFamily(author);
+  const isAnon = post.isAnonymous === true;
+
+  const authorAvatarHTML = isAnon
+    ? `<div class="avatar" style="width: 48px; height: 48px; font-size: 22px; background: linear-gradient(135deg, #6366f1, #8b5cf6);">🎭</div>`
+    : renderUserAvatar(author, 48, 'border: 1px solid var(--border-color);');
+  const name = isAnon ? 'Anonymous 1' : (author?.name ? escapeHTML(author.name) : 'Anonymous Student');
+  const username = isAnon ? 'anonymous' : (author?.username ? escapeHTML(author.username) : 'student');
+  const isTeacher = !isAnon && (author?.isTeacher || author?.role === 'teacher');
+  const verified = !isAnon && (author?.verifiedStudent || author?.role === 'staff' || author?.role === 'admin' || isTeacher);
+  const authorFont = isAnon ? "'Inter', sans-serif" : getUserFontFamily(author);
+
+  // Build UID → Anonymous Number map for this post context
+  // OP is always Anonymous 1
+  const anonMap = new Map();
+  anonMap.set(post.authorId, 1);
+  let anonCounter = 2;
+
+  function getAnonNumber(uid) {
+    if (!anonMap.has(uid)) {
+      anonMap.set(uid, anonCounter++);
+    }
+    return anonMap.get(uid);
+  }
+
+  function getAnonAvatar(num) {
+    // Rotate through a set of gradient colors for visual distinction
+    const gradients = [
+      'linear-gradient(135deg, #6366f1, #8b5cf6)',
+      'linear-gradient(135deg, #f97316, #ef4444)',
+      'linear-gradient(135deg, #14b8a6, #06b6d4)',
+      'linear-gradient(135deg, #ec4899, #f43f5e)',
+      'linear-gradient(135deg, #eab308, #f97316)',
+      'linear-gradient(135deg, #22c55e, #10b981)',
+      'linear-gradient(135deg, #3b82f6, #6366f1)',
+      'linear-gradient(135deg, #a855f7, #ec4899)',
+    ];
+    const grad = gradients[(num - 1) % gradients.length];
+    return `<div class="avatar" style="width: 38px; height: 38px; font-size: 14px; background: ${grad}; font-weight: 800;">A${num}</div>`;
+  }
 
   const postDate = new Date(post.timestamp || Date.now());
   const formattedTime = postDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const formattedDate = postDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  const authorMetaHTML = isAnon
+    ? `<div style="display: flex; align-items: center; gap: 12px;">
+        ${authorAvatarHTML}
+        <div style="display: flex; flex-direction: column;">
+          <span style="font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 4px; font-family: ${authorFont};">
+            ${name}
+          </span>
+          <span style="color: var(--text-secondary); font-size: 14px;">@anonymous</span>
+        </div>
+      </div>`
+    : `<a href="#/profile?u=${username}" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;" title="View @${username}'s profile">
+        ${authorAvatarHTML}
+        <div style="display: flex; flex-direction: column;">
+          <span style="font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 4px; font-family: ${authorFont};">
+            ${name}
+            ${isTeacher ? `
+              <span class="brand-badge" style="font-size: 10px; background: rgba(0, 186, 124, 0.2); color: #00BA7C; border-color: #00BA7C; display: inline-flex; align-items: center; gap: 2px;">
+                <span class="material-symbols-outlined" style="font-size: 12px;">school</span> Faculty
+              </span>
+            ` : verified ? `
+              <span class="material-symbols-outlined verified-icon">verified</span>
+            ` : ''}
+          </span>
+          <span style="color: var(--text-secondary); font-size: 14px;">@${username}</span>
+        </div>
+      </a>`;
 
   const content = `
     <!-- Header -->
@@ -83,22 +145,7 @@ export async function renderPostDetail(container) {
     <article class="fade-in" style="padding: 16px; border-bottom: 1px solid var(--border-color);">
       <!-- Author Meta -->
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-        <a href="#/profile?u=${username}" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;" title="View @${username}'s profile">
-          ${authorAvatarHTML}
-          <div style="display: flex; flex-direction: column;">
-            <span style="font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 4px; font-family: ${authorFont};">
-              ${name}
-              ${isTeacher ? `
-                <span class="brand-badge" style="font-size: 10px; background: rgba(0, 186, 124, 0.2); color: #00BA7C; border-color: #00BA7C; display: inline-flex; align-items: center; gap: 2px;">
-                  <span class="material-symbols-outlined" style="font-size: 12px;">school</span> Faculty
-                </span>
-              ` : verified ? `
-                <span class="material-symbols-outlined verified-icon">verified</span>
-              ` : ''}
-            </span>
-            <span style="color: var(--text-secondary); font-size: 14px;">@${username}</span>
-          </div>
-        </a>
+        ${authorMetaHTML}
 
         <button class="btn-ghost" id="post-detail-options-btn" title="Options">
           <span class="material-symbols-outlined" style="font-size: 20px;">more_horiz</span>
@@ -117,22 +164,21 @@ export async function renderPostDetail(container) {
         <span>${formattedDate}</span>
       </div>
 
-      <!-- Stat Metrics Row -->
-      <div style="padding: 12px 0; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 20px; font-size: 14px;">
-        <div><strong style="color: var(--text-primary);">${post.reshares || 0}</strong> <span style="color: var(--text-secondary);">Reshares</span></div>
-        <div><strong id="post-likes-stat" style="color: var(--text-primary);">${post.likes || 0}</strong> <span style="color: var(--text-secondary);">Likes</span></div>
-      </div>
+
 
       <!-- Interactive Actions Row -->
       <div style="display: flex; justify-content: space-around; padding-top: 12px; border-bottom: 1px solid var(--border-subtle);">
-        <button class="action-btn" title="Reply">
+        <button class="action-btn reply-btn" title="Reply">
           <span class="material-symbols-outlined">chat_bubble</span>
+          <span>${post.replyCount || 0}</span>
         </button>
-        <button class="action-btn" title="Reshare">
+        <button class="action-btn reshare-btn" title="Reshare">
           <span class="material-symbols-outlined">repeat</span>
+          <span class="reshare-count">${post.reshares || 0}</span>
         </button>
         <button class="action-btn like-btn" id="post-detail-like-btn" title="Like">
           <span class="material-symbols-outlined">favorite</span>
+          <span class="like-count" id="post-likes-stat">${post.likes || 0}</span>
         </button>
         <button class="action-btn" title="Share">
           <span class="material-symbols-outlined">share</span>
@@ -205,7 +251,6 @@ export async function renderPostDetail(container) {
   if (optionsBtn) {
     optionsBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const currentUid = auth.currentUser?.uid;
       const currentUserProfile = currentUid ? await getUserProfile(currentUid) : null;
       const isStaff = currentUserProfile?.role === 'staff' || currentUserProfile?.role === 'admin';
 
@@ -320,44 +365,196 @@ export async function renderPostDetail(container) {
       return;
     }
 
-    let html = '';
+    const replyMap = new Map();
+    const rootReplies = [];
 
+    // First pass: Map and initialize children
     for (const reply of replies) {
-      const replyAuthor = await getUserProfile(reply.authorId);
-      const replyAvatar = renderUserAvatar(replyAuthor, 38, 'border: 1px solid var(--border-color);');
-      const rName = replyAuthor?.name ? escapeHTML(replyAuthor.name) : 'Student';
-      const rUsername = replyAuthor?.username ? escapeHTML(replyAuthor.username) : 'student';
-      const rIsTeacher = replyAuthor?.isTeacher || replyAuthor?.role === 'teacher';
-      const rVerified = replyAuthor?.verifiedStudent || replyAuthor?.role === 'staff' || replyAuthor?.role === 'admin' || rIsTeacher;
-      const rFont = getUserFontFamily(replyAuthor);
-
-      html += `
-        <div class="fade-in" style="padding: 16px; border-bottom: 1px solid var(--border-color); display: flex; gap: 12px;">
-          ${replyAvatar}
-          <div style="flex: 1; min-width: 0;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <span style="font-weight: 700; font-size: 14px; color: var(--text-primary); font-family: ${rFont};">${rName}</span>
-                ${rIsTeacher ? `
-                  <span class="brand-badge" style="font-size: 9px; background: rgba(0, 186, 124, 0.2); color: #00BA7C; border-color: #00BA7C;">Faculty</span>
-                ` : rVerified ? `
-                  <span class="material-symbols-outlined verified-icon" style="font-size: 14px;">verified</span>
-                ` : ''}
-                <span style="font-size: 13px; color: var(--text-secondary);">@${rUsername}</span>
-                <span style="color: var(--text-secondary);">·</span>
-                <span style="font-size: 13px; color: var(--text-secondary);">${formatTimeAgo(reply.timestamp)}</span>
-              </div>
-            </div>
-
-            <div style="font-size: 15px; color: var(--text-primary); line-height: 1.4; font-family: ${rFont};">
-              ${renderFormattedContent(reply.content)}
-            </div>
-          </div>
-        </div>
-      `;
+      reply.children = [];
+      replyMap.set(reply.replyId, reply);
     }
 
+    // Second pass: Build hierarchy
+    for (const reply of replies) {
+      if (reply.parentReply && replyMap.has(reply.parentReply)) {
+        replyMap.get(reply.parentReply).children.push(reply);
+      } else {
+        rootReplies.push(reply);
+      }
+    }
+
+    let html = '';
+
+    const renderReplyTree = async (replyList, depth = 0) => {
+      let treeHtml = '';
+      for (const reply of replyList) {
+        const replyAuthor = await getUserProfile(reply.authorId);
+        const isSaved = currentUid ? await isReplySaved(post.postId, reply.replyId, currentUid) : false;
+
+        // If this post is anonymous, mask all reply authors with per-post anonymous numbers
+        let replyAvatar, rName, rUsername, rIsTeacher, rVerified, rFont;
+        
+        if (isAnon) {
+          const num = getAnonNumber(reply.authorId);
+          replyAvatar = getAnonAvatar(num);
+          rName = `Anonymous ${num}`;
+          rUsername = `anonymous_${num}`;
+          rIsTeacher = false;
+          rVerified = false;
+          rFont = "'Inter', sans-serif";
+        } else {
+          replyAvatar = renderUserAvatar(replyAuthor, 38, 'border: 1px solid var(--border-color);');
+          rName = replyAuthor?.name ? escapeHTML(replyAuthor.name) : 'Student';
+          rUsername = replyAuthor?.username ? escapeHTML(replyAuthor.username) : 'student';
+          rIsTeacher = replyAuthor?.isTeacher || replyAuthor?.role === 'teacher';
+          rVerified = replyAuthor?.verifiedStudent || replyAuthor?.role === 'staff' || replyAuthor?.role === 'admin' || rIsTeacher;
+          rFont = getUserFontFamily(replyAuthor);
+        }
+
+        const marginLeft = depth > 0 ? `${Math.min(depth * 32, 64)}px` : '0px';
+        const borderLeft = depth > 0 ? 'border-left: 2px solid var(--border-color); border-bottom: none;' : 'border-bottom: 1px solid var(--border-color);';
+
+        treeHtml += `
+          <div class="fade-in reply-item-container" data-reply-id="${reply.replyId}" style="padding: 16px 16px 16px ${depth === 0 ? '16px' : '0'}; ${borderLeft} margin-left: ${marginLeft}; display: flex; gap: 12px; position: relative;">
+            ${depth > 0 ? '<div style="position: absolute; left: -18px; top: 24px; width: 16px; height: 2px; background: var(--border-color);"></div>' : ''}
+            ${replyAvatar}
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <span style="font-weight: 700; font-size: 14px; color: var(--text-primary); font-family: ${rFont};">${rName}</span>
+                  ${rIsTeacher ? `
+                    <span class="brand-badge" style="font-size: 9px; background: rgba(0, 186, 124, 0.2); color: #00BA7C; border-color: #00BA7C;">Faculty</span>
+                  ` : rVerified ? `
+                    <span class="material-symbols-outlined verified-icon" style="font-size: 14px;">verified</span>
+                  ` : ''}
+                  <span style="font-size: 13px; color: var(--text-secondary);">@${rUsername}</span>
+                  <span style="color: var(--text-secondary);">·</span>
+                  <span class="time-ago" data-timestamp="${reply.timestamp}" style="font-size: 13px; color: var(--text-secondary);">${formatTimeAgo(reply.timestamp)}</span>
+                  ${reply.edited ? `<span style="font-size: 11px; color: var(--text-secondary); margin-left: 4px; font-style: italic;">(edited)</span>` : ''}
+                </div>
+              </div>
+
+              <div class="reply-content-box" style="font-size: 15px; color: var(--text-primary); line-height: 1.4; font-family: ${rFont};">
+                ${renderFormattedContent(reply.content)}
+              </div>
+
+              <div style="display: flex; gap: 16px; margin-top: 8px;">
+                <button class="btn-ghost inline-reply-btn" data-reply-id="${reply.replyId}" style="font-size: 12px; color: var(--text-secondary); padding: 4px; display: flex; align-items: center; gap: 4px;">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">chat_bubble</span> Reply
+                </button>
+                <button class="btn-ghost inline-save-btn ${isSaved ? 'saved' : ''}" data-reply-id="${reply.replyId}" style="font-size: 12px; color: ${isSaved ? 'var(--accent-primary)' : 'var(--text-secondary)'}; padding: 4px; display: flex; align-items: center; gap: 4px;" title="Bookmark">
+                  <span class="material-symbols-outlined" style="font-size: 16px;">bookmark</span>
+                </button>
+                ${reply.authorId === currentUid ? `
+                  <button class="btn-ghost inline-edit-reply-btn" data-reply-id="${reply.replyId}" style="font-size: 12px; color: var(--text-secondary); padding: 4px; display: flex; align-items: center; gap: 4px;" title="Edit">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">edit</span> Edit
+                  </button>
+                ` : ''}
+              </div>
+
+              <div class="inline-composer-container" id="composer-for-${reply.replyId}" style="display: none; margin-top: 12px;">
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" class="input-field inline-reply-input" placeholder="Reply to @${rUsername}..." style="font-size: 14px; padding: 8px 12px;" />
+                  <button class="btn submit-inline-reply-btn" data-reply-id="${reply.replyId}" style="padding: 8px 16px;">Send</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        if (reply.children.length > 0) {
+          treeHtml += await renderReplyTree(reply.children, depth + 1);
+        }
+      }
+      return treeHtml;
+    };
+
+    html = await renderReplyTree(rootReplies);
     repliesContainer.innerHTML = html;
+
+    // Attach inline reply listeners
+    repliesContainer.querySelectorAll('.inline-reply-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const replyId = btn.dataset.replyId;
+        const composer = document.getElementById(`composer-for-${replyId}`);
+        if (composer) {
+          composer.style.display = composer.style.display === 'none' ? 'block' : 'none';
+          if (composer.style.display === 'block') {
+            composer.querySelector('.inline-reply-input').focus();
+          }
+        }
+      });
+    });
+
+    repliesContainer.querySelectorAll('.submit-inline-reply-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const replyId = btn.dataset.replyId;
+        const composer = document.getElementById(`composer-for-${replyId}`);
+        const input = composer.querySelector('.inline-reply-input');
+        const text = input.value.trim();
+
+        if (text) {
+          btn.disabled = true;
+          btn.textContent = '...';
+          try {
+            const { createReply } = await import('../services/replyService.js');
+            await createReply(post.postId, text, replyId);
+            input.value = '';
+            composer.style.display = 'none';
+          } catch (err) {
+            console.error(err);
+            alert('Failed to send reply.');
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Send';
+          }
+        }
+      });
+    });
+
+    repliesContainer.querySelectorAll('.inline-edit-reply-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const replyId = btn.dataset.replyId;
+        const container = btn.closest('.reply-item-container');
+        const contentBox = container.querySelector('.reply-content-box');
+        if (!contentBox) return;
+
+        const currentText = contentBox.innerText;
+        const newText = prompt('Edit your reply:', currentText);
+        if (newText !== null && newText.trim() !== currentText.trim()) {
+          try {
+            const { editReply } = await import('../services/replyService.js');
+            await editReply(post.postId, replyId, newText);
+          } catch (err) {
+            console.error(err);
+            alert(err.message || 'Failed to edit reply.');
+          }
+        }
+      });
+    });
+
+    repliesContainer.querySelectorAll('.inline-save-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const replyId = btn.dataset.replyId;
+        btn.disabled = true;
+
+        try {
+          const isSaved = await toggleSavedReply(post.postId, replyId);
+          if (isSaved) {
+            btn.classList.add('saved');
+            btn.style.color = 'var(--accent-primary)';
+          } else {
+            btn.classList.remove('saved');
+            btn.style.color = 'var(--text-secondary)';
+          }
+        } catch (err) {
+          console.error(err);
+          alert(err.message || 'Failed to save reply.');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
   });
 }
 

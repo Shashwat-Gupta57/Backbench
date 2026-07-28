@@ -2,11 +2,15 @@ import { ROUTES } from '../constants/routes.js';
 import { auth, db } from '../firebase/firebase.js';
 import { ref, get } from 'firebase/database';
 import { logoutUser } from '../services/authService.js';
-import { searchCampusUsers, toggleAddFriend, isFriend } from '../services/searchService.js';
+import { searchCampusUsers } from '../services/searchService.js';
+import { toggleAddFriend, isFriend } from '../services/friendService.js';
 import { getTrendingHashtags } from '../services/postService.js';
 import { subscribeToUserNotifications } from '../services/notificationService.js';
+import { subscribeToAnnouncements } from '../services/announcementService.js';
 import { getSavedAccounts, switchToAccount, removeSavedAccount, logoutAllAccounts } from '../services/multiAccountService.js';
 import { escapeHTML } from '../helpers/formatters.js';
+import { formatTimeAgo } from '../helpers/time.js';
+import { renderUserAvatar } from '../helpers/avatar.js';
 
 function isRoute(route) {
   return window.location.hash.split('?')[0] === route || (route === ROUTES.HOME && (!window.location.hash || window.location.hash === '#/'));
@@ -85,6 +89,11 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
               <span class="material-symbols-outlined">settings</span>
               <span class="sidebar-label">Settings</span>
             </a>
+
+            <a href="https://github.com/Shashwat-Gupta57/Backbench/releases/download/v2.0.0/Backbench.apk" class="nav-item" target="_blank" rel="noopener noreferrer" style="color: var(--success-color);">
+              <span class="material-symbols-outlined">android</span>
+              <span class="sidebar-label">Install App</span>
+            </a>
             
             ${userRole === 'admin' ? `
               <a href="${ROUTES.ADMIN}" class="nav-item ${isRoute(ROUTES.ADMIN) ? 'active' : ''}">
@@ -109,7 +118,9 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
         <div style="position: relative; margin-top: auto;">
           <div class="sidebar-user-profile" id="user-menu-btn" title="Account Switcher">
             <div class="user-mini-info">
-              <div class="avatar" style="width: 38px; height: 38px; font-size: 15px;">${avatarInitial}</div>
+              <div id="sidebar-user-avatar-container">
+                <div class="avatar" style="width: 38px; height: 38px; font-size: 15px;">${avatarInitial}</div>
+              </div>
               <div style="display: flex; flex-direction: column;">
                 <span class="user-mini-name">${escapeHTML(userName)}</span>
                 <span class="user-mini-handle">@${escapeHTML(userName.toLowerCase().replace(/\s+/g, ''))}</span>
@@ -170,15 +181,8 @@ export function createLayout(mainContentHTML, currentRoute = '', userRole = 'stu
             <span>SJC Campus Updates</span>
             <span class="material-symbols-outlined" style="color: var(--accent-primary); font-size: 20px;">verified</span>
           </div>
-          <div style="display: flex; flex-direction: column; gap: 12px; font-size: 14px;">
-            <div style="padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle);">
-              <div style="color: var(--text-secondary); font-size: 12px; font-weight: 600;">ANNOUNCEMENT · 2h ago</div>
-              <div style="font-weight: 600; margin-top: 2px;">Mid-Semester Exam Timetable Released</div>
-            </div>
-            <div>
-              <div style="color: var(--text-secondary); font-size: 12px; font-weight: 600;">CAMPUS EVENT · Tomorrow</div>
-              <div style="font-weight: 600; margin-top: 2px;">Annual Inter-Class Coding Hackathon 2026</div>
-            </div>
+          <div id="campus-updates-widget-container" style="display: flex; flex-direction: column; gap: 12px; font-size: 14px;">
+            <div style="color: var(--text-secondary); font-size: 13px;">Loading official updates...</div>
           </div>
         </div>
 
@@ -225,6 +229,19 @@ export function attachLayoutListeners() {
   const savedAccountsList = document.getElementById('saved-accounts-list');
   const logoutCurrentBtn = document.getElementById('logout-current-btn');
   const logoutAllBtn = document.getElementById('logout-all-btn');
+
+  if (currentUser) {
+    import('../services/postService.js').then(module => {
+      module.getUserProfile(currentUser.uid).then(profile => {
+        if (profile) {
+          const sidebarAvatarContainer = document.getElementById('sidebar-user-avatar-container');
+          if (sidebarAvatarContainer) {
+            sidebarAvatarContainer.innerHTML = renderUserAvatar(profile, 38);
+          }
+        }
+      });
+    });
+  }
 
   // Toggle Multi-Account Popover Menu
   if (userMenuBtn && popover && savedAccountsList) {
@@ -377,6 +394,37 @@ export function attachLayoutListeners() {
       });
       trendingContainer.innerHTML = html;
     }).catch(err => console.error(err));
+  }
+
+  // Dynamic Announcements Widget Loading
+  const announcementsContainer = document.getElementById('campus-updates-widget-container');
+  if (announcementsContainer) {
+    if (window.layoutAnnouncementsUnsub) window.layoutAnnouncementsUnsub();
+    window.layoutAnnouncementsUnsub = subscribeToAnnouncements(2, (announcements) => {
+      if (!announcements || announcements.length === 0) {
+        announcementsContainer.innerHTML = `<div style="color: var(--text-secondary); font-size: 13px;">No recent official updates.</div>`;
+        return;
+      }
+      
+      let html = '';
+      announcements.forEach((a, idx) => {
+        const isLast = idx === announcements.length - 1;
+        let severityColor = 'var(--accent-primary)';
+        if (a.severity === 'warning') severityColor = '#F59E0B';
+        if (a.severity === 'alert') severityColor = 'var(--error-color)';
+        
+        html += `
+          <div style="padding-bottom: ${isLast ? '0' : '8px'}; border-bottom: ${isLast ? 'none' : '1px solid var(--border-subtle)'}; cursor: pointer;" onclick="window.location.hash='${ROUTES.ANNOUNCEMENTS}'">
+            <div style="color: var(--text-secondary); font-size: 11px; font-weight: 700; display: flex; justify-content: space-between;">
+              <span style="color: ${severityColor}; text-transform: uppercase;">${escapeHTML(a.severity)}</span>
+              <span class="time-ago" data-timestamp="${a.timestamp}">${formatTimeAgo(a.timestamp)}</span>
+            </div>
+            <div style="font-weight: 600; margin-top: 2px; color: var(--text-primary); line-height: 1.3;">${escapeHTML(a.title)}</div>
+          </div>
+        `;
+      });
+      announcementsContainer.innerHTML = html;
+    });
   }
 
   // Live Campus Search Logic (Filtered after 3 letters)

@@ -2,7 +2,10 @@ import { db, auth } from '../firebase/firebase.js';
 import { ref, push, set, get, onValue, off, remove, runTransaction } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 
-export async function createPoll(question, options) {
+export async function createPoll(question, options, isAnonymous = false) {
+  if (!question || question.trim().length === 0) throw new Error('Poll must have a question.');
+  if (!options || options.length < 2) throw new Error('Poll must have at least 2 options.');
+
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
 
@@ -30,6 +33,7 @@ export async function createPoll(question, options) {
     likes: 0,
     reshares: 0,
     replyCount: 0,
+    isAnonymous: isAnonymous,
     timestamp: new Date().toISOString()
   };
 
@@ -74,30 +78,24 @@ export async function voteInPoll(pollId, optionIndex) {
   });
 }
 
-export function subscribeToPolls(limit = 20, callback) {
+export function subscribeToPolls(limitCount = 20, callback) {
   const pollsRef = ref(db, PATHS.POLLS);
 
-  const fetchPolls = async () => {
-    try {
-      const snapshot = await get(pollsRef);
-      const polls = [];
-      if (snapshot.exists()) {
-        snapshot.forEach((childSnap) => {
-          const p = childSnap.val();
-          if (p) polls.push(p);
-        });
-      }
-      polls.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-      callback(polls.slice(0, limit));
-    } catch (err) {
-      console.error('Error fetching polls:', err);
+  const listener = onValue(pollsRef, (snapshot) => {
+    const polls = [];
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap) => {
+        const p = childSnap.val();
+        if (p) polls.push(p);
+      });
     }
-  };
+    polls.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+    callback(polls.slice(0, limitCount));
+  }, (error) => {
+    console.error('Error fetching polls:', error);
+  });
 
-  fetchPolls();
-  const intervalId = setInterval(fetchPolls, 10000);
-
-  return () => clearInterval(intervalId);
+  return () => off(pollsRef, 'value', listener);
 }
 
 // ---- Poll Like / Reshare / Reply ----
@@ -192,12 +190,35 @@ export async function createPollReply(pollId, content) {
   await set(replyRef, replyData);
 
   const pollRef = ref(db, `${PATHS.POLLS}/${pollId}`);
+  let pollCreatorId = null;
+  let isAnonymous = false;
+
   await runTransaction(pollRef, (poll) => {
     if (poll) {
       poll.replyCount = (poll.replyCount || 0) + 1;
+      pollCreatorId = poll.creatorId;
+      isAnonymous = poll.isAnonymous;
     }
     return poll;
   });
+
+  if (pollCreatorId && pollCreatorId !== user.uid) {
+    const { sendNotification } = await import('./notificationService.js');
+    const { getUserProfile } = await import('./postService.js');
+    
+    let senderName = 'Someone';
+    if (!isAnonymous) {
+      const myProfile = await getUserProfile(user.uid);
+      senderName = myProfile?.name || 'A student';
+    }
+
+    await sendNotification(pollCreatorId, {
+      text: `${senderName} replied to your poll.`,
+      type: 'SYSTEM',
+      postId: pollId,
+      senderId: user.uid
+    });
+  }
 
   return replyData;
 }

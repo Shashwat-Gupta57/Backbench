@@ -2,20 +2,23 @@ import { renderUserAvatar } from '../helpers/avatar.js';
 import { escapeHTML } from '../helpers/formatters.js';
 
 export function createPetitionCardHTML(petition, author, isSigned) {
-  const avatarHTML = renderUserAvatar(author, 40);
-  const authorName = author?.name ? escapeHTML(author.name) : 'Student Representative';
+  const isAnon = petition.isAnonymous === true;
+  const avatarHTML = isAnon
+    ? `<div class="avatar" style="width: 40px; height: 40px; font-size: 18px; background: linear-gradient(135deg, #6366f1, #8b5cf6);">🎭</div>`
+    : renderUserAvatar(author, 40);
+  const authorName = isAnon ? 'Anonymous Student' : (author?.name ? escapeHTML(author.name) : 'Student Representative');
   const count = petition.signatureCount || 0;
   const goal = petition.goalSignatures || 100;
   const pct = Math.min(100, Math.round((count / goal) * 100));
   const isGoalReached = count >= goal;
-  const authorUsername = author?.username ? escapeHTML(author.username) : 'student';
+  const authorUsername = isAnon ? 'anonymous' : (author?.username ? escapeHTML(author.username) : 'student');
 
   return `
     <article class="card fade-in petition-card" data-petition-id="${petition.petitionId}" style="margin-bottom: 16px; border-radius: var(--border-radius); cursor: pointer;" onclick="if(!event.target.closest('a, button')) window.location.hash='#/petition?id=${petition.petitionId}'">
       <div style="display: flex; gap: 12px; align-items: flex-start;">
-        <a href="#/profile?u=${authorUsername}" style="text-decoration: none; color: inherit; display: inline-flex;" title="View @${authorUsername}'s profile">
+        ${isAnon ? `<div style="display: inline-flex;">${avatarHTML}</div>` : `<a href="#/profile?u=${authorUsername}" style="text-decoration: none; color: inherit; display: inline-flex;" title="View @${authorUsername}'s profile">
           ${avatarHTML}
-        </a>
+        </a>`}
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <div style="display: flex; gap: 8px; align-items: center;">
@@ -49,9 +52,11 @@ export function createPetitionCardHTML(petition, author, isSigned) {
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-            <a href="#/profile?u=${authorUsername}" style="text-decoration: none; color: inherit;" title="View @${authorUsername}'s profile">
+            ${isAnon
+              ? `<span style="font-size: 12px; color: var(--text-secondary);">By <strong>Anonymous Student</strong></span>`
+              : `<a href="#/profile?u=${authorUsername}" style="text-decoration: none; color: inherit;" title="View @${authorUsername}'s profile">
               <span style="font-size: 12px; color: var(--text-secondary);">By <strong>${authorName}</strong> (@${authorUsername})</span>
-            </a>
+            </a>`}
             
             <div style="display: flex; gap: 8px;">
               <button class="btn btn-outline copy-petition-frame-btn" data-petition-id="${petition.petitionId}" style="font-size: 12px; padding: 6px 10px; display: flex; align-items: center; gap: 4px;" title="Copy shareable petition paper frame link">

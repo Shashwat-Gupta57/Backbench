@@ -10,7 +10,10 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
+import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -87,12 +90,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun startPollingService() {
+        Log.i("MainActivity", "STEP A1: startPollingService() ENTER")
         val serviceIntent = Intent(this, FirebasePollingService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Log.i("MainActivity", "STEP A2: calling startForegroundService()")
             startForegroundService(serviceIntent)
         } else {
+            Log.i("MainActivity", "STEP A2: calling startService() (pre-O)")
             startService(serviceIntent)
         }
+        Log.i("MainActivity", "STEP A3: startPollingService() EXIT")
     }
 
     private fun askNotificationPermission() {
@@ -122,11 +129,54 @@ class MainActivity : ComponentActivity() {
     }
 
     inner class WebAppInterface(private val mContext: Context) {
+        
+        private fun updateAuthState(key: String, value: String?) {
+            try {
+                val file = java.io.File(mContext.filesDir, "auth_state.json")
+                val json = if (file.exists()) org.json.JSONObject(file.readText()) else org.json.JSONObject()
+                if (value == null) {
+                    json.remove(key)
+                } else {
+                    json.put(key, value)
+                }
+                file.writeText(json.toString())
+            } catch (e: Exception) {
+                Log.e("WebAppInterface", "Failed to write auth_state.json", e)
+            }
+        }
+
         @JavascriptInterface
         fun signInWithGoogle() {
+            Log.i("WebAppInterface", "STEP B1: signInWithGoogle() called from JS")
             val authUrl = "https://backbench.ddns.net/native-auth.html?callback=backbench://auth"
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
             mContext.startActivity(intent)
+        }
+        @JavascriptInterface
+        fun saveAuthToken(refreshToken: String) {
+            Log.i("WebAppInterface", "STEP B2: saveAuthToken() called from JS, tokenLength=${refreshToken.length}")
+            val prefs = mContext.getSharedPreferences("BackbenchPrefs", Context.MODE_PRIVATE)
+            prefs.edit().putString("firebase_refresh_token", refreshToken).apply()
+            updateAuthState("firebase_refresh_token", refreshToken)
+            Log.i("WebAppInterface", "STEP B3: firebase_refresh_token persisted to SharedPreferences and auth_state.json")
+        }
+
+        @JavascriptInterface
+        fun saveUserId(uid: String) {
+            Log.i("WebAppInterface", "STEP B4: saveUserId() called from JS, uid=$uid")
+            val prefs = mContext.getSharedPreferences("BackbenchPrefs", Context.MODE_PRIVATE)
+            prefs.edit().putString("firebase_uid", uid).apply()
+            updateAuthState("firebase_uid", uid)
+            Log.i("WebAppInterface", "STEP B5: firebase_uid persisted to SharedPreferences and auth_state.json")
+        }
+
+        @JavascriptInterface
+        fun clearUserId() {
+            Log.i("WebAppInterface", "STEP B6: clearUserId() called from JS")
+            val prefs = mContext.getSharedPreferences("BackbenchPrefs", Context.MODE_PRIVATE)
+            prefs.edit().remove("firebase_uid").apply()
+            updateAuthState("firebase_uid", null)
+            updateAuthState("firebase_refresh_token", null)
         }
     }
 }
@@ -144,6 +194,12 @@ fun BackbenchWebView(url: String, modifier: Modifier = Modifier, onWebViewCreate
                     cacheMode = WebSettings.LOAD_DEFAULT
                 }
                 webViewClient = WebViewClient()
+                webChromeClient = object : WebChromeClient() {
+                    override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
+                        Log.i("WebConsole", "${msg.messageLevel()} ${msg.sourceId()}:${msg.lineNumber()} - ${msg.message()}")
+                        return true
+                    }
+                }
                 onWebViewCreated(this)
                 loadUrl(url)
             }

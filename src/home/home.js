@@ -1,5 +1,6 @@
+import { reconcileFeed } from '../utils/dom.js';
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
-import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser, isPostResharedByUser, toggleResharePost, deleteOwnPost } from '../services/postService.js';
+import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser, isPostResharedByUser, toggleResharePost, deleteOwnPost, toggleSavedPost, isPostSaved, editPost } from '../services/postService.js';
 import { createPoll, subscribeToPolls, getUserVote, voteInPoll, toggleLikePoll, isPollLikedByUser, toggleResharePoll, isPollResharedByUser, deleteOwnPoll, deletePollAsStaff } from '../services/pollService.js';
 import { getFriendUids } from '../services/friendService.js';
 import { deletePostAsStaff, deletePetitionAsStaff } from '../services/adminService.js';
@@ -19,6 +20,25 @@ let feedUnsubscribe = null;
 let pollsUnsubscribe = null;
 let petitionsUnsubscribe = null;
 
+/** Smoothly animate a card out of the feed and remove from DOM */
+function smoothRemoveCard(cardEl) {
+  if (!cardEl) return;
+  const wrapper = cardEl.closest('.feed-item-wrapper') || cardEl;
+  wrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease, max-height 0.4s ease 0.1s, margin 0.4s ease 0.1s, padding 0.4s ease 0.1s';
+  wrapper.style.overflow = 'hidden';
+  wrapper.style.maxHeight = wrapper.offsetHeight + 'px';
+  // Force reflow
+  wrapper.offsetHeight;
+  wrapper.style.opacity = '0';
+  wrapper.style.transform = 'scale(0.95)';
+  wrapper.style.maxHeight = '0px';
+  wrapper.style.marginTop = '0px';
+  wrapper.style.marginBottom = '0px';
+  wrapper.style.paddingTop = '0px';
+  wrapper.style.paddingBottom = '0px';
+  setTimeout(() => wrapper.remove(), 450);
+}
+
 export function renderHome(container) {
   if (!auth.currentUser) {
     window.location.hash = '#/login';
@@ -26,7 +46,7 @@ export function renderHome(container) {
   }
 
   const currentUser = auth.currentUser;
-  const avatarHTML = renderUserAvatar(currentUser.photoURL || '', 40);
+  const avatarHTML = `<div id="composer-avatar-container">${renderUserAvatar(currentUser.photoURL || '', 40)}</div>`;
 
   const content = `
     <!-- Sticky Blur Header -->
@@ -63,9 +83,11 @@ export function renderHome(container) {
             <input type="text" class="input-field inline-opt-input" placeholder="Option 2" style="margin-bottom: 0; padding: 8px 12px; font-size: 14px;" />
           </div>
 
-          <button type="button" id="inline-add-opt-btn" class="btn btn-outline" style="font-size: 12px; padding: 4px 10px; margin-top: 4px;">
-            + Add Option (Max 13)
-          </button>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+            <button type="button" id="inline-add-opt-btn" class="btn btn-outline" style="font-size: 12px; padding: 4px 10px;">
+              + Add Option (Max 13)
+            </button>
+          </div>
         </div>
 
         <div class="composer-toolbar">
@@ -81,7 +103,11 @@ export function renderHome(container) {
             </button>
           </div>
 
-          <div class="composer-right">
+          <div class="composer-right" style="display: flex; align-items: center; gap: 12px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer;">
+              <input type="checkbox" id="post-anonymous-checkbox" style="width: 14px; height: 14px; accent-color: var(--accent-primary); cursor: pointer;" />
+              Anonymous
+            </label>
             <span id="char-counter" class="char-ring">0 / ${LIMITS.POST_MAX_LENGTH}</span>
             <button id="post-btn" class="btn" disabled>Post</button>
           </div>
@@ -107,6 +133,11 @@ export function renderHome(container) {
     if (profile) {
       userRole = profile.role || 'student';
       isStaffOrAdmin = userRole === 'staff' || userRole === 'admin';
+
+      const composerAvatar = document.getElementById('composer-avatar-container');
+      if (composerAvatar) {
+        composerAvatar.innerHTML = renderUserAvatar(profile, 40);
+      }
       
       // Update sidebar nav if admin or staff
       if (userRole === 'admin' || userRole === 'staff') {
@@ -225,10 +256,21 @@ export function renderHome(container) {
       postBtn.textContent = 'Posting...';
 
       try {
+        const isAnonymous = document.getElementById('post-anonymous-checkbox').checked;
+        
         if (isPollActive) {
           const optInputs = inlinePollOptsContainer.querySelectorAll('.inline-opt-input');
           const optionTexts = Array.from(optInputs).map(i => i.value.trim()).filter(Boolean);
-          await createPoll(text, optionTexts);
+          
+          if (optionTexts.length < 2) {
+            alert('A poll must have at least 2 valid options.');
+            postBtn.disabled = false;
+            postBtn.textContent = 'Post';
+            return;
+          }
+          
+          await createPoll(text, optionTexts, isAnonymous);
+          
           isPollActive = false;
           inlinePollBuilder.style.display = 'none';
           inlinePollOptsContainer.innerHTML = `
@@ -237,9 +279,10 @@ export function renderHome(container) {
           `;
           inlineAddOptBtn.style.display = 'inline-block';
         } else {
-          await createPost(text);
+          await createPost(text, isAnonymous);
         }
 
+        document.getElementById('post-anonymous-checkbox').checked = false;
         postInput.value = '';
         postInput.style.height = '54px';
         postInput.dispatchEvent(new Event('input'));
@@ -303,28 +346,71 @@ export function renderHome(container) {
       return;
     }
 
-    let html = '';
+    const htmlMap = new Map();
+    const orderedKeys = [];
 
     for (const item of combined) {
-      if (item._type === 'post') {
-        const author = await getUserProfile(item.authorId);
-        const isLiked = await isPostLikedByUser(item.postId, currentUid);
-        const isReshared = await isPostResharedByUser(item.postId, currentUid);
-        html += createPostCardHTML(item, author, isLiked, isReshared);
-      } else if (item._type === 'poll') {
-        const author = await getUserProfile(item.creatorId);
-        const userVote = await getUserVote(item.pollId, currentUid);
-        const pollLiked = await isPollLikedByUser(item.pollId, currentUid);
-        const pollReshared = await isPollResharedByUser(item.pollId, currentUid);
-        html += createPollCardHTML(item, author, userVote, pollLiked, pollReshared);
-      } else if (item._type === 'petition') {
-        const author = await getUserProfile(item.creatorId);
-        const isSigned = await hasUserSignedPetition(item.petitionId, currentUid);
-        html += createPetitionCardHTML(item, author, isSigned);
+      try {
+        let cardHtml = '';
+        let id = '';
+        if (item._type === 'post') {
+          id = `post-${item.postId}`;
+          const author = await getUserProfile(item.authorId);
+          const isLiked = await isPostLikedByUser(item.postId, currentUid);
+          const isReshared = await isPostResharedByUser(item.postId, currentUid);
+          const isSaved = await isPostSaved(item.postId);
+          cardHtml = createPostCardHTML(item, author, isLiked, isReshared, isSaved);
+        } else if (item._type === 'poll') {
+          id = `poll-${item.pollId}`;
+          const author = await getUserProfile(item.creatorId);
+          const userVote = await getUserVote(item.pollId, currentUid);
+          const pollLiked = await isPollLikedByUser(item.pollId, currentUid);
+          const pollReshared = await isPollResharedByUser(item.pollId, currentUid);
+          cardHtml = createPollCardHTML(item, author, userVote, pollLiked, pollReshared);
+        } else if (item._type === 'petition') {
+          id = `petition-${item.petitionId}`;
+          const author = await getUserProfile(item.creatorId);
+          const isSigned = await hasUserSignedPetition(item.petitionId, currentUid);
+          cardHtml = createPetitionCardHTML(item, author, isSigned);
+        }
+        
+        if (cardHtml) {
+          htmlMap.set(id, cardHtml);
+          orderedKeys.push(id);
+        }
+      } catch (err) {
+        console.error('Failed to render item:', item, err);
       }
     }
 
-    feedContainer.innerHTML = html;
+    reconcileFeed(feedContainer, htmlMap, orderedKeys);
+
+    // Append IntersectionObserver Trigger
+    if (combined.length >= 15) { // Only add trigger if we have enough items
+      let trigger = document.getElementById('load-more-trigger');
+      if (!trigger) {
+        trigger = document.createElement('div');
+        trigger.id = 'load-more-trigger';
+        trigger.style.height = '20px';
+        trigger.style.width = '100%';
+        feedContainer.appendChild(trigger);
+      }
+      
+      if (window.feedObserver) window.feedObserver.disconnect();
+      window.feedObserver = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          window.feedObserver.disconnect();
+          window.postLimit += 15;
+          if (feedUnsubscribe) feedUnsubscribe();
+          feedUnsubscribe = subscribeToFeed(window.postLimit, (posts) => {
+            latestPosts = posts;
+            updateCombinedFeed();
+          });
+        }
+      }, { rootMargin: '200px' });
+      
+      window.feedObserver.observe(trigger);
+    }
 
     // Attach Likes for Posts
     feedContainer.querySelectorAll('.like-btn').forEach(btn => {
@@ -376,6 +462,30 @@ export function renderHome(container) {
       });
     });
 
+    // Attach Saves for Posts
+    feedContainer.querySelectorAll('.save-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = btn.dataset.postId;
+        btn.disabled = true;
+
+        try {
+          const isSaved = await toggleSavedPost(postId);
+          if (isSaved) {
+            btn.classList.add('saved');
+            btn.style.color = 'var(--accent-primary)';
+          } else {
+            btn.classList.remove('saved');
+            btn.style.color = '';
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
     // Attach Post Options Context Menu
     feedContainer.querySelectorAll('.post-options-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
@@ -398,11 +508,7 @@ export function renderHome(container) {
               } else if (isStaff) {
                 await deletePostAsStaff(id);
               }
-              const card = btn.closest('.post-card');
-              if (card) {
-                card.style.opacity = '0.3';
-                card.style.pointerEvents = 'none';
-              }
+              smoothRemoveCard(btn.closest('.post-card'));
             } catch (err) {
               alert(err.message || 'Failed to delete post.');
             }
@@ -412,16 +518,26 @@ export function renderHome(container) {
               const res = await reportPost(id, reason);
               if (res.autoTakenDown) {
                 alert('Thank you. This post has accumulated 2 community reports and has been automatically taken down for Staff review.');
-                const card = btn.closest('.post-card');
-                if (card) {
-                  card.style.opacity = '0.2';
-                  card.style.pointerEvents = 'none';
-                }
+                smoothRemoveCard(btn.closest('.post-card'));
               } else {
                 alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
               }
             } catch (err) {
               alert(err.message || 'Failed to submit report.');
+            }
+          },
+          onEdit: async (id) => {
+            const card = btn.closest('.post-card');
+            const bodyEl = card.querySelector('.post-body');
+            if (!bodyEl) return;
+            const currentText = bodyEl.innerText;
+            const newText = prompt('Edit your post:', currentText);
+            if (newText !== null && newText.trim() !== currentText.trim()) {
+              try {
+                await editPost(id, newText);
+              } catch (err) {
+                alert(err.message || 'Failed to edit post.');
+              }
             }
           }
         });
@@ -450,11 +566,7 @@ export function renderHome(container) {
               } else if (isStaff) {
                 await deletePollAsStaff(id);
               }
-              const card = btn.closest('.poll-card');
-              if (card) {
-                card.style.opacity = '0.3';
-                card.style.pointerEvents = 'none';
-              }
+              smoothRemoveCard(btn.closest('.poll-card'));
             } catch (err) {
               alert(err.message || 'Failed to delete poll.');
             }
@@ -492,11 +604,7 @@ export function renderHome(container) {
               } else if (isStaff) {
                 await deletePetitionAsStaff(id);
               }
-              const card = btn.closest('.petition-card');
-              if (card) {
-                card.style.opacity = '0.3';
-                card.style.pointerEvents = 'none';
-              }
+              smoothRemoveCard(btn.closest('.petition-card'));
             } catch (err) {
               alert(err.message || 'Failed to delete petition.');
             }
@@ -662,7 +770,9 @@ export function renderHome(container) {
   if (pollsUnsubscribe) pollsUnsubscribe();
   if (petitionsUnsubscribe) petitionsUnsubscribe();
 
-  feedUnsubscribe = subscribeToFeed(LIMITS.FEED_PAGINATION_INITIAL, (posts) => {
+  window.postLimit = 15;
+
+  feedUnsubscribe = subscribeToFeed(window.postLimit, (posts) => {
     latestPosts = posts;
     updateCombinedFeed();
   });

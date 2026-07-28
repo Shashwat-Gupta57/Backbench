@@ -1,9 +1,15 @@
 const { app, BrowserWindow, Notification, ipcMain, shell, Tray, Menu } = require('electron');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
 
 const FIREBASE_DB_URL = 'https://backbench-ef95e-default-rtdb.asia-southeast1.firebasedatabase.app';
 const TARGET_URL = 'https://backbench.ddns.net';
+const FIREBASE_API_KEY = "AIzaSyAYnd63Dwmhq0F-AWlWo1nTmoYX9TPO9DM";
+
+const authFilePath = path.join(app.getPath('userData'), 'auth.json');
+let cachedIdToken = null;
+let tokenExpirationTime = 0;
 
 let mainWindow;
 let tray = null;
@@ -78,6 +84,14 @@ ipcMain.handle('sign-in-with-google', async () => {
   });
 });
 
+ipcMain.on('save-auth-token', (event, token) => {
+  try {
+    fs.writeFileSync(authFilePath, JSON.stringify({ refreshToken: token }), 'utf-8');
+  } catch (err) {
+    console.error('Failed to save auth token:', err);
+  }
+});
+
 app.whenReady().then(() => {
   // Set App User Model ID so Windows 10/11 Notifications show up natively!
   app.setAppUserModelId('org.flexstudios.backbench');
@@ -120,10 +134,40 @@ app.on('window-all-closed', () => {
 
 async function pollForUpdates(isInitial = false) {
   try {
+    let refreshToken = null;
+    try {
+      if (fs.existsSync(authFilePath)) {
+        const data = JSON.parse(fs.readFileSync(authFilePath, 'utf-8'));
+        refreshToken = data.refreshToken;
+      }
+    } catch (e) {
+      console.error('Error reading auth token:', e);
+    }
+
+    if (!refreshToken) {
+      console.log('No refresh token found. Polling without auth.');
+    } else {
+      // Exchange refresh token for fresh ID token if missing or expired (buffer 5 mins)
+      if (!cachedIdToken || Date.now() > tokenExpirationTime - 300000) {
+        const tokenRes = await fetch(`https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `grant_type=refresh_token&refresh_token=${refreshToken}`
+        });
+        const tokenData = await tokenRes.json();
+        if (tokenData.id_token) {
+          cachedIdToken = tokenData.id_token;
+          tokenExpirationTime = Date.now() + (parseInt(tokenData.expires_in) * 1000);
+        }
+      }
+    }
+
+    const authQuery = cachedIdToken ? `&auth=${cachedIdToken}` : '';
+
     const endpoints = [
-      { name: 'post', url: `${FIREBASE_DB_URL}/posts.json?orderBy="timestamp"&limitToLast=1` },
-      { name: 'poll', url: `${FIREBASE_DB_URL}/polls.json?orderBy="timestamp"&limitToLast=1` },
-      { name: 'petition', url: `${FIREBASE_DB_URL}/petitions.json?orderBy="timestamp"&limitToLast=1` }
+      { name: 'post', url: `${FIREBASE_DB_URL}/posts.json?orderBy="timestamp"&limitToLast=1${authQuery}` },
+      { name: 'poll', url: `${FIREBASE_DB_URL}/polls.json?orderBy="timestamp"&limitToLast=1${authQuery}` },
+      { name: 'petition', url: `${FIREBASE_DB_URL}/petitions.json?orderBy="timestamp"&limitToLast=1${authQuery}` }
     ];
 
     let newContentFound = false;

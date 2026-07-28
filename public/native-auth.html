@@ -118,25 +118,35 @@
     // concluding there's genuinely no pending redirect. Only coming back from Google should
     // ever hit this path, since we only navigate away via signInWithRedirect below.
     async function checkRedirect() {
-      const cameFromRedirect = !!getCallbackUrl() && sessionStorage.getItem('bb_awaiting_redirect') === '1';
+      // Use localStorage instead of sessionStorage to survive Android Custom Tab isolation
+      const cameFromRedirect = !!getCallbackUrl() && localStorage.getItem('bb_awaiting_redirect') === '1';
 
-      const attempts = cameFromRedirect ? 6 : 1;
+      // Always try a few times because Firebase reads from IndexedDB which takes time
+      const attempts = 8;
       const delayMs = 700;
 
       for (let i = 0; i < attempts; i++) {
         try {
+          // If already authenticated (session restored from IndexedDB), just use it!
+          if (auth.currentUser) {
+            const idToken = await auth.currentUser.getIdToken();
+            localStorage.removeItem('bb_awaiting_redirect');
+            renderSuccess(idToken, "");
+            return;
+          }
+
           const result = await getRedirectResult(auth);
           if (result) {
             const credential = GoogleAuthProvider.credentialFromResult(result);
             if (credential) {
-              sessionStorage.removeItem('bb_awaiting_redirect');
+              localStorage.removeItem('bb_awaiting_redirect');
               renderSuccess(credential.idToken, credential.accessToken);
               return;
             }
           }
         } catch (err) {
           console.error("Redirect check failed:", err);
-          sessionStorage.removeItem('bb_awaiting_redirect');
+          localStorage.removeItem('bb_awaiting_redirect');
           statusEl.textContent = "Sign-in failed: " + (err.message || err.code || "unknown error");
           statusEl.style.color = "#ff4444";
           btn.disabled = false;
@@ -148,9 +158,8 @@
       }
 
       if (cameFromRedirect) {
-        // We returned from Google but never got a usable result after retrying -
-        // don't silently loop back to the button, tell the user plainly.
-        sessionStorage.removeItem('bb_awaiting_redirect');
+        // We returned from Google but never got a usable result after retrying
+        localStorage.removeItem('bb_awaiting_redirect');
         statusEl.textContent = "Couldn't complete sign-in. Please try again.";
         statusEl.style.color = "#ff4444";
       } else {
@@ -183,7 +192,7 @@
         console.warn("Popup auth failed or blocked, trying redirect fallback:", err);
         statusEl.textContent = "Redirecting to Google...";
         // If popup was blocked or failed, gracefully fallback to redirect
-        sessionStorage.setItem('bb_awaiting_redirect', '1');
+        localStorage.setItem('bb_awaiting_redirect', '1');
         await signInWithRedirect(auth, provider);
       }
     });

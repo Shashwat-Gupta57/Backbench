@@ -59,6 +59,35 @@ export async function renderPollDetail(container) {
   const currentUser = auth.currentUser;
   const currentAvatarHTML = renderUserAvatar(currentUser.photoURL || '', 40);
 
+  const isAnon = poll.isAnonymous === true;
+
+  // Build UID → Anonymous Number map for this poll context
+  const anonMap = new Map();
+  anonMap.set(poll.creatorId, 1);
+  let anonCounter = 2;
+
+  function getAnonNumber(uid) {
+    if (!anonMap.has(uid)) {
+      anonMap.set(uid, anonCounter++);
+    }
+    return anonMap.get(uid);
+  }
+
+  function getAnonAvatar(num, size = 36) {
+    const gradients = [
+      'linear-gradient(135deg, #6366f1, #8b5cf6)',
+      'linear-gradient(135deg, #f97316, #ef4444)',
+      'linear-gradient(135deg, #14b8a6, #06b6d4)',
+      'linear-gradient(135deg, #ec4899, #f43f5e)',
+      'linear-gradient(135deg, #eab308, #f97316)',
+      'linear-gradient(135deg, #22c55e, #10b981)',
+      'linear-gradient(135deg, #3b82f6, #6366f1)',
+      'linear-gradient(135deg, #a855f7, #ec4899)',
+    ];
+    const grad = gradients[(num - 1) % gradients.length];
+    return `<div class="avatar" style="width: ${size}px; height: ${size}px; font-size: ${Math.round(size * 0.38)}px; background: ${grad}; font-weight: 800;">A${num}</div>`;
+  }
+
   const pollCardHTML = createPollCardHTML(poll, creator, userVote, isLiked, isReshared);
 
   const content = `
@@ -258,23 +287,33 @@ export async function renderPollDetail(container) {
     let html = '';
     for (const reply of replies) {
       const author = await getUserProfile(reply.authorId);
-      const name = author?.name ? escapeHTML(author.name) : 'Student';
-      const username = author?.username ? escapeHTML(author.username) : 'student';
-      const avatar = renderUserAvatar(author, 36);
-      const font = getUserFontFamily(author);
+      
+      let rAvatar, rName, rUsername, rFont;
+      if (isAnon) {
+        const num = getAnonNumber(reply.authorId);
+        rAvatar = getAnonAvatar(num);
+        rName = `Anonymous ${num}`;
+        rUsername = `anonymous_${num}`;
+        rFont = "'Inter', sans-serif";
+      } else {
+        rAvatar = renderUserAvatar(author, 36);
+        rName = author?.name ? escapeHTML(author.name) : 'Student';
+        rUsername = author?.username ? escapeHTML(author.username) : 'student';
+        rFont = getUserFontFamily(author);
+      }
 
       html += `
         <div class="card fade-in" style="padding: 14px; margin-bottom: 10px; border-radius: 12px; display: flex; gap: 10px;">
-          ${avatar}
+          ${rAvatar}
           <div style="flex: 1; min-width: 0;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
               <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="font-weight: 700; font-size: 14px; font-family: ${font}; color: var(--text-primary);">${name}</span>
-                <span style="font-size: 13px; color: var(--text-secondary);">@${username}</span>
+                <span style="font-weight: 700; font-size: 14px; font-family: ${rFont}; color: var(--text-primary);">${rName}</span>
+                <span style="font-size: 13px; color: var(--text-secondary);">@${rUsername}</span>
               </div>
-              <span style="font-size: 12px; color: var(--text-secondary);">${formatTimeAgo(reply.timestamp)}</span>
+              <span class="time-ago" data-timestamp="${reply.timestamp}" style="font-size: 12px; color: var(--text-secondary);">${formatTimeAgo(reply.timestamp)}</span>
             </div>
-            <div style="font-size: 14px; line-height: 1.45; color: var(--text-primary); font-family: ${font};">
+            <div style="font-size: 14px; line-height: 1.45; color: var(--text-primary); font-family: ${rFont};">
               ${escapeHTML(reply.content)}
             </div>
           </div>

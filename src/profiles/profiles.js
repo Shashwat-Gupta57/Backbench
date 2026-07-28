@@ -6,7 +6,7 @@ import { ROUTES } from '../constants/routes.js';
 import { PRESET_BANNERS } from '../constants/banners.js';
 import { PRESET_QUOTE_STYLES, PRESET_QUOTE_FONTS, getQuoteFontFamily } from '../constants/quotes.js';
 import { PRESET_USER_FONTS, getUserFontFamily } from '../constants/fonts.js';
-import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost, isPostResharedByUser, toggleResharePost, getLikedPostsByUser, deleteOwnPost } from '../services/postService.js';
+import { getUserProfile, updateUserProfile, subscribeToUserPosts, isPostLikedByUser, toggleLikePost, isPostResharedByUser, toggleResharePost, getLikedPostsByUser, deleteOwnPost, getSavedPosts, toggleSavedPost, isPostSaved } from '../services/postService.js';
 import { deletePostAsStaff } from '../services/adminService.js';
 import { reportPost } from '../services/reportService.js';
 import { showContextMenu } from '../components/ContextMenu.js';
@@ -16,7 +16,26 @@ import { renderUserAvatar } from '../helpers/avatar.js';
 import { escapeHTML } from '../helpers/formatters.js';
 import { validateUsername } from '../helpers/validation.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
-import { createPostCardHTML } from '../components/PostCard.js';
+import { createPostCardHTML, createSavedReplyCardHTML } from '../components/PostCard.js';
+import { getSavedReplies } from '../services/replyService.js';
+
+/** Smoothly animate a card out and remove from DOM */
+function smoothRemoveCard(cardEl) {
+  if (!cardEl) return;
+  const wrapper = cardEl.closest('.feed-item-wrapper') || cardEl;
+  wrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease, max-height 0.4s ease 0.1s, margin 0.4s ease 0.1s, padding 0.4s ease 0.1s';
+  wrapper.style.overflow = 'hidden';
+  wrapper.style.maxHeight = wrapper.offsetHeight + 'px';
+  wrapper.offsetHeight;
+  wrapper.style.opacity = '0';
+  wrapper.style.transform = 'scale(0.95)';
+  wrapper.style.maxHeight = '0px';
+  wrapper.style.marginTop = '0px';
+  wrapper.style.marginBottom = '0px';
+  wrapper.style.paddingTop = '0px';
+  wrapper.style.paddingBottom = '0px';
+  setTimeout(() => wrapper.remove(), 450);
+}
 
 export async function renderProfile(container) {
   if (!auth.currentUser) {
@@ -248,6 +267,7 @@ export async function renderProfile(container) {
     <div class="header-tabs">
       <button class="tab-button active" id="profile-tab-posts">Posts</button>
       <button class="tab-button" id="profile-tab-likes">Likes</button>
+      ${isOwnProfile ? '<button class="tab-button" id="profile-tab-saved">Saved</button>' : ''}
     </div>
 
     <!-- Feed Container -->
@@ -266,6 +286,7 @@ export async function renderProfile(container) {
   const postCountHeader = document.getElementById('profile-post-count-header');
   const tabPosts = document.getElementById('profile-tab-posts');
   const tabLikes = document.getElementById('profile-tab-likes');
+  const tabSaved = document.getElementById('profile-tab-saved');
 
   // Handle Copy Profile Frame Link Action
   const copyFrameBtn = document.getElementById('copy-profile-frame-btn');
@@ -309,6 +330,17 @@ export async function renderProfile(container) {
       postCountHeader.textContent = `${posts.length} Post${posts.length === 1 ? '' : 's'}`;
     }
 
+    if (activeProfileTab !== 'posts') {
+      window.currentProfilePosts = posts;
+      return;
+    }
+
+    renderUserPosts(posts);
+  });
+
+  async function renderUserPosts(posts) {
+    if (!profileFeedContainer) return;
+    
     if (posts.length === 0) {
       profileFeedContainer.innerHTML = `
         <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
@@ -388,11 +420,7 @@ export async function renderProfile(container) {
               } else if (isStaff) {
                 await deletePostAsStaff(id);
               }
-              const card = btn.closest('.post-card');
-              if (card) {
-                card.style.opacity = '0.3';
-                card.style.pointerEvents = 'none';
-              }
+              smoothRemoveCard(btn.closest('.post-card'));
             } catch (err) {
               alert(err.message || 'Failed to delete post.');
             }
@@ -402,11 +430,7 @@ export async function renderProfile(container) {
               const res = await reportPost(id, reason);
               if (res.autoTakenDown) {
                 alert('Thank you. This post has accumulated 2 community reports and has been automatically taken down for Staff review.');
-                const card = btn.closest('.post-card');
-                if (card) {
-                  card.style.opacity = '0.2';
-                  card.style.pointerEvents = 'none';
-                }
+                smoothRemoveCard(btn.closest('.post-card'));
               } else {
                 alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
               }
@@ -417,7 +441,7 @@ export async function renderProfile(container) {
         });
       });
     });
-  });
+  }
 
   // Likes Tab: Show posts the profile user has liked
   let activeProfileTab = 'posts';
@@ -446,7 +470,8 @@ export async function renderProfile(container) {
       const author = await getUserProfile(post.authorId);
       const isLiked = currentUid ? await isPostLikedByUser(post.postId, currentUid) : false;
       const isReshared = currentUid ? await isPostResharedByUser(post.postId, currentUid) : false;
-      html += createPostCardHTML(post, author, isLiked, isReshared);
+      const isSaved = currentUid ? await isPostSaved(post.postId, currentUid) : false;
+      html += createPostCardHTML(post, author, isLiked, isReshared, isSaved);
     }
 
     profileFeedContainer.innerHTML = html;
@@ -475,6 +500,29 @@ export async function renderProfile(container) {
           }
           const countSpan = btn.querySelector('.like-count');
           if (countSpan) countSpan.textContent = result.likes;
+        } catch (err) {
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
+    profileFeedContainer.querySelectorAll('.save-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = btn.dataset.postId;
+        btn.disabled = true;
+
+        try {
+          const isSaved = await toggleSavedPost(postId);
+          if (isSaved) {
+            btn.classList.add('saved');
+            btn.style.color = 'var(--accent-primary)';
+          } else {
+            btn.classList.remove('saved');
+            btn.style.color = '';
+          }
         } catch (err) {
           console.error(err);
         } finally {
@@ -542,31 +590,11 @@ export async function renderProfile(container) {
       activeProfileTab = 'posts';
       tabPosts.classList.add('active');
       tabLikes.classList.remove('active');
-      // Re-subscribe to user posts
-      subscribeToUserPosts(userProfile.uid, async (posts) => {
-        if (!profileFeedContainer) return;
-        if (activeProfileTab !== 'posts') return;
-
-        if (posts.length === 0) {
-          profileFeedContainer.innerHTML = `
-            <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
-              <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">post_add</span>
-              <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">No posts yet</h3>
-              <p style="font-size: 14px;">When ${isOwnProfile ? 'you post' : 'this student posts'}, their content will appear here.</p>
-            </div>
-          `;
-          return;
-        }
-
-        let html = '';
-        const currentUid = auth.currentUser?.uid;
-        for (const post of posts) {
-          const isLiked = currentUid ? await isPostLikedByUser(post.postId, currentUid) : false;
-          const isReshared = currentUid ? await isPostResharedByUser(post.postId, currentUid) : false;
-          html += createPostCardHTML(post, userProfile, isLiked, isReshared);
-        }
-        profileFeedContainer.innerHTML = html;
-      });
+      if (tabSaved) tabSaved.classList.remove('active');
+      
+      if (window.currentProfilePosts) {
+        renderUserPosts(window.currentProfilePosts);
+      }
     });
 
     tabLikes.addEventListener('click', () => {
@@ -574,7 +602,131 @@ export async function renderProfile(container) {
       activeProfileTab = 'likes';
       tabLikes.classList.add('active');
       tabPosts.classList.remove('active');
+      if (tabSaved) tabSaved.classList.remove('active');
       loadLikedPosts();
+    });
+
+    if (tabSaved) {
+      tabSaved.addEventListener('click', () => {
+        if (activeProfileTab === 'saved') return;
+        activeProfileTab = 'saved';
+        tabSaved.classList.add('active');
+        tabPosts.classList.remove('active');
+        tabLikes.classList.remove('active');
+        loadSavedPosts();
+      });
+    }
+  }
+
+  async function loadSavedPosts() {
+    if (!profileFeedContainer) return;
+    profileFeedContainer.innerHTML = renderFeedSkeletons(3);
+
+    const savedPosts = await getSavedPosts(userProfile.uid);
+    const savedReplies = await getSavedReplies(userProfile.uid);
+
+    const mergedFeed = [...savedPosts, ...savedReplies].sort((a, b) => {
+      const timeA = new Date(a._savedTimestamp || 0);
+      const timeB = new Date(b._savedTimestamp || 0);
+      return timeB - timeA;
+    });
+
+    if (mergedFeed.length === 0) {
+      profileFeedContainer.innerHTML = `
+        <div style="padding: 40px 20px; text-align: center; color: var(--text-secondary);" class="fade-in">
+          <span class="material-symbols-outlined" style="font-size: 48px; margin-bottom: 12px; color: var(--text-muted);">bookmark</span>
+          <h3 style="font-size: 18px; color: var(--text-primary); font-weight: 700; margin-bottom: 4px;">No saved posts or replies yet</h3>
+          <p style="font-size: 14px;">When you save a post or reply, it will appear here for easy access.</p>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+    const currentUid = auth.currentUser?.uid;
+
+    for (const item of mergedFeed) {
+      if (item.replyId) {
+        // It's a reply! We need the parent post and the reply author
+        const replyAuthor = await getUserProfile(item.authorId);
+        // item is the reply. We need the parent post.
+        // Wait, getSavedReplies returns replies which have a postId property. 
+        // We can fetch the parent post here.
+        const parentPostSnap = await get(ref(db, `${PATHS.POSTS}/${item.postId}`));
+        let parentPost = null;
+        let postAuthor = null;
+        if (parentPostSnap.exists()) {
+          parentPost = parentPostSnap.val();
+          postAuthor = await getUserProfile(parentPost.authorId);
+        }
+        
+        if (parentPost) {
+          html += createSavedReplyCardHTML(parentPost, postAuthor, item, replyAuthor, true);
+        }
+      } else {
+        // It's a post
+        const author = await getUserProfile(item.authorId);
+        const isLiked = currentUid ? await isPostLikedByUser(item.postId, currentUid) : false;
+        const isReshared = currentUid ? await isPostResharedByUser(item.postId, currentUid) : false;
+        const isSaved = true;
+        html += createPostCardHTML(item, author, isLiked, isReshared, isSaved);
+      }
+    }
+
+    profileFeedContainer.innerHTML = html;
+
+    profileFeedContainer.querySelectorAll('.post-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if (!e.target.closest('.action-btn') && !e.target.closest('.btn-ghost') && !e.target.closest('a')) {
+          const postId = card.dataset.postId;
+          if (postId) window.location.hash = `${ROUTES.POST_DETAIL}?id=${postId}`;
+        }
+      });
+    });
+
+    profileFeedContainer.querySelectorAll('.like-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = btn.dataset.postId;
+        btn.disabled = true;
+        try {
+          const result = await toggleLikePost(postId);
+          if (result.liked) {
+            btn.classList.add('liked', 'heart-pop');
+          } else {
+            btn.classList.remove('liked', 'heart-pop');
+          }
+          const countSpan = btn.querySelector('.like-count');
+          if (countSpan) countSpan.textContent = result.likes;
+        } catch (err) {
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+
+    profileFeedContainer.querySelectorAll('.save-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const postId = btn.dataset.postId;
+        btn.disabled = true;
+
+        try {
+          const isSavedNow = await toggleSavedPost(postId);
+          if (isSavedNow) {
+            btn.classList.add('saved');
+            btn.style.color = 'var(--accent-primary)';
+          } else {
+            btn.classList.remove('saved');
+            btn.style.color = '';
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          btn.disabled = false;
+        }
+      });
     });
   }
 
@@ -626,7 +778,7 @@ function renderEditProfileModal(profile) {
 
   return `
     <div id="edit-profile-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 1000; justify-content: center; align-items: center; padding: 20px;">
-      <div class="card fade-in" style="width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; padding: 24px; border-radius: 24px; box-shadow: 0 12px 40px rgba(0,0,0,0.8);">
+      <div class="card fade-in edit-profile-modal-content">
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h2 style="font-size: 18px; font-weight: 800;">Edit Student Profile</h2>

@@ -2,6 +2,7 @@ import { db, auth } from '../firebase/firebase.js';
 import { ref, set, get, remove } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { getUserProfile } from './postService.js';
+import { sendNotification } from './notificationService.js';
 
 export async function isFriend(targetUid) {
   const user = auth.currentUser;
@@ -42,6 +43,15 @@ export async function toggleAddFriend(targetUid) {
     // Add friend (User's unilateral action)
     const timestamp = new Date().toISOString();
     await set(myFriendRef, { timestamp });
+    
+    // Notify target user
+    const myProfile = await getUserProfile(user.uid);
+    await sendNotification(targetUid, {
+      text: `${myProfile?.name || 'Someone'} added you as a friend.`,
+      type: 'FRIEND_REQUEST',
+      senderId: user.uid
+    });
+    
     return true; // Now friended
   }
 }

@@ -4,13 +4,28 @@ import { renderUserAvatar } from '../helpers/avatar.js';
 import { getUserFontFamily } from '../constants/fonts.js';
 
 export function createPollCardHTML(poll, author, userVotedOptionIndex = null, isLiked = false, isReshared = false) {
-  const name = author?.name ? escapeHTML(author.name) : 'Anonymous Student';
-  const username = author?.username ? escapeHTML(author.username) : 'student';
+  const isAnon = poll.isAnonymous === true;
+  const name = isAnon ? 'Anonymous Student' : (author?.name ? escapeHTML(author.name) : 'Anonymous Student');
+  const username = isAnon ? 'anonymous' : (author?.username ? escapeHTML(author.username) : 'student');
   const totalVotes = poll.totalVotes || 0;
   const hasVoted = userVotedOptionIndex !== null;
   const fontStyle = getUserFontFamily(author);
 
-  const avatarHTML = renderUserAvatar(author, 44, 'border: 1px solid var(--border-color);');
+  const avatarHTML = isAnon 
+    ? `<div class="avatar" style="width: 44px; height: 44px; font-size: 20px; background: linear-gradient(135deg, #6366f1, #8b5cf6);">🎭</div>`
+    : renderUserAvatar(author, 44, 'border: 1px solid var(--border-color);');
+    
+  const avatarWrapper = isAnon
+    ? `<div style="display: inline-flex;" title="Anonymous Poll">${avatarHTML}</div>`
+    : `<a href="#/profile?u=${username}" style="text-decoration: none; color: inherit; display: inline-flex;" title="View @${username}'s profile">${avatarHTML}</a>`;
+
+  const authorNameHTML = isAnon
+    ? `<span class="author-name" style="font-family: ${fontStyle};">${name}</span>`
+    : `<a href="#/profile?u=${username}" style="text-decoration: none; color: inherit;" title="View @${username}'s profile"><span class="author-name" style="font-family: ${fontStyle};">${name}</span></a>`;
+
+  const authorHandleHTML = isAnon
+    ? `<span class="author-handle">@${username}</span>`
+    : `<a href="#/profile?u=${username}" style="text-decoration: none; color: inherit;" title="View @${username}'s profile"><span class="author-handle">@${username}</span></a>`;
 
   let optionsHTML = '';
 
@@ -56,20 +71,14 @@ export function createPollCardHTML(poll, author, userVotedOptionIndex = null, is
   return `
     <article class="card fade-in poll-card" data-poll-id="${poll.pollId}" data-creator-id="${poll.creatorId}" style="margin-bottom: 16px; border-radius: var(--border-radius);">
       <div style="display: flex; gap: 12px; align-items: flex-start;">
-        <a href="#/profile?u=${username}" style="text-decoration: none; color: inherit; display: inline-flex;" title="View @${username}'s profile">
-          ${avatarHTML}
-        </a>
+        ${avatarWrapper}
         <div style="flex: 1; min-width: 0;">
           <div class="post-header">
             <div class="author-meta">
-              <a href="#/profile?u=${username}" style="text-decoration: none; color: inherit;" title="View @${username}'s profile">
-                <span class="author-name" style="font-family: ${fontStyle};">${name}</span>
-              </a>
-              <a href="#/profile?u=${username}" style="text-decoration: none; color: inherit;" title="View @${username}'s profile">
-                <span class="author-handle">@${username}</span>
-              </a>
+              ${authorNameHTML}
+              ${authorHandleHTML}
               <span class="post-dot">·</span>
-              <span class="post-time">${formatTimeAgo(poll.timestamp)}</span>
+              <span class="post-time time-ago" data-timestamp="${poll.timestamp}">${formatTimeAgo(poll.timestamp)}</span>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <span class="brand-badge" style="font-size: 11px;">CAMPUS POLL</span>

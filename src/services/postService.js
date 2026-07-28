@@ -1,9 +1,9 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, update, onValue, off, remove, runTransaction } from 'firebase/database';
+import { ref, push, set, get, update, onValue, off, remove, runTransaction, query } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { extractHashtags } from '../helpers/formatters.js';
 
-export async function createPost(content) {
+export async function createPost(content, isAnonymous = false) {
   const user = auth.currentUser;
   if (!user) throw new Error('Not authenticated');
 
@@ -21,39 +21,61 @@ export async function createPost(content) {
     edited: false,
     likes: 0,
     reshares: 0,
-    replyCount: 0
+    replyCount: 0,
+    isAnonymous: isAnonymous
   };
 
   await set(postRef, postData);
   return postData;
 }
 
-export function subscribeToFeed(limit, callback) {
+export async function editPost(postId, newContent) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+
+  const text = newContent ? newContent.trim() : '';
+  if (!text) throw new Error('Post content cannot be empty');
+
+  const postSnap = await get(ref(db, `${PATHS.POSTS}/${postId}`));
+  if (!postSnap.exists()) throw new Error('Post not found');
+
+  const post = postSnap.val();
+  if (post.authorId !== user.uid) {
+    throw new Error('Unauthorized: You can only edit your own posts.');
+  }
+
+  const hashtags = extractHashtags(text);
+  
+  await update(ref(db, `${PATHS.POSTS}/${postId}`), {
+    content: text,
+    hashtags: hashtags,
+    edited: true,
+    updatedAt: new Date().toISOString()
+  });
+  
+  return true;
+}
+
+export function subscribeToFeed(limitCount = 20, callback) {
   const postsRef = ref(db, PATHS.POSTS);
 
-  const fetchFeed = async () => {
-    try {
-      const snapshot = await get(postsRef);
-      const posts = [];
-      if (snapshot.exists()) {
-        snapshot.forEach((childSnap) => {
-          const p = childSnap.val();
-          if (p && p.status !== 'AWAITING_MODERATION') {
-            posts.push(p);
-          }
-        });
-      }
-      posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-      callback(posts.slice(0, limit));
-    } catch (err) {
-      console.error('Error fetching feed:', err);
+  const listener = onValue(postsRef, (snapshot) => {
+    const posts = [];
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap) => {
+        const p = childSnap.val();
+        if (p && p.status !== 'AWAITING_MODERATION') {
+          posts.push(p);
+        }
+      });
     }
-  };
+    posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+    callback(posts.slice(0, limitCount));
+  }, (error) => {
+    console.error('Error fetching feed:', error);
+  });
 
-  fetchFeed(); // Initial fetch
-  const intervalId = setInterval(fetchFeed, 10000); // 10s auto-refresh
-
-  return () => clearInterval(intervalId);
+  return () => off(postsRef, 'value', listener);
 }
 
 export function subscribeToUserPosts(uid, callback) {
@@ -64,30 +86,24 @@ export function subscribeToUserPosts(uid, callback) {
 
   const postsRef = ref(db, PATHS.POSTS);
 
-  const fetchUserPosts = async () => {
-    try {
-      const snapshot = await get(postsRef);
-      const posts = [];
-      if (snapshot.exists()) {
-        snapshot.forEach((childSnap) => {
-          const p = childSnap.val();
-          if (p && p.authorId === uid) {
-            posts.push(p);
-          }
-        });
-      }
-      posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-      callback(posts);
-    } catch (err) {
-      console.error('Error fetching user posts:', err);
-      callback([]);
+  const listener = onValue(postsRef, (snapshot) => {
+    const posts = [];
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnap) => {
+        const p = childSnap.val();
+        if (p && p.authorId === uid) {
+          posts.push(p);
+        }
+      });
     }
-  };
+    posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+    callback(posts);
+  }, (error) => {
+    console.error('Error fetching user posts:', error);
+    callback([]);
+  });
 
-  fetchUserPosts();
-  const intervalId = setInterval(fetchUserPosts, 10000);
-
-  return () => clearInterval(intervalId);
+  return () => off(postsRef, 'value', listener);
 }
 
 export async function getTrendingHashtags(limit = 5) {
@@ -329,4 +345,63 @@ export async function deleteOwnPost(postId) {
   return true;
 }
 
+export async function isPostSaved(postId) {
+  const user = auth.currentUser;
+  if (!user) return false;
+  try {
+    const snap = await get(ref(db, `${PATHS.SAVED_POSTS}/${user.uid}/${postId}`));
+    return snap.exists();
+  } catch (err) {
+    return false;
+  }
+}
 
+export async function toggleSavedPost(postId) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Not authenticated');
+
+  const savedRef = ref(db, `${PATHS.SAVED_POSTS}/${user.uid}/${postId}`);
+  const snap = await get(savedRef);
+
+  if (snap.exists()) {
+    await remove(savedRef);
+    return false;
+  } else {
+    await set(savedRef, {
+      postId,
+      timestamp: new Date().toISOString()
+    });
+    return true;
+  }
+}
+
+export async function getSavedPosts(targetUid) {
+  const uid = targetUid || auth.currentUser?.uid;
+  if (!uid) return [];
+  try {
+    const snap = await get(ref(db, `${PATHS.SAVED_POSTS}/${uid}`));
+    if (!snap.exists()) return [];
+
+    const savedMap = snap.val();
+    const postIds = Object.keys(savedMap);
+    const posts = [];
+    for (const pid of postIds) {
+      try {
+        const pSnap = await get(ref(db, `${PATHS.POSTS}/${pid}`));
+        if (pSnap.exists()) {
+          const p = pSnap.val();
+          if (p) {
+            posts.push({ ...p, _savedTimestamp: savedMap[pid].timestamp });
+          }
+        }
+      } catch(e) {
+        console.error('Error fetching post', pid, e);
+      }
+    }
+    posts.sort((a, b) => new Date(b._savedTimestamp || 0) - new Date(a._savedTimestamp || 0));
+    return posts;
+  } catch (err) {
+    console.error('Error fetching saved posts:', err);
+    return [];
+  }
+}

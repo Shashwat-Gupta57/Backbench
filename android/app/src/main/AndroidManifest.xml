@@ -39,6 +39,8 @@
         <service
             android:name=".FirebasePollingService"
             android:foregroundServiceType="specialUse"
+            android:stopWithTask="false"
+            android:process=":sync"
             android:exported="false">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="real_time_updates" />
         </service>

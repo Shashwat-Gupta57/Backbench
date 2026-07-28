@@ -43,25 +43,4 @@ export async function searchCampusUsers(rawQuery) {
   return results;
 }
 
-export async function toggleAddFriend(targetUid) {
-  const user = auth.currentUser;
-  if (!user) throw new Error('Not authenticated');
 
-  const friendRef = ref(db, `friends/${user.uid}/${targetUid}`);
-  const snap = await get(friendRef);
-
-  if (snap.exists()) {
-    await remove(friendRef);
-    return false; // Friended status = false
-  } else {
-    await set(friendRef, true);
-    return true; // Friended status = true
-  }
-}
-
-export async function isFriend(targetUid) {
-  const user = auth.currentUser;
-  if (!user || !targetUid) return false;
-  const snap = await get(ref(db, `friends/${user.uid}/${targetUid}`));
-  return snap.exists();
-}
