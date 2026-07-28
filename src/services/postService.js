@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, update, onValue, off, remove, runTransaction, query, orderByChild, limitToLast } from 'firebase/database';
+import { ref, push, set, get, update, onValue, off, remove, runTransaction, query, orderByChild, limitToLast, equalTo } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { extractHashtags } from '../helpers/formatters.js';
 
@@ -84,14 +84,19 @@ export function subscribeToUserPosts(uid, callback) {
     return () => {};
   }
 
-  const postsRef = ref(db, PATHS.POSTS);
+  const postsQuery = query(
+    ref(db, PATHS.POSTS),
+    orderByChild('authorId'),
+    equalTo(uid),
+    limitToLast(20)
+  );
 
-  const listener = onValue(postsRef, (snapshot) => {
+  const listener = onValue(postsQuery, (snapshot) => {
     const posts = [];
     if (snapshot.exists()) {
       snapshot.forEach((childSnap) => {
         const p = childSnap.val();
-        if (p && p.authorId === uid) {
+        if (p) {
           posts.push(p);
         }
       });
@@ -103,7 +108,7 @@ export function subscribeToUserPosts(uid, callback) {
     callback([]);
   });
 
-  return () => off(postsRef, 'value', listener);
+  return () => off(postsQuery, 'value', listener);
 }
 
 export async function getTrendingHashtags(limit = 5) {

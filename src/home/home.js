@@ -1,5 +1,4 @@
-import { recon    feedContainer.removeEventListener('click', handleFeedClick);
-cileFeed } from '../utils/dom.js';
+import { reconcileFeed } from '../utils/dom.js';
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser, isPostResharedByUser, toggleResharePost, deleteOwnPost, toggleSavedPost, isPostSaved, editPost } from '../services/postService.js';
 import { createPoll, subscribeToPolls, getUserVote, voteInPoll, toggleLikePoll, isPollLikedByUser, toggleResharePoll, isPollResharedByUser, deleteOwnPoll, deletePollAsStaff } from '../services/pollService.js';
@@ -720,28 +719,20 @@ export function renderHome(container) {
       const petitionId = petitionSignBtn.dataset.petitionId;
       petitionSignBtn.disabled = true;
       try {
-        const result = await toggleSignPetition(petitionId);
-        if (result.signed) {
-          petitionSignBtn.classList.add('signed');
-          petitionSignBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size: 18px;">draw</span> Signed`;
-          petitionSignBtn.style.background = 'var(--accent-soft)';
-          petitionSignBtn.style.color = 'var(--accent-primary)';
-          petitionSignBtn.style.border = '1px solid var(--accent-primary)';
-        } else {
-          petitionSignBtn.classList.remove('signed');
-          petitionSignBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size: 18px;">draw</span> Sign Petition`;
-          petitionSignBtn.style.background = 'var(--paper-raised)';
-          petitionSignBtn.style.color = 'var(--text-primary)';
-          petitionSignBtn.style.border = '1px solid var(--border-color)';
-        }
+        const result = await signPetition(petitionId);
+        petitionSignBtn.classList.add('signed');
+        petitionSignBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size: 18px;">draw</span> Signed`;
+        petitionSignBtn.style.background = 'var(--accent-soft)';
+        petitionSignBtn.style.color = 'var(--accent-primary)';
+        petitionSignBtn.style.border = '1px solid var(--accent-primary)';
+
         const card = petitionSignBtn.closest('.petition-card');
         const countSpan = card.querySelector('.signature-count');
         if (countSpan) {
-          countSpan.innerHTML = `<b>${result.signatures}</b> signatures`;
+          countSpan.innerHTML = `<b>${result.signatureCount}</b> signatures`;
         }
       } catch (err) {
-        console.error(err);
-      } finally {
+        alert(err.message || 'Failed to sign petition.');
         petitionSignBtn.disabled = false;
       }
       return;
@@ -749,4 +740,38 @@ export function renderHome(container) {
   };
 
   feedContainer.addEventListener('click', handleFeedClick);
+
+  if (feedUnsubscribe) feedUnsubscribe();
+  if (pollsUnsubscribe) pollsUnsubscribe();
+  if (petitionsUnsubscribe) petitionsUnsubscribe();
+
+  window.postLimit = 15;
+
+  feedUnsubscribe = subscribeToFeed(window.postLimit, (posts) => {
+    latestPosts = posts;
+    updateCombinedFeed();
+  });
+
+  pollsUnsubscribe = subscribeToPolls(20, (polls) => {
+    latestPolls = polls;
+    updateCombinedFeed();
+  });
+
+  petitionsUnsubscribe = subscribeToPetitions(20, (petitions) => {
+    latestPetitions = petitions;
+    updateCombinedFeed();
+  });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+    if (feedUnsubscribe) feedUnsubscribe();
+    if (pollsUnsubscribe) pollsUnsubscribe();
+    if (petitionsUnsubscribe) petitionsUnsubscribe();
+    if (window.feedObserver) {
+      window.feedObserver.disconnect();
+      window.feedObserver = null;
+    }
+    feedContainer.removeEventListener('click', handleFeedClick);
+  };
+}
 

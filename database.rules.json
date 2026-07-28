@@ -13,7 +13,7 @@
       }
     },
     "posts": {
-      ".indexOn": ["timestamp"],
+      ".indexOn": ["timestamp", "authorId"],
       "$postId": {
         ".write": "auth != null",
         "authorId": {
