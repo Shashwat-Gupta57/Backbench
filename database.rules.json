@@ -18,6 +18,15 @@
         ".write": "auth != null",
         "authorId": {
           ".validate": "newData.val() === data.val() || (!data.exists() && newData.val() === auth.uid)"
+        },
+        "content": {
+          ".validate": "newData.val() === data.val() || data.parent().child('authorId').val() === auth.uid || (!data.exists() && newData.parent().child('authorId').val() === auth.uid)"
+        },
+        "isAnonymous": {
+          ".validate": "newData.val() === data.val() || data.parent().child('authorId').val() === auth.uid || (!data.exists() && newData.parent().child('authorId').val() === auth.uid)"
+        },
+        "timestamp": {
+          ".validate": "newData.val() === data.val() || !data.exists()"
         }
       }
     },
@@ -41,6 +50,15 @@
         ".write": "auth != null",
         "creatorId": {
           ".validate": "newData.val() === data.val() || (!data.exists() && newData.val() === auth.uid)"
+        },
+        "question": {
+          ".validate": "newData.val() === data.val() || data.parent().child('creatorId').val() === auth.uid || (!data.exists() && newData.parent().child('creatorId').val() === auth.uid)"
+        },
+        "options": {
+          ".validate": "newData.val() === data.val() || data.parent().child('creatorId').val() === auth.uid || (!data.exists() && newData.parent().child('creatorId').val() === auth.uid)"
+        },
+        "timestamp": {
+          ".validate": "newData.val() === data.val() || !data.exists()"
         }
       }
     },
@@ -50,6 +68,15 @@
         ".write": "auth != null",
         "creatorId": {
           ".validate": "newData.val() === data.val() || (!data.exists() && newData.val() === auth.uid)"
+        },
+        "title": {
+          ".validate": "newData.val() === data.val() || data.parent().child('creatorId').val() === auth.uid || (!data.exists() && newData.parent().child('creatorId').val() === auth.uid)"
+        },
+        "statement": {
+          ".validate": "newData.val() === data.val() || data.parent().child('creatorId').val() === auth.uid || (!data.exists() && newData.parent().child('creatorId').val() === auth.uid)"
+        },
+        "timestamp": {
+          ".validate": "newData.val() === data.val() || !data.exists()"
         }
       }
     },
@@ -60,7 +87,10 @@
     "notifications": {
       "$uid": {
         ".indexOn": ["timestamp"],
-        ".write": "auth != null" 
+        "$notifId": {
+          ".write": "auth != null",
+          ".validate": "newData.hasChildren(['senderId', 'type', 'timestamp']) && (newData.child('senderId').val() === auth.uid || $uid === auth.uid)"
+        }
       }
     },
     "friends": {

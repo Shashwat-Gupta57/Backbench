@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, update, onValue, off, remove, runTransaction, query } from 'firebase/database';
+import { ref, push, set, get, update, onValue, off, remove, runTransaction, query, orderByChild, limitToLast } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { extractHashtags } from '../helpers/formatters.js';
 
@@ -57,9 +57,9 @@ export async function editPost(postId, newContent) {
 }
 
 export function subscribeToFeed(limitCount = 20, callback) {
-  const postsRef = ref(db, PATHS.POSTS);
+  const postsQuery = query(ref(db, PATHS.POSTS), orderByChild('timestamp'), limitToLast(limitCount));
 
-  const listener = onValue(postsRef, (snapshot) => {
+  const listener = onValue(postsQuery, (snapshot) => {
     const posts = [];
     if (snapshot.exists()) {
       snapshot.forEach((childSnap) => {
@@ -70,12 +70,12 @@ export function subscribeToFeed(limitCount = 20, callback) {
       });
     }
     posts.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-    callback(posts.slice(0, limitCount));
+    callback(posts);
   }, (error) => {
     console.error('Error fetching feed:', error);
   });
 
-  return () => off(postsRef, 'value', listener);
+  return () => off(postsQuery, 'value', listener);
 }
 
 export function subscribeToUserPosts(uid, callback) {

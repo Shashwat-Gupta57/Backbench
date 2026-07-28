@@ -280,7 +280,7 @@ export function renderEvents(container) {
   // Subscribe to Realtime Events Feed
   if (eventsUnsubscribe) eventsUnsubscribe();
 
-  eventsUnsubscribe = subscribeToEvents((events) => {
+  eventsUnsubscribe = subscribeToEvents(50, (events) => {
     latestEvents = events;
     renderEventsList();
   });

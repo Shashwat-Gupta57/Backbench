@@ -1,4 +1,5 @@
-import { reconcileFeed } from '../utils/dom.js';
+import { recon    feedContainer.removeEventListener('click', handleFeedClick);
+cileFeed } from '../utils/dom.js';
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser, isPostResharedByUser, toggleResharePost, deleteOwnPost, toggleSavedPost, isPostSaved, editPost } from '../services/postService.js';
 import { createPoll, subscribeToPolls, getUserVote, voteInPoll, toggleLikePoll, isPollLikedByUser, toggleResharePoll, isPollResharedByUser, deleteOwnPoll, deletePollAsStaff } from '../services/pollService.js';
@@ -300,6 +301,67 @@ export function renderHome(container) {
   let latestPolls = [];
   let latestPetitions = [];
 
+  const loadFeedData = async (combined, currentUid) => {
+    const promises = combined.map(async (item) => {
+      try {
+        if (item._type === 'post') {
+          const [author, isLiked, isReshared, isSaved] = await Promise.all([
+            getUserProfile(item.authorId),
+            isPostLikedByUser(item.postId, currentUid),
+            isPostResharedByUser(item.postId, currentUid),
+            isPostSaved(item.postId)
+          ]);
+          return { ...item, author, isLiked, isReshared, isSaved };
+        } else if (item._type === 'poll') {
+          const [author, userVote, pollLiked, pollReshared] = await Promise.all([
+            getUserProfile(item.creatorId),
+            getUserVote(item.pollId, currentUid),
+            isPollLikedByUser(item.pollId, currentUid),
+            isPollResharedByUser(item.pollId, currentUid)
+          ]);
+          return { ...item, author, userVote, pollLiked, pollReshared };
+        } else if (item._type === 'petition') {
+          const [author, isSigned] = await Promise.all([
+            getUserProfile(item.creatorId),
+            hasUserSignedPetition(item.petitionId, currentUid)
+          ]);
+          return { ...item, author, isSigned };
+        }
+      } catch (err) {
+        console.error('Failed to load data for item:', item, err);
+        return null;
+      }
+    });
+    const results = await Promise.all(promises);
+    return results.filter(Boolean);
+  };
+
+  const renderFeedHtml = (data) => {
+    const htmlMap = new Map();
+    const orderedKeys = [];
+
+    for (const item of data) {
+      let cardHtml = '';
+      let id = '';
+      if (item._type === 'post') {
+        id = `post-${item.postId}`;
+        cardHtml = createPostCardHTML(item, item.author, item.isLiked, item.isReshared, item.isSaved);
+      } else if (item._type === 'poll') {
+        id = `poll-${item.pollId}`;
+        cardHtml = createPollCardHTML(item, item.author, item.userVote, item.pollLiked, item.pollReshared);
+      } else if (item._type === 'petition') {
+        id = `petition-${item.petitionId}`;
+        cardHtml = createPetitionCardHTML(item, item.author, item.isSigned);
+      }
+      
+      if (cardHtml) {
+        htmlMap.set(id, cardHtml);
+        orderedKeys.push(id);
+      }
+    }
+    return { htmlMap, orderedKeys };
+  };
+
   const updateCombinedFeed = async () => {
     if (!feedContainer) return;
 
@@ -310,11 +372,9 @@ export function renderHome(container) {
 
     if (activeTabMode === 'friends') {
       friendUids = await getFriendUids(currentUid);
-      // Include current user in friends feed so they see their own posts
       friendUids.push(currentUid);
     }
 
-    // Filter items based on active tab & excluded held moderation posts
     const filteredPosts = activeTabMode === 'friends' 
       ? latestPosts.filter(p => friendUids.includes(p.authorId) && p.status !== 'AWAITING_MODERATION')
       : latestPosts.filter(p => p.status !== 'AWAITING_MODERATION');
@@ -346,47 +406,12 @@ export function renderHome(container) {
       return;
     }
 
-    const htmlMap = new Map();
-    const orderedKeys = [];
-
-    for (const item of combined) {
-      try {
-        let cardHtml = '';
-        let id = '';
-        if (item._type === 'post') {
-          id = `post-${item.postId}`;
-          const author = await getUserProfile(item.authorId);
-          const isLiked = await isPostLikedByUser(item.postId, currentUid);
-          const isReshared = await isPostResharedByUser(item.postId, currentUid);
-          const isSaved = await isPostSaved(item.postId);
-          cardHtml = createPostCardHTML(item, author, isLiked, isReshared, isSaved);
-        } else if (item._type === 'poll') {
-          id = `poll-${item.pollId}`;
-          const author = await getUserProfile(item.creatorId);
-          const userVote = await getUserVote(item.pollId, currentUid);
-          const pollLiked = await isPollLikedByUser(item.pollId, currentUid);
-          const pollReshared = await isPollResharedByUser(item.pollId, currentUid);
-          cardHtml = createPollCardHTML(item, author, userVote, pollLiked, pollReshared);
-        } else if (item._type === 'petition') {
-          id = `petition-${item.petitionId}`;
-          const author = await getUserProfile(item.creatorId);
-          const isSigned = await hasUserSignedPetition(item.petitionId, currentUid);
-          cardHtml = createPetitionCardHTML(item, author, isSigned);
-        }
-        
-        if (cardHtml) {
-          htmlMap.set(id, cardHtml);
-          orderedKeys.push(id);
-        }
-      } catch (err) {
-        console.error('Failed to render item:', item, err);
-      }
-    }
+    const loadedData = await loadFeedData(combined, currentUid);
+    const { htmlMap, orderedKeys } = renderFeedHtml(loadedData);
 
     reconcileFeed(feedContainer, htmlMap, orderedKeys);
 
-    // Append IntersectionObserver Trigger
-    if (combined.length >= 15) { // Only add trigger if we have enough items
+    if (combined.length >= 15) {
       let trigger = document.getElementById('load-more-trigger');
       if (!trigger) {
         trigger = document.createElement('div');
@@ -411,387 +436,317 @@ export function renderHome(container) {
       
       window.feedObserver.observe(trigger);
     }
-
-    // Attach Likes for Posts
-    feedContainer.querySelectorAll('.like-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const postId = btn.dataset.postId;
-        btn.disabled = true;
-
-        try {
-          const result = await toggleLikePost(postId);
-          if (result.liked) {
-            btn.classList.add('liked', 'heart-pop');
-          } else {
-            btn.classList.remove('liked', 'heart-pop');
-          }
-          const countSpan = btn.querySelector('.like-count');
-          if (countSpan) countSpan.textContent = result.likes;
-        } catch (err) {
-          console.error(err);
-        } finally {
-          btn.disabled = false;
-        }
-      });
-    });
-
-    // Attach Reshares for Posts
-    feedContainer.querySelectorAll('.reshare-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const postId = btn.dataset.postId;
-        btn.disabled = true;
-
-        try {
-          const result = await toggleResharePost(postId);
-          if (result.reshared) {
-            btn.classList.add('reshared');
-            btn.style.color = '#00BA7C';
-          } else {
-            btn.classList.remove('reshared');
-            btn.style.color = '';
-          }
-          const countSpan = btn.querySelector('.reshare-count');
-          if (countSpan) countSpan.textContent = result.reshares;
-        } catch (err) {
-          console.error(err);
-        } finally {
-          btn.disabled = false;
-        }
-      });
-    });
-
-    // Attach Saves for Posts
-    feedContainer.querySelectorAll('.save-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const postId = btn.dataset.postId;
-        btn.disabled = true;
-
-        try {
-          const isSaved = await toggleSavedPost(postId);
-          if (isSaved) {
-            btn.classList.add('saved');
-            btn.style.color = 'var(--accent-primary)';
-          } else {
-            btn.classList.remove('saved');
-            btn.style.color = '';
-          }
-        } catch (err) {
-          console.error(err);
-        } finally {
-          btn.disabled = false;
-        }
-      });
-    });
-
-    // Attach Post Options Context Menu
-    feedContainer.querySelectorAll('.post-options-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const postId = btn.dataset.postId;
-        const authorId = btn.dataset.authorId;
-        const userProfile = await getUserProfile(currentUid);
-        const isStaff = userProfile?.role === 'staff' || userProfile?.role === 'admin';
-
-        showContextMenu(btn, {
-          itemId: postId,
-          authorId: authorId,
-          currentUid: currentUid,
-          isStaff: isStaff,
-          itemType: 'post',
-          onDelete: async (id) => {
-            try {
-              if (currentUid === authorId) {
-                await deleteOwnPost(id);
-              } else if (isStaff) {
-                await deletePostAsStaff(id);
-              }
-              smoothRemoveCard(btn.closest('.post-card'));
-            } catch (err) {
-              alert(err.message || 'Failed to delete post.');
-            }
-          },
-          onReport: async (id, reason) => {
-            try {
-              const res = await reportPost(id, reason);
-              if (res.autoTakenDown) {
-                alert('Thank you. This post has accumulated 2 community reports and has been automatically taken down for Staff review.');
-                smoothRemoveCard(btn.closest('.post-card'));
-              } else {
-                alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
-              }
-            } catch (err) {
-              alert(err.message || 'Failed to submit report.');
-            }
-          },
-          onEdit: async (id) => {
-            const card = btn.closest('.post-card');
-            const bodyEl = card.querySelector('.post-body');
-            if (!bodyEl) return;
-            const currentText = bodyEl.innerText;
-            const newText = prompt('Edit your post:', currentText);
-            if (newText !== null && newText.trim() !== currentText.trim()) {
-              try {
-                await editPost(id, newText);
-              } catch (err) {
-                alert(err.message || 'Failed to edit post.');
-              }
-            }
-          }
-        });
-      });
-    });
-
-    // Attach Poll Options Context Menu
-    feedContainer.querySelectorAll('.poll-options-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const pollId = btn.dataset.pollId;
-        const creatorId = btn.dataset.creatorId;
-        const userProfile = await getUserProfile(currentUid);
-        const isStaff = userProfile?.role === 'staff' || userProfile?.role === 'admin';
-
-        showContextMenu(btn, {
-          itemId: pollId,
-          authorId: creatorId,
-          currentUid: currentUid,
-          isStaff: isStaff,
-          itemType: 'poll',
-          onDelete: async (id) => {
-            try {
-              if (currentUid === creatorId) {
-                await deleteOwnPoll(id);
-              } else if (isStaff) {
-                await deletePollAsStaff(id);
-              }
-              smoothRemoveCard(btn.closest('.poll-card'));
-            } catch (err) {
-              alert(err.message || 'Failed to delete poll.');
-            }
-          },
-          onReport: async (id, reason) => {
-            try {
-              alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
-            } catch (err) {
-              alert(err.message || 'Failed to submit report.');
-            }
-          }
-        });
-      });
-    });
-
-    // Attach Petition Options Context Menu
-    feedContainer.querySelectorAll('.petition-options-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const petitionId = btn.dataset.petitionId;
-        const authorId = btn.dataset.authorId;
-        const userProfile = await getUserProfile(currentUid);
-        const isStaff = userProfile?.role === 'staff' || userProfile?.role === 'admin';
-
-        showContextMenu(btn, {
-          itemId: petitionId,
-          authorId: authorId,
-          currentUid: currentUid,
-          isStaff: isStaff,
-          itemType: 'petition',
-          onDelete: async (id) => {
-            try {
-              if (currentUid === authorId) {
-                await deleteOwnPetition(id);
-              } else if (isStaff) {
-                await deletePetitionAsStaff(id);
-              }
-              smoothRemoveCard(btn.closest('.petition-card'));
-            } catch (err) {
-              alert(err.message || 'Failed to delete petition.');
-            }
-          },
-          onReport: async (id, reason) => {
-            try {
-              alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
-            } catch (err) {
-              alert(err.message || 'Failed to submit report.');
-            }
-          }
-        });
-      });
-    });
-
-    // Attach Poll Voting for Polls on Home Feed
-    feedContainer.querySelectorAll('.poll-option-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const pollId = btn.dataset.pollId;
-        const optionIndex = parseInt(btn.dataset.optionIndex);
-
-        btn.disabled = true;
-        btn.textContent = 'Recording vote...';
-
-        try {
-          await voteInPoll(pollId, optionIndex);
-        } catch (err) {
-          alert(err.message || 'Failed to record vote');
-        }
-      });
-    });
-
-    // Attach Poll Likes
-    feedContainer.querySelectorAll('.poll-like-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const pollId = btn.dataset.pollId;
-        btn.disabled = true;
-        try {
-          const result = await toggleLikePoll(pollId);
-          if (result.liked) {
-            btn.classList.add('liked', 'heart-pop');
-          } else {
-            btn.classList.remove('liked', 'heart-pop');
-          }
-          const countSpan = btn.querySelector('.poll-like-count');
-          if (countSpan) countSpan.textContent = result.likes;
-        } catch (err) {
-          console.error(err);
-        } finally {
-          btn.disabled = false;
-        }
-      });
-    });
-
-    // Attach Poll Reshares
-    feedContainer.querySelectorAll('.poll-reshare-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const pollId = btn.dataset.pollId;
-        btn.disabled = true;
-        try {
-          const result = await toggleResharePoll(pollId);
-          if (result.reshared) {
-            btn.classList.add('reshared');
-            btn.style.color = '#00BA7C';
-          } else {
-            btn.classList.remove('reshared');
-            btn.style.color = '';
-          }
-          const countSpan = btn.querySelector('.poll-reshare-count');
-          if (countSpan) countSpan.textContent = result.reshares;
-        } catch (err) {
-          console.error(err);
-        } finally {
-          btn.disabled = false;
-        }
-      });
-    });
-
-    // Poll Reply button opens Poll Detail (reuses post detail route with poll prefix)
-    feedContainer.querySelectorAll('.poll-reply-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const pollId = btn.dataset.pollId;
-        if (pollId) {
-          window.location.hash = `#/poll?id=${pollId}`;
-        }
-      });
-    });
-
-    // Clicking post card opens Full Post Detail Page
-    feedContainer.querySelectorAll('.post-card').forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (!e.target.closest('.action-btn') && !e.target.closest('.btn-ghost') && !e.target.closest('a')) {
-          const postId = card.dataset.postId;
-          if (postId) {
-            window.location.hash = `${ROUTES.POST_DETAIL}?id=${postId}`;
-          }
-        }
-      });
-    });
-
-    // Clicking poll card opens Poll Detail Page
-    feedContainer.querySelectorAll('.poll-card').forEach(card => {
-      card.addEventListener('click', (e) => {
-        if (!e.target.closest('.action-btn') && !e.target.closest('.btn-ghost') && !e.target.closest('.poll-option-btn') && !e.target.closest('a')) {
-          const pollId = card.dataset.pollId;
-          if (pollId) {
-            window.location.hash = `#/poll?id=${pollId}`;
-          }
-        }
-      });
-    });
-
-    // Reply button opens Post Detail
-    feedContainer.querySelectorAll('.reply-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const card = btn.closest('.post-card');
-        const postId = card?.dataset.postId;
-        if (postId) {
-          window.location.hash = `${ROUTES.POST_DETAIL}?id=${postId}`;
-        }
-      });
-    });
-
-    // Attach Petition Sign buttons
-    feedContainer.querySelectorAll('.sign-petition-feed-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const petitionId = btn.dataset.petitionId;
-        btn.disabled = true;
-        btn.textContent = 'Signing...';
-        try {
-          await signPetition(petitionId);
-          btn.textContent = '✓ Signed';
-        } catch (err) {
-          alert(err.message || 'Failed to sign petition.');
-          btn.disabled = false;
-          btn.textContent = '✍️ Sign';
-        }
-      });
-    });
-
-    // Copy Petition Frame Link
-    feedContainer.querySelectorAll('.copy-petition-frame-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const petitionId = btn.dataset.petitionId;
-        const frameLink = `${window.location.origin}${window.location.pathname}#/petition-frame?id=${petitionId}`;
-        navigator.clipboard.writeText(frameLink).then(() => {
-          const originalHTML = btn.innerHTML;
-          btn.textContent = '✓ Copied!';
-          setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
-        });
-      });
-    });
   };
 
-  if (feedUnsubscribe) feedUnsubscribe();
-  if (pollsUnsubscribe) pollsUnsubscribe();
-  if (petitionsUnsubscribe) petitionsUnsubscribe();
+  const handleFeedClick = async (e) => {
+    const currentUid = auth.currentUser?.uid;
+    if (!currentUid) return;
 
-  window.postLimit = 15;
+    // Post Like
+    const likeBtn = e.target.closest('.like-btn');
+    if (likeBtn) {
+      e.stopPropagation();
+      const postId = likeBtn.dataset.postId;
+      likeBtn.disabled = true;
+      try {
+        const result = await toggleLikePost(postId);
+        if (result.liked) {
+          likeBtn.classList.add('liked', 'heart-pop');
+        } else {
+          likeBtn.classList.remove('liked', 'heart-pop');
+        }
+        const countSpan = likeBtn.querySelector('.like-count');
+        if (countSpan) countSpan.textContent = result.likes;
+      } catch (err) {
+        console.error(err);
+      } finally {
+        likeBtn.disabled = false;
+      }
+      return;
+    }
 
-  feedUnsubscribe = subscribeToFeed(window.postLimit, (posts) => {
-    latestPosts = posts;
-    updateCombinedFeed();
-  });
+    // Post Reshare
+    const reshareBtn = e.target.closest('.reshare-btn');
+    if (reshareBtn) {
+      e.stopPropagation();
+      const postId = reshareBtn.dataset.postId;
+      reshareBtn.disabled = true;
+      try {
+        const result = await toggleResharePost(postId);
+        if (result.reshared) {
+          reshareBtn.classList.add('reshared');
+          reshareBtn.style.color = '#00BA7C';
+        } else {
+          reshareBtn.classList.remove('reshared');
+          reshareBtn.style.color = '';
+        }
+        const countSpan = reshareBtn.querySelector('.reshare-count');
+        if (countSpan) countSpan.textContent = result.reshares;
+      } catch (err) {
+        console.error(err);
+      } finally {
+        reshareBtn.disabled = false;
+      }
+      return;
+    }
 
-  pollsUnsubscribe = subscribeToPolls(20, (polls) => {
-    latestPolls = polls;
-    updateCombinedFeed();
-  });
+    // Post Save
+    const saveBtn = e.target.closest('.save-btn');
+    if (saveBtn) {
+      e.stopPropagation();
+      const postId = saveBtn.dataset.postId;
+      saveBtn.disabled = true;
+      try {
+        const isSaved = await toggleSavedPost(postId);
+        if (isSaved) {
+          saveBtn.classList.add('saved');
+          saveBtn.style.color = 'var(--accent-primary)';
+        } else {
+          saveBtn.classList.remove('saved');
+          saveBtn.style.color = '';
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        saveBtn.disabled = false;
+      }
+      return;
+    }
 
-  petitionsUnsubscribe = subscribeToPetitions(20, (petitions) => {
-    latestPetitions = petitions;
-    updateCombinedFeed();
-  });
+    // Post Options
+    const postOptionsBtn = e.target.closest('.post-options-btn');
+    if (postOptionsBtn) {
+      e.stopPropagation();
+      const postId = postOptionsBtn.dataset.postId;
+      const authorId = postOptionsBtn.dataset.authorId;
+      const userProfile = await getUserProfile(currentUid);
+      const isStaff = userProfile?.role === 'staff' || userProfile?.role === 'admin';
 
-  return () => {
-    if (layoutCleanup) layoutCleanup();
-    if (feedUnsubscribe) { feedUnsubscribe(); feedUnsubscribe = null; }
-    if (pollsUnsubscribe) { pollsUnsubscribe(); pollsUnsubscribe = null; }
-    if (petitionsUnsubscribe) { petitionsUnsubscribe(); petitionsUnsubscribe = null; }
-    if (window.feedObserver) { window.feedObserver.disconnect(); window.feedObserver = null; }
+      showContextMenu(postOptionsBtn, {
+        itemId: postId,
+        authorId: authorId,
+        currentUid: currentUid,
+        isStaff: isStaff,
+        itemType: 'post',
+        onDelete: async (id) => {
+          try {
+            if (currentUid === authorId) {
+              await deleteOwnPost(id);
+            } else if (isStaff) {
+              await deletePostAsStaff(id);
+            }
+            smoothRemoveCard(postOptionsBtn.closest('.post-card'));
+          } catch (err) {
+            alert(err.message || 'Failed to delete post.');
+          }
+        },
+        onReport: async (id, reason) => {
+          try {
+            const res = await reportPost(id, reason);
+            if (res.autoTakenDown) {
+              alert('Thank you. This post has accumulated 2 community reports and has been automatically taken down for Staff review.');
+              smoothRemoveCard(postOptionsBtn.closest('.post-card'));
+            } else {
+              alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
+            }
+          } catch (err) {
+            alert(err.message || 'Failed to submit report.');
+          }
+        },
+        onEdit: async (id) => {
+          const card = postOptionsBtn.closest('.post-card');
+          const bodyEl = card.querySelector('.post-body');
+          if (!bodyEl) return;
+          const currentText = bodyEl.innerText;
+          const newText = prompt('Edit your post:', currentText);
+          if (newText !== null && newText.trim() !== currentText.trim()) {
+            try {
+              await editPost(id, newText);
+            } catch (err) {
+              alert(err.message || 'Failed to edit post.');
+            }
+          }
+        }
+      });
+      return;
+    }
+
+    // Poll Options
+    const pollOptionsBtn = e.target.closest('.poll-options-btn');
+    if (pollOptionsBtn) {
+      e.stopPropagation();
+      const pollId = pollOptionsBtn.dataset.pollId;
+      const creatorId = pollOptionsBtn.dataset.creatorId;
+      const userProfile = await getUserProfile(currentUid);
+      const isStaff = userProfile?.role === 'staff' || userProfile?.role === 'admin';
+
+      showContextMenu(pollOptionsBtn, {
+        itemId: pollId,
+        authorId: creatorId,
+        currentUid: currentUid,
+        isStaff: isStaff,
+        itemType: 'poll',
+        onDelete: async (id) => {
+          try {
+            if (currentUid === creatorId) {
+              await deleteOwnPoll(id);
+            } else if (isStaff) {
+              await deletePollAsStaff(id);
+            }
+            smoothRemoveCard(pollOptionsBtn.closest('.poll-card'));
+          } catch (err) {
+            alert(err.message || 'Failed to delete poll.');
+          }
+        },
+        onReport: async (id, reason) => {
+          try {
+            alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
+          } catch (err) {
+            alert(err.message || 'Failed to submit report.');
+          }
+        }
+      });
+      return;
+    }
+
+    // Petition Options
+    const petitionOptionsBtn = e.target.closest('.petition-options-btn');
+    if (petitionOptionsBtn) {
+      e.stopPropagation();
+      const petitionId = petitionOptionsBtn.dataset.petitionId;
+      const authorId = petitionOptionsBtn.dataset.authorId;
+      const userProfile = await getUserProfile(currentUid);
+      const isStaff = userProfile?.role === 'staff' || userProfile?.role === 'admin';
+
+      showContextMenu(petitionOptionsBtn, {
+        itemId: petitionId,
+        authorId: authorId,
+        currentUid: currentUid,
+        isStaff: isStaff,
+        itemType: 'petition',
+        onDelete: async (id) => {
+          try {
+            if (currentUid === authorId) {
+              await deleteOwnPetition(id);
+            } else if (isStaff) {
+              await deletePetitionAsStaff(id);
+            }
+            smoothRemoveCard(petitionOptionsBtn.closest('.petition-card'));
+          } catch (err) {
+            alert(err.message || 'Failed to delete petition.');
+          }
+        },
+        onReport: async (id, reason) => {
+          try {
+            alert('Thank you for reporting. Your report has been submitted to SJC Moderation.');
+          } catch (err) {
+            alert(err.message || 'Failed to submit report.');
+          }
+        }
+      });
+      return;
+    }
+
+    // Poll Voting
+    const pollOptionBtn = e.target.closest('.poll-option-btn');
+    if (pollOptionBtn) {
+      e.stopPropagation();
+      const pollId = pollOptionBtn.dataset.pollId;
+      const optionIndex = parseInt(pollOptionBtn.dataset.optionIndex);
+
+      pollOptionBtn.disabled = true;
+      pollOptionBtn.textContent = 'Recording vote...';
+
+      try {
+        await voteInPoll(pollId, optionIndex);
+      } catch (err) {
+        alert(err.message || 'Failed to record vote');
+      }
+      return;
+    }
+
+    // Poll Like
+    const pollLikeBtn = e.target.closest('.poll-like-btn');
+    if (pollLikeBtn) {
+      e.stopPropagation();
+      const pollId = pollLikeBtn.dataset.pollId;
+      pollLikeBtn.disabled = true;
+      try {
+        const result = await toggleLikePoll(pollId);
+        if (result.liked) {
+          pollLikeBtn.classList.add('liked', 'heart-pop');
+        } else {
+          pollLikeBtn.classList.remove('liked', 'heart-pop');
+        }
+        const countSpan = pollLikeBtn.querySelector('.like-count');
+        if (countSpan) countSpan.textContent = result.likes;
+      } catch (err) {
+        console.error(err);
+      } finally {
+        pollLikeBtn.disabled = false;
+      }
+      return;
+    }
+
+    // Poll Reshare
+    const pollReshareBtn = e.target.closest('.poll-reshare-btn');
+    if (pollReshareBtn) {
+      e.stopPropagation();
+      const pollId = pollReshareBtn.dataset.pollId;
+      pollReshareBtn.disabled = true;
+      try {
+        const result = await toggleResharePoll(pollId);
+        if (result.reshared) {
+          pollReshareBtn.classList.add('reshared');
+          pollReshareBtn.style.color = '#00BA7C';
+        } else {
+          pollReshareBtn.classList.remove('reshared');
+          pollReshareBtn.style.color = '';
+        }
+        const countSpan = pollReshareBtn.querySelector('.reshare-count');
+        if (countSpan) countSpan.textContent = result.reshares;
+      } catch (err) {
+        console.error(err);
+      } finally {
+        pollReshareBtn.disabled = false;
+      }
+      return;
+    }
+
+    // Petition Sign
+    const petitionSignBtn = e.target.closest('.petition-sign-btn');
+    if (petitionSignBtn) {
+      e.stopPropagation();
+      const petitionId = petitionSignBtn.dataset.petitionId;
+      petitionSignBtn.disabled = true;
+      try {
+        const result = await toggleSignPetition(petitionId);
+        if (result.signed) {
+          petitionSignBtn.classList.add('signed');
+          petitionSignBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size: 18px;">draw</span> Signed`;
+          petitionSignBtn.style.background = 'var(--accent-soft)';
+          petitionSignBtn.style.color = 'var(--accent-primary)';
+          petitionSignBtn.style.border = '1px solid var(--accent-primary)';
+        } else {
+          petitionSignBtn.classList.remove('signed');
+          petitionSignBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size: 18px;">draw</span> Sign Petition`;
+          petitionSignBtn.style.background = 'var(--paper-raised)';
+          petitionSignBtn.style.color = 'var(--text-primary)';
+          petitionSignBtn.style.border = '1px solid var(--border-color)';
+        }
+        const card = petitionSignBtn.closest('.petition-card');
+        const countSpan = card.querySelector('.signature-count');
+        if (countSpan) {
+          countSpan.innerHTML = `<b>${result.signatures}</b> signatures`;
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        petitionSignBtn.disabled = false;
+      }
+      return;
+    }
   };
-}
+
+  feedContainer.addEventListener('click', handleFeedClick);
+

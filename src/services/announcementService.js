@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, query, update, onValue, off } from 'firebase/database';
+import { ref, push, set, get, query, update, onValue, off, orderByChild, limitToLast } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 
 export async function createAnnouncement(data) {
@@ -61,9 +61,9 @@ export async function editAnnouncement(id, newTitle, newContent, newSeverity) {
 }
 
 export function subscribeToAnnouncements(limitCount = 20, callback) {
-  const announcementsRef = ref(db, PATHS.ANNOUNCEMENTS);
+  const announcementsQuery = query(ref(db, PATHS.ANNOUNCEMENTS), orderByChild('timestamp'), limitToLast(limitCount));
 
-  const listener = onValue(announcementsRef, (snapshot) => {
+  const listener = onValue(announcementsQuery, (snapshot) => {
     const announcements = [];
     if (snapshot.exists()) {
       snapshot.forEach((childSnap) => {
@@ -72,12 +72,12 @@ export function subscribeToAnnouncements(limitCount = 20, callback) {
       });
     }
     announcements.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-    callback(announcements.slice(0, limitCount));
+    callback(announcements);
   }, (error) => {
     console.error('Error fetching announcements:', error);
   });
 
-  return () => off(announcementsRef, 'value', listener);
+  return () => off(announcementsQuery, 'value', listener);
 }
 
 export async function deleteAnnouncementAsStaff(id) {

@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, remove, onValue, off, runTransaction } from 'firebase/database';
+import { ref, push, set, get, remove, onValue, off, runTransaction, query, orderByChild, limitToLast } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { getUserProfile } from './postService.js';
 
@@ -37,10 +37,10 @@ export async function createEvent(eventData) {
   return newEvent;
 }
 
-export function subscribeToEvents(callback) {
-  const eventsRef = ref(db, PATHS.EVENTS);
+export function subscribeToEvents(limitCount = 20, callback) {
+  const eventsQuery = query(ref(db, PATHS.EVENTS), orderByChild('timestamp'), limitToLast(limitCount));
 
-  const listener = onValue(eventsRef, (snapshot) => {
+  const listener = onValue(eventsQuery, (snapshot) => {
     const events = [];
     if (snapshot.exists()) {
       snapshot.forEach((childSnap) => {
@@ -52,7 +52,7 @@ export function subscribeToEvents(callback) {
     callback(events);
   });
 
-  return () => off(eventsRef, 'value', listener);
+  return () => off(eventsQuery, 'value', listener);
 }
 
 export async function getEventById(eventId) {

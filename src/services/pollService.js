@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, onValue, off, remove, runTransaction } from 'firebase/database';
+import { ref, push, set, get, onValue, off, remove, runTransaction, query, orderByChild, limitToLast } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 
 export async function createPoll(question, options, isAnonymous = false) {
@@ -79,9 +79,9 @@ export async function voteInPoll(pollId, optionIndex) {
 }
 
 export function subscribeToPolls(limitCount = 20, callback) {
-  const pollsRef = ref(db, PATHS.POLLS);
+  const pollsQuery = query(ref(db, PATHS.POLLS), orderByChild('timestamp'), limitToLast(limitCount));
 
-  const listener = onValue(pollsRef, (snapshot) => {
+  const listener = onValue(pollsQuery, (snapshot) => {
     const polls = [];
     if (snapshot.exists()) {
       snapshot.forEach((childSnap) => {
@@ -90,12 +90,12 @@ export function subscribeToPolls(limitCount = 20, callback) {
       });
     }
     polls.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-    callback(polls.slice(0, limitCount));
+    callback(polls);
   }, (error) => {
     console.error('Error fetching polls:', error);
   });
 
-  return () => off(pollsRef, 'value', listener);
+  return () => off(pollsQuery, 'value', listener);
 }
 
 // ---- Poll Like / Reshare / Reply ----
