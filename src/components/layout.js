@@ -338,8 +338,9 @@ export function attachLayoutListeners() {
 
   // Real-time Unread Notifications Badge
   const badge = document.getElementById('unread-notif-badge');
+  let notifUnsub = null;
   if (currentUser && badge) {
-    subscribeToUserNotifications(currentUser.uid, (list) => {
+    notifUnsub = subscribeToUserNotifications(currentUser.uid, (list) => {
       const unreadCount = list.filter(n => !n.read).length;
       if (unreadCount > 0) {
         badge.textContent = unreadCount;
@@ -398,9 +399,10 @@ export function attachLayoutListeners() {
 
   // Dynamic Announcements Widget Loading
   const announcementsContainer = document.getElementById('campus-updates-widget-container');
+  let announcementsUnsub = null;
   if (announcementsContainer) {
     if (window.layoutAnnouncementsUnsub) window.layoutAnnouncementsUnsub();
-    window.layoutAnnouncementsUnsub = subscribeToAnnouncements(2, (announcements) => {
+    announcementsUnsub = subscribeToAnnouncements(2, (announcements) => {
       if (!announcements || announcements.length === 0) {
         announcementsContainer.innerHTML = `<div style="color: var(--text-secondary); font-size: 13px;">No recent official updates.</div>`;
         return;
@@ -425,6 +427,7 @@ export function attachLayoutListeners() {
       });
       announcementsContainer.innerHTML = html;
     });
+    window.layoutAnnouncementsUnsub = announcementsUnsub;
   }
 
   // Live Campus Search Logic (Filtered after 3 letters)
@@ -533,4 +536,12 @@ export function attachLayoutListeners() {
       document.body.classList.toggle('mobile-sidebar-active');
     });
   }
+
+  return () => {
+    if (notifUnsub) notifUnsub();
+    if (window.layoutAnnouncementsUnsub) {
+      window.layoutAnnouncementsUnsub();
+      window.layoutAnnouncementsUnsub = null;
+    }
+  };
 }

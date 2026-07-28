@@ -123,7 +123,7 @@ export function renderHome(container) {
 
   // Render Immediately Synchronously
   container.innerHTML = createLayout(content, ROUTES.HOME);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   // Async User Profile & Role check for sidebar & staff moderation powers
   let userRole = 'student';
@@ -786,4 +786,12 @@ export function renderHome(container) {
     latestPetitions = petitions;
     updateCombinedFeed();
   });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+    if (feedUnsubscribe) { feedUnsubscribe(); feedUnsubscribe = null; }
+    if (pollsUnsubscribe) { pollsUnsubscribe(); pollsUnsubscribe = null; }
+    if (petitionsUnsubscribe) { petitionsUnsubscribe(); petitionsUnsubscribe = null; }
+    if (window.feedObserver) { window.feedObserver.disconnect(); window.feedObserver = null; }
+  };
 }

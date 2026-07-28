@@ -32,7 +32,7 @@ export function renderSearch(container) {
   `;
 
   container.innerHTML = createLayout(content, '#/search');
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const input = document.getElementById('dedicated-search-input');
   const resultsContainer = document.getElementById('dedicated-search-results');
@@ -120,4 +120,8 @@ export function renderSearch(container) {
       resultsContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--error-color);">Failed to search campus.</div>`;
     }
   });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+  };
 }

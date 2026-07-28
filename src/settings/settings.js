@@ -96,7 +96,7 @@ export async function renderSettings(container) {
   `;
 
   container.innerHTML = createLayout(content, ROUTES.SETTINGS, userProfile?.role || 'student');
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const form = document.getElementById('change-password-form');
   const newPwdInput = document.getElementById('new-password-input');
@@ -162,4 +162,8 @@ export async function renderSettings(container) {
       }
     });
   }
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+  };
 }

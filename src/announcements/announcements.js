@@ -72,7 +72,7 @@ export async function renderAnnouncements(container) {
   `;
 
   container.innerHTML = createLayout(content, ROUTES.ANNOUNCEMENTS);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const form = document.getElementById('create-announcement-form');
   const errorDiv = document.getElementById('announcement-error');
@@ -242,4 +242,9 @@ export async function renderAnnouncements(container) {
       });
     }
   });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+    if (announcementsUnsubscribe) { announcementsUnsubscribe(); announcementsUnsubscribe = null; }
+  };
 }

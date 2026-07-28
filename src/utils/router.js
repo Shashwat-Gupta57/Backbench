@@ -25,6 +25,8 @@ import { isProfileComplete } from '../services/authService.js';
 let currentView = null;
 let rootElement = null;
 
+let currentCleanup = null;
+
 export function initRouter(appElement) {
   rootElement = appElement;
   
@@ -42,6 +44,12 @@ async function handleRoute() {
   const hash = window.location.hash;
   const path = hash.split('?')[0]; // simple path parsing
   
+  // Clean up any active listeners from the previous route
+  if (currentCleanup && typeof currentCleanup === 'function') {
+    currentCleanup();
+    currentCleanup = null;
+  }
+  
   if (rootElement) {
     rootElement.innerHTML = '';
   }
@@ -51,7 +59,7 @@ async function handleRoute() {
     const profile = await getUserProfile(auth.currentUser.uid);
     if (!isProfileComplete(profile)) {
       window.location.hash = ROUTES.ONBOARDING;
-      renderOnboarding(rootElement);
+      currentCleanup = await renderOnboarding(rootElement);
       return;
     }
   }
@@ -59,61 +67,61 @@ async function handleRoute() {
   switch(path) {
     case '#/login':
     case '#/signup':
-      renderAuth(rootElement, path);
+      currentCleanup = await renderAuth(rootElement, path);
       break;
     case ROUTES.ONBOARDING:
-      renderOnboarding(rootElement);
+      currentCleanup = await renderOnboarding(rootElement);
       break;
     case ROUTES.HOME:
-      renderHome(rootElement);
+      currentCleanup = await renderHome(rootElement);
       break;
     case ROUTES.PROFILE:
-      renderProfile(rootElement);
+      currentCleanup = await renderProfile(rootElement);
       break;
     case '#/notifications':
-      renderNotifications(rootElement);
+      currentCleanup = await renderNotifications(rootElement);
       break;
     case '#/friends':
-      renderFriends(rootElement);
+      currentCleanup = await renderFriends(rootElement);
       break;
     case ROUTES.POST_DETAIL:
-      renderPostDetail(rootElement);
+      currentCleanup = await renderPostDetail(rootElement);
       break;
     case '#/search':
-      renderSearch(rootElement);
+      currentCleanup = await renderSearch(rootElement);
       break;
     case ROUTES.PETITIONS:
-      renderPetitions(rootElement);
+      currentCleanup = await renderPetitions(rootElement);
       break;
     case '#/petition':
-      renderPetitionDetail(rootElement);
+      currentCleanup = await renderPetitionDetail(rootElement);
       break;
     case ROUTES.PETITION_FRAME:
-      renderPetitionFrame(rootElement);
+      currentCleanup = await renderPetitionFrame(rootElement);
       break;
     case ROUTES.PROFILE_FRAME:
-      renderProfileFrame(rootElement);
+      currentCleanup = await renderProfileFrame(rootElement);
       break;
     case ROUTES.POLLS:
-      renderPolls(rootElement);
+      currentCleanup = await renderPolls(rootElement);
       break;
     case '#/poll':
-      renderPollDetail(rootElement);
+      currentCleanup = await renderPollDetail(rootElement);
       break;
     case ROUTES.ANNOUNCEMENTS:
-      renderAnnouncements(rootElement);
+      currentCleanup = await renderAnnouncements(rootElement);
       break;
     case ROUTES.EVENTS:
-      renderEvents(rootElement);
+      currentCleanup = await renderEvents(rootElement);
       break;
     case '#/event':
-      renderEventDetail(rootElement);
+      currentCleanup = await renderEventDetail(rootElement);
       break;
     case ROUTES.ADMIN:
-      renderAdmin(rootElement);
+      currentCleanup = await renderAdmin(rootElement);
       break;
     case ROUTES.SETTINGS:
-      renderSettings(rootElement);
+      currentCleanup = await renderSettings(rootElement);
       break;
     default:
       rootElement.innerHTML = '<div style="padding: 40px; text-align: center;"><h1>404 Page Not Found</h1></div>';

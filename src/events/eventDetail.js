@@ -199,7 +199,7 @@ export async function renderEventDetail(container) {
   `;
 
   container.innerHTML = createLayout(content, ROUTES.EVENTS);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const printBtn = document.getElementById('print-pass-btn');
   const attendingBtn = document.getElementById('rsvp-attending-btn');
@@ -234,6 +234,10 @@ export async function renderEventDetail(container) {
       }
     });
   }
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+  };
 }
 
 function renderNotFound(container, message) {
@@ -252,5 +256,8 @@ function renderNotFound(container, message) {
       <p style="color: var(--text-secondary); margin-top: 4px;">${message}</p>
     </div>
   `, ROUTES.EVENTS);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+  };
 }

@@ -206,7 +206,7 @@ export async function renderPostDetail(container) {
   `;
 
   container.innerHTML = createLayout(content, ROUTES.HOME);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   // Load Related Campus Posts recommendation widget in right sidebar
   const rightSidebar = document.querySelector('.right-sidebar');
@@ -586,6 +586,11 @@ export async function renderPostDetail(container) {
       });
     });
   });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+    if (repliesUnsubscribe) { repliesUnsubscribe(); repliesUnsubscribe = null; }
+  };
 }
 
 function renderNotFound(container, message) {
@@ -604,5 +609,8 @@ function renderNotFound(container, message) {
       <p style="color: var(--text-secondary); margin-top: 4px;">${message}</p>
     </div>
   `, ROUTES.HOME);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+  };
 }

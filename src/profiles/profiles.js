@@ -127,8 +127,10 @@ export async function renderProfile(container) {
         <p style="color: var(--text-secondary); margin-top: 4px;">The student profile "@${escapeHTML(targetUsername || 'user')}" does not exist on Backbench.</p>
       </div>
     `, ROUTES.PROFILE);
-    attachLayoutListeners();
-    return;
+    const layoutCleanup = attachLayoutListeners();
+    return () => {
+      if (layoutCleanup) layoutCleanup();
+    };
   }
 
   const isOwnProfile = auth.currentUser.uid === userProfile.uid;
@@ -280,7 +282,7 @@ export async function renderProfile(container) {
   `;
 
   container.innerHTML = createLayout(content, ROUTES.PROFILE);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const profileFeedContainer = document.getElementById('profile-feed-container');
   const postCountHeader = document.getElementById('profile-post-count-header');
@@ -974,4 +976,9 @@ function setupEditProfileModal(profile, container) {
       }
     });
   }
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+    if (userPostsUnsub) { userPostsUnsub(); userPostsUnsub = null; }
+  };
 }

@@ -62,7 +62,7 @@ export function renderPolls(container) {
   `;
 
   container.innerHTML = createLayout(content, ROUTES.POLLS);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const questionInput = document.getElementById('poll-question');
   const optionsContainer = document.getElementById('poll-options-inputs');
@@ -163,4 +163,9 @@ export function renderPolls(container) {
       });
     });
   });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+    if (pollsUnsubscribe) { pollsUnsubscribe(); pollsUnsubscribe = null; }
+  };
 }

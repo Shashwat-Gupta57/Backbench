@@ -126,7 +126,7 @@ export async function renderPollDetail(container) {
   `;
 
   container.innerHTML = createLayout(content, ROUTES.POLLS);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const replyInput = document.getElementById('poll-reply-input');
   const replyCounter = document.getElementById('poll-reply-char-counter');
@@ -323,6 +323,11 @@ export async function renderPollDetail(container) {
 
     repliesContainer.innerHTML = html;
   });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+    if (repliesUnsubscribe) { repliesUnsubscribe(); repliesUnsubscribe = null; }
+  };
 }
 
 function renderNotFound(container, message) {
@@ -341,5 +346,8 @@ function renderNotFound(container, message) {
       <p style="color: var(--text-secondary); margin-top: 4px;">${message}</p>
     </div>
   `, ROUTES.POLLS);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+  };
 }

@@ -50,7 +50,7 @@ export function renderNotifications(container) {
   `;
 
   container.innerHTML = createLayout(content, '#/notifications');
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const feedContainer = document.getElementById('notifications-feed-container');
   const markAllBtn = document.getElementById('mark-all-read-btn');
@@ -180,4 +180,9 @@ export function renderNotifications(container) {
       });
     });
   });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+    if (notifUnsubscribe) { notifUnsubscribe(); notifUnsubscribe = null; }
+  };
 }

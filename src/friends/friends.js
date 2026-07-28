@@ -120,7 +120,7 @@ export async function renderFriends(container) {
   `;
 
   container.innerHTML = createLayout(content, '#/friends');
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const listContainer = document.getElementById('friends-list-container');
   const tabAll = document.getElementById('tab-all-friends');
@@ -182,4 +182,8 @@ export async function renderFriends(container) {
     listContainer.innerHTML = renderFeedHTML(oneSidedFriends);
     attachCardListeners();
   });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+  };
 }

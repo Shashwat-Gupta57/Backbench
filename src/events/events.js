@@ -98,7 +98,7 @@ export function renderEvents(container) {
   `;
 
   container.innerHTML = createLayout(content, ROUTES.EVENTS);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const form = document.getElementById('create-event-form');
   const errorDiv = document.getElementById('event-error');
@@ -284,4 +284,9 @@ export function renderEvents(container) {
     latestEvents = events;
     renderEventsList();
   });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+    if (eventsUnsubscribe) { eventsUnsubscribe(); eventsUnsubscribe = null; }
+  };
 }

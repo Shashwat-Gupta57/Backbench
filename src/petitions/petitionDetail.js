@@ -170,7 +170,7 @@ export async function renderPetitionDetail(container) {
   `;
 
   container.innerHTML = createLayout(content, ROUTES.PETITIONS);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const printBtn = document.getElementById('print-petition-btn');
   const copyFrameBtn = document.getElementById('copy-detail-frame-link-btn');
@@ -221,6 +221,10 @@ export async function renderPetitionDetail(container) {
       }
     });
   }
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+  };
 }
 
 function renderNotFound(container, message) {
@@ -239,5 +243,8 @@ function renderNotFound(container, message) {
       <p style="color: var(--text-secondary); margin-top: 4px;">${message}</p>
     </div>
   `, ROUTES.PETITIONS);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+  };
 }

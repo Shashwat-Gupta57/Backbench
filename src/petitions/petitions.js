@@ -106,7 +106,7 @@ export function renderPetitions(container) {
   `;
 
   container.innerHTML = createLayout(content, ROUTES.PETITIONS);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   const form = document.getElementById('create-petition-form');
   const errorDiv = document.getElementById('petition-error');
@@ -267,4 +267,9 @@ export function renderPetitions(container) {
       });
     });
   });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+    if (petitionsUnsubscribe) { petitionsUnsubscribe(); petitionsUnsubscribe = null; }
+  };
 }

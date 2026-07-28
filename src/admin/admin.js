@@ -45,8 +45,10 @@ export async function renderAdmin(container) {
         </p>
       </div>
     `, ROUTES.HOME, userRole);
-    attachLayoutListeners();
-    return;
+    const layoutCleanup = attachLayoutListeners();
+    return () => {
+      if (layoutCleanup) layoutCleanup();
+    };
   }
 
   // Fetch live stats, roster & reported queue
@@ -241,7 +243,7 @@ export async function renderAdmin(container) {
   `;
 
   container.innerHTML = createLayout(content, ROUTES.ADMIN, userRole);
-  attachLayoutListeners();
+  const layoutCleanup = attachLayoutListeners();
 
   // Approve & Reinstate Post Handler
   container.querySelectorAll('.approve-post-btn').forEach(btn => {
@@ -330,4 +332,8 @@ export async function renderAdmin(container) {
       }
     });
   });
+
+  return () => {
+    if (layoutCleanup) layoutCleanup();
+  };
 }
