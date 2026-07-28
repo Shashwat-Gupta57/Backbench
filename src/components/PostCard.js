@@ -81,15 +81,21 @@ export function createPostCardHTML(post, author, isLiked = false, isReshared = f
 }
 
 export function createSavedReplyCardHTML(post, postAuthor, reply, replyAuthor, isSaved = true) {
-  const pName = postAuthor?.name ? escapeHTML(postAuthor.name) : 'Anonymous Student';
-  const pUsername = postAuthor?.username ? escapeHTML(postAuthor.username) : 'student';
-  const pAvatar = renderUserAvatar(postAuthor, 36, 'border: 1px solid var(--border-color);');
+  const isAnon = post.isAnonymous === true;
+
+  const pName = isAnon ? 'Anonymous Student' : (postAuthor?.name ? escapeHTML(postAuthor.name) : 'Anonymous Student');
+  const pUsername = isAnon ? 'anonymous' : (postAuthor?.username ? escapeHTML(postAuthor.username) : 'student');
+  const pAvatar = isAnon 
+    ? `<div class="avatar" style="width: 36px; height: 36px; font-size: 16px; background: linear-gradient(135deg, #6366f1, #8b5cf6);">🎭</div>`
+    : renderUserAvatar(postAuthor, 36, 'border: 1px solid var(--border-color);');
   
-  const rName = replyAuthor?.name ? escapeHTML(replyAuthor.name) : 'Anonymous Student';
-  const rUsername = replyAuthor?.username ? escapeHTML(replyAuthor.username) : 'student';
-  const rAvatar = renderUserAvatar(replyAuthor, 36, 'border: 1px solid var(--border-color);');
+  const rName = isAnon ? 'Anonymous Replier' : (replyAuthor?.name ? escapeHTML(replyAuthor.name) : 'Anonymous Student');
+  const rUsername = isAnon ? 'anonymous_reply' : (replyAuthor?.username ? escapeHTML(replyAuthor.username) : 'student');
+  const rAvatar = isAnon
+    ? `<div class="avatar" style="width: 36px; height: 36px; font-size: 14px; background: linear-gradient(135deg, #a855f7, #ec4899); font-weight: 800;">AR</div>`
+    : renderUserAvatar(replyAuthor, 36, 'border: 1px solid var(--border-color);');
   
-  const rFontStyle = getUserFontFamily(replyAuthor);
+  const rFontStyle = isAnon ? "'Inter', sans-serif" : getUserFontFamily(replyAuthor);
 
   return `
     <div class="saved-reply-container fade-in" style="border-bottom: 1px solid var(--border-color); cursor: pointer;" onclick="window.location.hash = '#/post?id=${post.postId}'">

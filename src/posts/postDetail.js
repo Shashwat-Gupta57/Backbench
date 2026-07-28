@@ -108,7 +108,7 @@ export async function renderPostDetail(container) {
         ${authorAvatarHTML}
         <div style="display: flex; flex-direction: column;">
           <span style="font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 4px; font-family: ${authorFont};">
-            ${name}
+            Anonymous Student
           </span>
           <span style="color: var(--text-secondary); font-size: 14px;">@anonymous</span>
         </div>

@@ -46,8 +46,9 @@ export async function renderPetitionFrame(container) {
   const percentage = Math.min(100, Math.round((signatureCount / goalTarget) * 100));
   const isGoalReached = signatureCount >= goalTarget;
 
-  const creatorName = creator?.name ? escapeHTML(creator.name) : 'Student Representative';
-  const creatorUsername = creator?.username ? escapeHTML(creator.username) : 'student';
+  const isAnon = petition.isAnonymous === true;
+  const creatorName = isAnon ? 'Anonymous Student' : (creator?.name ? escapeHTML(creator.name) : 'Student Representative');
+  const creatorUsername = isAnon ? 'anonymous' : (creator?.username ? escapeHTML(creator.username) : 'student');
 
   const dateFormatted = new Date(petition.timestamp || Date.now()).toLocaleDateString('en-US', {
     month: 'long',

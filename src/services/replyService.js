@@ -22,6 +22,10 @@ export async function createReply(postId, content, parentReplyId = null) {
     throw new Error(`Reply cannot exceed ${LIMITS.REPLY_MAX_LENGTH} characters`);
   }
 
+  // Fetch post to check if it's anonymous
+  const post = await getPostById(postId);
+  const isPostAnon = post?.isAnonymous === true;
+
   // Push reply into replies/{postId}/{replyId}
   const replyRef = push(ref(db, `${PATHS.REPLIES}/${postId}`));
   const replyData = {
@@ -31,10 +35,16 @@ export async function createReply(postId, content, parentReplyId = null) {
     authorId: user.uid,
     content: text,
     timestamp: new Date().toISOString(),
-    likes: 0
+    likes: 0,
+    isAnonymous: isPostAnon
   };
 
   await set(replyRef, replyData);
+
+  // Write a shallow copy to _global_last_reply to support Android APK legacy notifications
+  // The Android app polls /replies.json?orderBy="timestamp"&limitToLast=1
+  const globalReplyRef = ref(db, `${PATHS.REPLIES}/_global_last_reply`);
+  await set(globalReplyRef, replyData);
 
   // Increment replyCount on posts/{postId}
   const postRef = ref(db, `${PATHS.POSTS}/${postId}`);
