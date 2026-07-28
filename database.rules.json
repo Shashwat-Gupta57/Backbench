@@ -23,6 +23,9 @@
     },
     "replies": {
       ".indexOn": ["timestamp"],
+      "_global_last_reply": {
+        ".write": "auth != null"
+      },
       "$postId": {
         "$replyId": {
           ".write": "auth != null",
