@@ -3,6 +3,8 @@
  * Shows role-appropriate options based on ownership and staff status.
  */
 
+import { showPromptModal, showConfirmModal } from './Modal.js';
+
 let activeMenu = null;
 
 function closeActiveMenu() {
@@ -71,7 +73,7 @@ export function showContextMenu(anchorBtn, options) {
       className: 'ctx-menu-item danger',
       action: async () => {
         closeActiveMenu();
-        if (confirm(`Are you sure you want to permanently delete this ${typeLabel}?`)) {
+        if (await showConfirmModal(`Delete ${typeLabel}`, `Are you sure you want to permanently delete this ${typeLabel}? This action cannot be undone.`)) {
           if (onDelete) await onDelete(itemId);
         }
       }
@@ -86,7 +88,7 @@ export function showContextMenu(anchorBtn, options) {
       className: 'ctx-menu-item danger',
       action: async () => {
         closeActiveMenu();
-        if (confirm(`🛡️ Staff Moderation Action:\nDo you want to take down this ${typeLabel} from Backbench?`)) {
+        if (await showConfirmModal(`Take down ${typeLabel}`, `🛡️ Staff Moderation Action:\nDo you want to take down this ${typeLabel} from Backbench?`)) {
           if (onDelete) await onDelete(itemId);
         }
       }
@@ -99,9 +101,9 @@ export function showContextMenu(anchorBtn, options) {
       icon: 'flag',
       label: `Report ${typeLabel}`,
       className: 'ctx-menu-item',
-      action: () => {
+      action: async () => {
         closeActiveMenu();
-        const reason = prompt(`🚩 Report this ${typeLabel} to Moderation\nPlease state your reason:`, 'Inappropriate content');
+        const reason = await showPromptModal(`Report ${typeLabel}`, 'Inappropriate content', 'Please state your reason:');
         if (reason && reason.trim()) {
           if (onReport) onReport(itemId, reason.trim());
         }
@@ -127,9 +129,9 @@ export function showContextMenu(anchorBtn, options) {
         : `${baseUrl}#/post?id=${itemId}`;
       navigator.clipboard.writeText(link).then(() => {
         showToast('Link copied to clipboard!');
-      }).catch(() => {
+      }).catch(async () => {
         // Fallback
-        prompt('Copy this link:', link);
+        await showPromptModal('Copy this link:', link, 'Link');
       });
     }
   });

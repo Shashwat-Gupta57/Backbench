@@ -4,6 +4,7 @@ import { ROLES } from '../constants/roles.js';
 import { getUserProfile } from '../services/postService.js';
 import { getCampusAnalyticsStats, getAllUsersRoster, setUserRole, toggleUserSuspension, deletePostAsStaff } from '../services/adminService.js';
 import { getReportedPostsQueue, approveAndReinstatePost } from '../services/reportService.js';
+import { showConfirmModal } from '../components/Modal.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { escapeHTML } from '../helpers/formatters.js';
 import { renderFeedSkeletons } from '../components/Skeleton.js';
@@ -266,7 +267,7 @@ export async function renderAdmin(container) {
   container.querySelectorAll('.delete-reported-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const postId = btn.dataset.postId;
-      if (confirm('Are you sure you want to permanently delete this reported post?')) {
+      if (await showConfirmModal('Delete Post', 'Are you sure you want to permanently delete this reported post?')) {
         btn.disabled = true;
         btn.textContent = 'Deleting...';
 

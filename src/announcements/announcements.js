@@ -2,6 +2,7 @@ import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { createAnnouncement, subscribeToAnnouncements, deleteAnnouncementAsStaff, editAnnouncement } from '../services/announcementService.js';
 import { getUserProfile } from '../services/postService.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
+import { showPromptModal, showConfirmModal } from '../components/Modal.js';
 import { escapeHTML, renderFormattedContent } from '../helpers/formatters.js';
 import { formatTimeAgo } from '../helpers/time.js';
 import { showContextMenu } from '../components/ContextMenu.js';
@@ -223,10 +224,10 @@ export async function renderAnnouncements(container) {
               const currentTitle = h2.innerText;
               const currentText = contentEl.innerText;
               
-              const newTitle = prompt('Edit title:', currentTitle);
+              const newTitle = await showPromptModal('Edit title:', currentTitle);
               if (newTitle === null) return;
               
-              const newText = prompt('Edit content:', currentText);
+              const newText = await showPromptModal('Edit content:', currentText, '', 500);
               if (newText === null) return;
 
               if (newTitle.trim() !== currentTitle.trim() || newText.trim() !== currentText.trim()) {

@@ -10,6 +10,7 @@ import { escapeHTML, renderFormattedContent } from '../helpers/formatters.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
 import { getUserFontFamily } from '../constants/fonts.js';
 import { LIMITS } from '../constants/limits.js';
+import { showPromptModal, showConfirmModal } from '../components/Modal.js';
 import { ROUTES } from '../constants/routes.js';
 import { auth } from '../firebase/firebase.js';
 
@@ -193,7 +194,7 @@ export async function renderPostDetail(container) {
         <textarea id="reply-input" class="input-field" placeholder="Post your reply..." rows="2" style="resize: none; font-size: 15px; border: none; background: transparent; padding: 0; outline: none; box-shadow: none;"></textarea>
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
-          <span id="reply-char-counter" style="font-size: 12px; color: var(--text-secondary);">0 / ${LIMITS.REPLY_MAX_LENGTH}</span>
+          <span id="reply-char-counter" style="font-size: 12px; color: var(--text-secondary);">0 / ${LIMITS.REPLY_MAX_WORDS}</span>
           <button id="submit-reply-btn" class="btn" disabled style="font-size: 14px; padding: 6px 16px;">Reply</button>
         </div>
       </div>
@@ -346,9 +347,9 @@ export async function renderPostDetail(container) {
   // Auto-expanding textarea & character limit checker
   replyInput.addEventListener('input', () => {
     const len = replyInput.value.length;
-    replyCounter.textContent = `${len} / ${LIMITS.REPLY_MAX_LENGTH}`;
+    replyCounter.textContent = `${len} / ${LIMITS.REPLY_MAX_WORDS}`;
 
-    if (len > LIMITS.REPLY_MAX_LENGTH) {
+    if (len > LIMITS.REPLY_MAX_WORDS) {
       replyCounter.style.color = 'var(--error-color)';
       submitReplyBtn.disabled = true;
     } else if (len === 0 || replyInput.value.trim() === '') {
@@ -363,7 +364,7 @@ export async function renderPostDetail(container) {
   // Reply Submit Handler
   submitReplyBtn.addEventListener('click', async () => {
     const text = replyInput.value.trim();
-    if (text.length > 0 && text.length <= LIMITS.REPLY_MAX_LENGTH) {
+    const words = text ? text.split(/\\s+/) : [];\n    if (words.length > 0 && words.length <= LIMITS.REPLY_MAX_WORDS) {
       submitReplyBtn.disabled = true;
       submitReplyBtn.textContent = 'Replying...';
 
@@ -550,7 +551,7 @@ export async function renderPostDetail(container) {
         if (!contentBox) return;
 
         const currentText = contentBox.innerText;
-        const newText = prompt('Edit your reply:', currentText);
+        const newText = await showPromptModal('Edit your reply:', currentText, '', null, LIMITS.REPLY_MAX_WORDS);
         if (newText !== null && newText.trim() !== currentText.trim()) {
           try {
             const { editReply } = await import('../services/replyService.js');

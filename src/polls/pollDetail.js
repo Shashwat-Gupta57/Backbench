@@ -113,7 +113,7 @@ export async function renderPollDetail(container) {
         <textarea id="poll-reply-input" class="input-field" placeholder="Post your reply to this poll..." rows="2" style="resize: none; font-size: 15px; border: none; background: transparent; padding: 0; outline: none; box-shadow: none;"></textarea>
         
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
-          <span id="poll-reply-char-counter" style="font-size: 12px; color: var(--text-secondary);">0 / ${LIMITS.REPLY_MAX_LENGTH}</span>
+          <span id="poll-reply-char-counter" style="font-size: 12px; color: var(--text-secondary);">0 / ${LIMITS.REPLY_MAX_WORDS}</span>
           <button id="submit-poll-reply-btn" class="btn" disabled style="font-size: 14px; padding: 6px 16px;">Reply</button>
         </div>
       </div>
@@ -233,9 +233,9 @@ export async function renderPollDetail(container) {
   // Textarea char counter
   replyInput.addEventListener('input', () => {
     const len = replyInput.value.length;
-    replyCounter.textContent = `${len} / ${LIMITS.REPLY_MAX_LENGTH}`;
+    replyCounter.textContent = `${len} / ${LIMITS.REPLY_MAX_WORDS}`;
 
-    if (len > LIMITS.REPLY_MAX_LENGTH) {
+    if (len > LIMITS.REPLY_MAX_WORDS) {
       replyCounter.style.color = 'var(--error-color)';
       submitReplyBtn.disabled = true;
     } else if (len === 0 || replyInput.value.trim() === '') {
@@ -250,7 +250,7 @@ export async function renderPollDetail(container) {
   // Submit poll reply
   submitReplyBtn.addEventListener('click', async () => {
     const text = replyInput.value.trim();
-    if (text.length > 0 && text.length <= LIMITS.REPLY_MAX_LENGTH) {
+    const words = text ? text.split(/\\s+/) : [];\n    if (words.length > 0 && words.length <= LIMITS.REPLY_MAX_WORDS) {
       submitReplyBtn.disabled = true;
       submitReplyBtn.textContent = 'Replying...';
 

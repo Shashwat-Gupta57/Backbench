@@ -1,4 +1,5 @@
 import { reconcileFeed } from '../utils/dom.js';
+import { showPromptModal } from '../components/Modal.js';
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { subscribeToFeed, createPost, getUserProfile, toggleLikePost, isPostLikedByUser, isPostResharedByUser, toggleResharePost, deleteOwnPost, toggleSavedPost, isPostSaved, editPost } from '../services/postService.js';
 import { createPoll, subscribeToPolls, getUserVote, voteInPoll, toggleLikePoll, isPollLikedByUser, toggleResharePoll, isPollResharedByUser, deleteOwnPoll, deletePollAsStaff } from '../services/pollService.js';
@@ -108,7 +109,7 @@ export function renderHome(container) {
               <input type="checkbox" id="post-anonymous-checkbox" style="width: 14px; height: 14px; accent-color: var(--accent-primary); cursor: pointer;" />
               Anonymous
             </label>
-            <span id="char-counter" class="char-ring">0 / ${LIMITS.POST_MAX_LENGTH}</span>
+            <span id="char-counter" class="char-ring">0 / ${LIMITS.POST_MAX_WORDS}</span>
             <button id="post-btn" class="btn" disabled>Post</button>
           </div>
         </div>
@@ -219,9 +220,9 @@ export function renderHome(container) {
 
   function checkCanPost() {
     const len = postInput.value.length;
-    charCounter.textContent = `${len} / ${LIMITS.POST_MAX_LENGTH}`;
+    charCounter.textContent = `${len} / ${LIMITS.POST_MAX_WORDS}`;
 
-    if (len > LIMITS.POST_MAX_LENGTH) {
+    if (len > LIMITS.POST_MAX_WORDS) {
       charCounter.style.color = 'var(--error-color)';
       postBtn.disabled = true;
     } else if (isPollActive) {
@@ -251,7 +252,8 @@ export function renderHome(container) {
   // Submission Handler
   postBtn.addEventListener('click', async () => {
     const text = postInput.value.trim();
-    if (text.length > 0 && text.length <= LIMITS.POST_MAX_LENGTH) {
+    const words = text ? text.split(/\s+/) : [];
+    if (words.length > 0 && words.length <= LIMITS.POST_MAX_WORDS) {
       postBtn.disabled = true;
       postBtn.textContent = 'Posting...';
 
@@ -557,7 +559,7 @@ export function renderHome(container) {
           const bodyEl = card.querySelector('.post-body');
           if (!bodyEl) return;
           const currentText = bodyEl.innerText;
-          const newText = prompt('Edit your post:', currentText);
+          const newText = await showPromptModal('Edit your post:', currentText, 'Write something...', 500, 100);
           if (newText !== null && newText.trim() !== currentText.trim()) {
             try {
               await editPost(id, newText);

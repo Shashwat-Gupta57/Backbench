@@ -11,6 +11,7 @@ import { getSavedAccounts, switchToAccount, removeSavedAccount, logoutAllAccount
 import { escapeHTML } from '../helpers/formatters.js';
 import { formatTimeAgo } from '../helpers/time.js';
 import { renderUserAvatar } from '../helpers/avatar.js';
+import { showConfirmModal } from './Modal.js';
 
 function isRoute(route) {
   return window.location.hash.split('?')[0] === route || (route === ROUTES.HOME && (!window.location.hash || window.location.hash === '#/'));
@@ -316,7 +317,7 @@ export function attachLayoutListeners() {
   if (logoutCurrentBtn) {
     logoutCurrentBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (confirm('Log out of current account?')) {
+      if (await showConfirmModal('Log out', 'Log out of current account?')) {
         if (currentUser) {
           removeSavedAccount(currentUser.uid);
         }
@@ -330,7 +331,7 @@ export function attachLayoutListeners() {
   if (logoutAllBtn) {
     logoutAllBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (confirm('Log out of ALL saved accounts on this browser?')) {
+      if (await showConfirmModal('Log out all', 'Log out of ALL saved accounts on this browser?')) {
         await logoutAllAccounts();
       }
     });

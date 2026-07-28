@@ -8,12 +8,12 @@ export function validateUsername(username) {
 
 export function validatePostContent(content) {
   if (!content || content.trim().length === 0) return false;
-  if (content.length > LIMITS.POST_MAX_LENGTH) return false;
+  if (content.split(/\\s+/).length > LIMITS.POST_MAX_WORDS) return false;
   return true;
 }
 
 export function validateReplyContent(content) {
   if (!content || content.trim().length === 0) return false;
-  if (content.length > LIMITS.REPLY_MAX_LENGTH) return false;
+  if (content.split(/\\s+/).length > LIMITS.REPLY_MAX_WORDS) return false;
   return true;
 }

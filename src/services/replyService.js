@@ -18,8 +18,8 @@ export async function createReply(postId, content, parentReplyId = null) {
 
   const text = content ? content.trim() : '';
   if (!text) throw new Error('Reply cannot be empty');
-  if (text.length > LIMITS.REPLY_MAX_LENGTH) {
-    throw new Error(`Reply cannot exceed ${LIMITS.REPLY_MAX_LENGTH} characters`);
+  if (text.split(/\\s+/).length > LIMITS.REPLY_MAX_WORDS) {
+    throw new Error(`Reply cannot exceed ${LIMITS.REPLY_MAX_WORDS} characters`);
   }
 
   // Fetch post to check if it's anonymous
