@@ -1,6 +1,6 @@
 import { createLayout, attachLayoutListeners } from '../components/layout.js';
 import { getPostById, subscribeToReplies, createReply, isReplySaved, toggleSavedReply } from '../services/replyService.js';
-import { getUserProfile, toggleLikePost, getRelatedPosts, deleteOwnPost } from '../services/postService.js';
+import { getUserProfile, toggleLikePost, isPostLikedByUser, toggleResharePost, isPostResharedByUser, getRelatedPosts, deleteOwnPost } from '../services/postService.js';
 import { deletePostAsStaff } from '../services/adminService.js';
 import { reportPost } from '../services/reportService.js';
 import { showContextMenu } from '../components/ContextMenu.js';
@@ -172,9 +172,9 @@ export async function renderPostDetail(container) {
           <span class="material-symbols-outlined">chat_bubble</span>
           <span>${post.replyCount || 0}</span>
         </button>
-        <button class="action-btn reshare-btn" title="Reshare">
+        <button class="action-btn reshare-btn" id="post-detail-reshare-btn" title="Reshare">
           <span class="material-symbols-outlined">repeat</span>
-          <span class="reshare-count">${post.reshares || 0}</span>
+          <span class="reshare-count" id="post-reshare-stat">${post.reshares || 0}</span>
         </button>
         <button class="action-btn like-btn" id="post-detail-like-btn" title="Like">
           <span class="material-symbols-outlined">favorite</span>
@@ -246,6 +246,8 @@ export async function renderPostDetail(container) {
   const repliesContainer = document.getElementById('replies-feed-container');
   const likeBtn = document.getElementById('post-detail-like-btn');
   const likesStat = document.getElementById('post-likes-stat');
+  const reshareBtn = document.getElementById('post-detail-reshare-btn');
+  const reshareStat = document.getElementById('post-reshare-stat');
 
   const optionsBtn = document.getElementById('post-detail-options-btn');
   if (optionsBtn) {
@@ -289,9 +291,18 @@ export async function renderPostDetail(container) {
     });
   }
 
-  const isLikedInitially = await import('../services/postService.js').then(m => m.isPostLikedByUser(postId, auth.currentUser?.uid));
-  if (likeBtn && isLikedInitially) {
-    likeBtn.style.color = 'var(--error-color)';
+  try {
+    const isLikedInitially = await isPostLikedByUser(postId, auth.currentUser?.uid);
+    if (likeBtn && isLikedInitially) {
+      likeBtn.style.color = 'var(--error-color)';
+    }
+
+    const isResharedInitially = await isPostResharedByUser(postId, auth.currentUser?.uid);
+    if (reshareBtn && isResharedInitially) {
+      reshareBtn.style.color = '#00BA7C';
+    }
+  } catch (err) {
+    console.error('Error fetching initial like/reshare state', err);
   }
 
   if (likeBtn) {
@@ -309,6 +320,25 @@ export async function renderPostDetail(container) {
         console.error(err);
       } finally {
         likeBtn.disabled = false;
+      }
+    });
+  }
+
+  if (reshareBtn) {
+    reshareBtn.addEventListener('click', async () => {
+      reshareBtn.disabled = true;
+      try {
+        const res = await toggleResharePost(postId);
+        if (res.reshared) {
+          reshareBtn.style.color = '#00BA7C';
+        } else {
+          reshareBtn.style.color = '';
+        }
+        if (reshareStat) reshareStat.textContent = res.reshares;
+      } catch (err) {
+        console.error(err);
+      } finally {
+        reshareBtn.disabled = false;
       }
     });
   }
