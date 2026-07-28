@@ -1,25 +1,78 @@
 {
   "rules": {
     ".read": "auth != null",
-    ".write": "auth != null",
+    "users": {
+      "$uid": {
+        ".write": "$uid === auth.uid",
+        "role": {
+          ".validate": "newData.val() === data.val() || (!data.exists() && newData.val() === 'student')"
+        },
+        "isSuspended": {
+          ".validate": "newData.val() === data.val() || (!data.exists() && newData.val() === false)"
+        }
+      }
+    },
     "posts": {
-      ".indexOn": ["timestamp"]
+      ".indexOn": ["timestamp"],
+      "$postId": {
+        ".write": "auth != null",
+        "authorId": {
+          ".validate": "newData.val() === data.val() || (!data.exists() && newData.val() === auth.uid)"
+        }
+      }
     },
     "replies": {
-      ".indexOn": ["timestamp"]
+      ".indexOn": ["timestamp"],
+      "$postId": {
+        "$replyId": {
+          ".write": "auth != null",
+          "authorId": {
+            ".validate": "newData.val() === data.val() || (!data.exists() && newData.val() === auth.uid)"
+          }
+        }
+      }
     },
     "polls": {
-      ".indexOn": ["timestamp"]
+      ".indexOn": ["timestamp"],
+      "$pollId": {
+        ".write": "auth != null",
+        "creatorId": {
+          ".validate": "newData.val() === data.val() || (!data.exists() && newData.val() === auth.uid)"
+        }
+      }
     },
     "petitions": {
-      ".indexOn": ["timestamp"]
+      ".indexOn": ["timestamp"],
+      "$petitionId": {
+        ".write": "auth != null",
+        "creatorId": {
+          ".validate": "newData.val() === data.val() || (!data.exists() && newData.val() === auth.uid)"
+        }
+      }
     },
     "announcements": {
-      ".indexOn": ["timestamp"]
+      ".indexOn": ["timestamp"],
+      ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'teacher'"
     },
     "notifications": {
       "$uid": {
-        ".indexOn": ["timestamp"]
+        ".indexOn": ["timestamp"],
+        ".write": "auth != null" 
+      }
+    },
+    "friends": {
+      "$uid": {
+        ".write": "$uid === auth.uid"
+      }
+    },
+    "saved_posts": {
+      "$uid": {
+        ".write": "$uid === auth.uid"
+      }
+    },
+    "saved_replies": {
+      "$uid": {
+        ".write": "$uid === auth.uid"
       }
     }
   }

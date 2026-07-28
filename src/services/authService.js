@@ -46,41 +46,7 @@ export function isProfileComplete(profile) {
   return true;
 }
 
-export async function initializeMasterAdmin() {
-  const adminEmail = 'Admin@backbench.net';
-  const adminPassword = 'Admin^24547833';
 
-  try {
-    const methods = await fetchSignInMethodsForEmail(auth, adminEmail);
-    if (methods.length === 0) {
-      const cred = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
-      const user = cred.user;
-      const adminProfile = {
-        uid: user.uid,
-        username: 'admin',
-        name: 'Campus Administrator',
-        admissionNumber: '00001',
-        class: 'Staff/Admin',
-        mobile: '0000000000',
-        email: adminEmail,
-        bio: 'Official St. Joseph\'s College Master Administrator Account',
-        tagline: 'Leading with integrity and excellence',
-        joinedDate: new Date().toISOString(),
-        verifiedStudent: true,
-        role: ROLES.ADMIN,
-        postCount: 0,
-        replyCount: 0,
-        likeCount: 0,
-        isSuspended: false,
-        profilePicture: ''
-      };
-      await set(ref(db, `${PATHS.USERS}/${user.uid}`), adminProfile);
-      invalidateUserCache(user.uid);
-    }
-  } catch (err) {
-    // Already initialized or caught
-  }
-}
 
 export async function updateUserPassword(newPassword) {
   const user = auth.currentUser;
@@ -143,17 +109,8 @@ export async function registerUser(data) {
 
 export async function loginUser(email, password) {
   try {
-    if (email.trim().toLowerCase() === 'admin@backbench.net') {
-      await initializeMasterAdmin();
-    }
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     let role = ROLES.STUDENT;
-
-    if (email.trim().toLowerCase() === 'admin@backbench.net') {
-      role = ROLES.ADMIN;
-      await update(ref(db, `${PATHS.USERS}/${userCredential.user.uid}`), { role: ROLES.ADMIN });
-      invalidateUserCache(userCredential.user.uid);
-    }
 
     const snap = await get(ref(db, `${PATHS.USERS}/${userCredential.user.uid}`));
     const profile = snap.exists() ? snap.val() : { uid: userCredential.user.uid, name: email.split('@')[0], username: email.split('@')[0], role: role };

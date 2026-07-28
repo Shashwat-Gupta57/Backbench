@@ -389,7 +389,7 @@ export async function renderPostDetail(container) {
       let treeHtml = '';
       for (const reply of replyList) {
         const replyAuthor = await getUserProfile(reply.authorId);
-        const isSaved = currentUid ? await isReplySaved(post.postId, reply.replyId, currentUid) : false;
+        const isSaved = currentUid ? await isReplySaved(reply.replyId) : false;
 
         // If this post is anonymous, mask all reply authors with per-post anonymous numbers
         let replyAvatar, rName, rUsername, rIsTeacher, rVerified, rFont;

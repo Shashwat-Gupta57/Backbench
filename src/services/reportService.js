@@ -2,6 +2,7 @@ import { db, auth } from '../firebase/firebase.js';
 import { ref, get, set, update, remove, runTransaction } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { sendNotification } from './notificationService.js';
+import { ROLES } from '../constants/roles.js';
 
 export async function reportPost(postId, reason = 'Inappropriate content') {
   const user = auth.currentUser;
@@ -53,6 +54,15 @@ export async function reportPost(postId, reason = 'Inappropriate content') {
 }
 
 export async function getReportedPostsQueue() {
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) throw new Error('Not authenticated');
+  
+  const staffSnap = await get(ref(db, `${PATHS.USERS}/${currentUid}`));
+  const staffUser = staffSnap.exists() ? staffSnap.val() : null;
+  if (!staffUser || (staffUser.role !== ROLES.STAFF && staffUser.role !== ROLES.ADMIN)) {
+    throw new Error('Unauthorized: Staff power required to view reported posts.');
+  }
+
   try {
     const snap = await get(ref(db, PATHS.POSTS));
     if (!snap.exists()) return [];
@@ -74,6 +84,15 @@ export async function getReportedPostsQueue() {
 }
 
 export async function approveAndReinstatePost(postId) {
+  const currentUid = auth.currentUser?.uid;
+  if (!currentUid) throw new Error('Not authenticated');
+
+  const staffSnap = await get(ref(db, `${PATHS.USERS}/${currentUid}`));
+  const staffUser = staffSnap.exists() ? staffSnap.val() : null;
+  if (!staffUser || (staffUser.role !== ROLES.STAFF && staffUser.role !== ROLES.ADMIN)) {
+    throw new Error('Unauthorized: Staff power required to approve posts.');
+  }
+
   const postRef = ref(db, `${PATHS.POSTS}/${postId}`);
   const snap = await get(postRef);
   if (!snap.exists()) throw new Error('Post not found');

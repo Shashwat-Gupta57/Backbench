@@ -1,5 +1,5 @@
 import { db, auth } from '../firebase/firebase.js';
-import { ref, push, set, get, onValue, off, remove, runTransaction } from 'firebase/database';
+import { ref, push, set, get, onValue, off, remove, runTransaction, update } from 'firebase/database';
 import { PATHS } from '../constants/firebasePaths.js';
 import { LIMITS } from '../constants/limits.js';
 
@@ -130,18 +130,28 @@ export function subscribeToReplies(postId, callback) {
   return () => off(repliesRef, 'value', listener);
 }
 
-export async function toggleLikeReply(replyId) {
+export async function toggleLikeReply(replyId, postId) {
   const user = auth.currentUser;
-  if (!user) return;
+  if (!user || !postId || !replyId) return;
 
   const likeRef = ref(db, `${PATHS.REPLY_LIKES}/${replyId}/${user.uid}`);
   const snap = await get(likeRef);
+  let isLiked = snap.exists();
 
-  if (snap.exists()) {
+  if (isLiked) {
     await remove(likeRef);
   } else {
     await set(likeRef, true);
   }
+
+  // Update reply.likes atomically
+  const replyRef = ref(db, `${PATHS.REPLIES}/${postId}/${replyId}`);
+  await runTransaction(replyRef, (reply) => {
+    if (reply) {
+      reply.likes = (reply.likes || 0) + (isLiked ? -1 : 1);
+    }
+    return reply;
+  });
 }
 
 export async function getReplyById(postId, replyId) {
